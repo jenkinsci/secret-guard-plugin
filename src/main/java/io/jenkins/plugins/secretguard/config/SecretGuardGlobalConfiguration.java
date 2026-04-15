@@ -1,6 +1,7 @@
 package io.jenkins.plugins.secretguard.config;
 
 import hudson.Extension;
+import hudson.util.ListBoxModel;
 import io.jenkins.plugins.secretguard.model.EnforcementMode;
 import io.jenkins.plugins.secretguard.model.Severity;
 import java.util.Arrays;
@@ -129,6 +130,30 @@ public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
 
     public Severity[] getSeverities() {
         return Severity.values();
+    }
+
+    public ListBoxModel doFillEnforcementModeItems() {
+        return buildEnforcementModeItems();
+    }
+
+    public ListBoxModel doFillBlockThresholdItems() {
+        return buildBlockThresholdItems();
+    }
+
+    static ListBoxModel buildEnforcementModeItems() {
+        ListBoxModel items = new ListBoxModel();
+        for (EnforcementMode mode : EnforcementMode.values()) {
+            items.add(mode.name(), mode.name());
+        }
+        return items;
+    }
+
+    static ListBoxModel buildBlockThresholdItems() {
+        ListBoxModel items = new ListBoxModel();
+        for (Severity severity : Severity.values()) {
+            items.add(severity.name(), severity.name());
+        }
+        return items;
     }
 
     private static String normalizeText(String value) {
