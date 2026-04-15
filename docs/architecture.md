@@ -157,6 +157,8 @@ Results are exposed through:
 - `SecretGuardRootAction`
 - `SecretGuardAdministrativeMonitor`
 
+Job-level reports are attached only after a job has a stored scan result, so unscanned jobs do not show a Secret Guard page.
+
 `ScanResultStore` keeps the latest result in memory and persists one masked latest-result XML file per target under `$JENKINS_HOME/secret-guard/results/`. Reports can be restored lazily after a controller restart without storing raw secret values.
 
 ## Current Boundaries
