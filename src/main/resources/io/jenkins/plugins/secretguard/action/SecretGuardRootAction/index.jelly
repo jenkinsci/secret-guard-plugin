@@ -28,7 +28,11 @@
                                 </j:choose>
                             </td>
                             <td>${result.targetType}</td>
-                            <td>${result.highestSeverity}</td>
+                            <td>
+                                <span style="${it.getSeverityBadgeStyle(result.highestSeverity)}">
+                                    ${it.getSeverityBadgeLabel(result.highestSeverity)}
+                                </span>
+                            </td>
                             <td>${result.findings.size()}</td>
                             <td>${result.blocked}</td>
                             <td>${result.scannedAt}</td>

@@ -10,7 +10,7 @@ import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest2;
 
 @Extension
-public class SecretGuardRootAction implements RootAction {
+public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport {
     @Override
     public String getIconFileName() {
         return "symbol-shield-checkmark-outline plugin-ionicons-api";

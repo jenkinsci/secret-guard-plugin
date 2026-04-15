@@ -187,6 +187,7 @@ Persisted results contain only report data such as rule IDs, severity, source lo
 - `SecretGuardRootAction`
   - shows global summary
   - links each listed job to its job-level Secret Guard report
+  - renders severity values as colored badges so `LOW`, `MEDIUM`, and `HIGH` are easier to distinguish
 - `SecretGuardAdministrativeMonitor`
   - activates when unexempted high-severity findings exist
 

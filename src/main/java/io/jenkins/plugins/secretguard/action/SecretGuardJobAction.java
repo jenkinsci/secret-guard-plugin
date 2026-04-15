@@ -8,7 +8,7 @@ import io.jenkins.plugins.secretguard.service.ScanResultStore;
 import java.util.Collections;
 import java.util.List;
 
-public class SecretGuardJobAction implements Action {
+public class SecretGuardJobAction implements Action, SeverityBadgeSupport {
     private final Job<?, ?> job;
 
     public SecretGuardJobAction(Job<?, ?> job) {

@@ -22,7 +22,11 @@
                         <tbody>
                             <j:forEach var="finding" items="${it.findings}">
                                 <tr>
-                                    <td>${finding.severity}</td>
+                                    <td>
+                                        <span style="${it.getSeverityBadgeStyle(finding.severity)}">
+                                            ${it.getSeverityBadgeLabel(finding.severity)}
+                                        </span>
+                                    </td>
                                     <td>${finding.ruleId}</td>
                                     <td>${finding.sourceName}</td>
                                     <td>${finding.fieldName}</td>
