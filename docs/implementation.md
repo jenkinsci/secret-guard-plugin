@@ -32,12 +32,12 @@ The Java sources are organized under `io.jenkins.plugins.secretguard`:
 ### Save-time flow
 
 1. Jenkins saves a `Job`
-2. `SecretGuardSaveableListener` reads `config.xml`
-3. `ConfigXmlScanner` extracts candidate values
+2. `SecretGuardJobConfigFilter` wraps Job create and update HTTP requests before the response is committed
+3. `ConfigXmlScanner` extracts candidate values from the candidate `config.xml`
 4. `BuiltInSecretRuleSet` emits findings
 5. `SecretScanService` applies whitelist and exemption policy
-6. Result is saved to `ScanResultStore`
-7. If mode is `BLOCK` and threshold is hit, save is rejected
+6. If mode is `BLOCK` and threshold is hit, the filter restores the previous `config.xml` or deletes the newly created Job, then returns an error response
+7. `SecretGuardSaveableListener` and `SecretGuardItemListener` refresh the persisted latest result for reporting
 
 ### Build-time flow
 
@@ -282,7 +282,7 @@ Recommended next layer:
 
 - build-time scanning only covers inline Pipeline scripts exposed by `getDefinition().getScript()`
 - external SCM `Jenkinsfile` retrieval is not implemented
-- save blocking currently relies on save listener failure propagation and should be hardened with integration tests
+- save/create blocking still needs deeper JenkinsRule coverage for UI and XML API flows
 - report storage is volatile
 - no trend/history view exists
 

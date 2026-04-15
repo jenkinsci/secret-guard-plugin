@@ -136,11 +136,15 @@ Policy behavior:
 
 The plugin integrates at three levels:
 
+- `SecretGuardJobConfigFilter`
+  - intercepts Job create and config update HTTP requests
+  - restores the prior `config.xml` or deletes a newly created Job when `BLOCK` mode rejects the change
 - `SecretGuardSaveableListener`
   - scans saved Job configuration
-  - blocks save on actionable `HIGH` findings in `BLOCK` mode
+  - records the latest saved Job configuration result after persistence
 - `SecretGuardItemListener`
   - refreshes scan results for created or updated items
+  - blocks copying a risky Job before the copy is created in `BLOCK` mode
   - complements save-time reporting
 - `SecretGuardRunListener`
   - scans inline Pipeline script at build start

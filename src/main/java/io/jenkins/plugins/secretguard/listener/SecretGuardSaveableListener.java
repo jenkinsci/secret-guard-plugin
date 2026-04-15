@@ -5,13 +5,8 @@ import hudson.XmlFile;
 import hudson.model.Job;
 import hudson.model.Saveable;
 import hudson.model.listeners.SaveableListener;
-import io.jenkins.plugins.secretguard.config.SecretGuardGlobalConfiguration;
-import io.jenkins.plugins.secretguard.model.FindingLocationType;
-import io.jenkins.plugins.secretguard.model.ScanContext;
 import io.jenkins.plugins.secretguard.model.ScanPhase;
-import io.jenkins.plugins.secretguard.model.SecretScanResult;
-import io.jenkins.plugins.secretguard.scan.ConfigXmlScanner;
-import io.jenkins.plugins.secretguard.service.SecretScanService;
+import io.jenkins.plugins.secretguard.service.JobConfigEnforcementService;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -20,8 +15,7 @@ import java.util.logging.Logger;
 public class SecretGuardSaveableListener extends SaveableListener {
     private static final Logger LOGGER = Logger.getLogger(SecretGuardSaveableListener.class.getName());
 
-    private final SecretScanService scanService = new SecretScanService();
-    private final ConfigXmlScanner configXmlScanner = new ConfigXmlScanner();
+    private final JobConfigEnforcementService enforcementService = new JobConfigEnforcementService();
 
     @Override
     public void onChange(Saveable saveable, XmlFile file) {
@@ -29,25 +23,9 @@ public class SecretGuardSaveableListener extends SaveableListener {
             return;
         }
         try {
-            SecretScanResult result = scanService.scan(configXmlScanner, createContext(job), file.asString());
-            if (result.isBlocked()) {
-                throw new IllegalStateException("Secret Guard blocked saving " + job.getFullName()
-                        + " because high severity secrets were found.");
-            }
+            enforcementService.scan(job, file.asString(), ScanPhase.SAVE);
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Failed to scan job configuration for " + job.getFullName(), e);
         }
-    }
-
-    private ScanContext createContext(Job<?, ?> job) {
-        SecretGuardGlobalConfiguration configuration = SecretGuardGlobalConfiguration.get();
-        return new ScanContext(
-                job.getFullName(),
-                "config.xml",
-                job.getClass().getSimpleName(),
-                FindingLocationType.CONFIG_XML,
-                ScanPhase.SAVE,
-                configuration == null ? io.jenkins.plugins.secretguard.model.EnforcementMode.AUDIT : configuration.getEnforcementMode(),
-                configuration == null ? io.jenkins.plugins.secretguard.model.Severity.HIGH : configuration.getBlockThreshold());
     }
 }
