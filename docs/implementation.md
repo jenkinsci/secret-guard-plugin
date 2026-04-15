@@ -190,6 +190,7 @@ Persisted results contain only report data such as rule IDs, severity, source lo
   - renders severity values as colored badges so `LOW`, `MEDIUM`, and `HIGH` are easier to distinguish
 - `SecretGuardAdministrativeMonitor`
   - activates when unexempted high-severity findings exist
+  - uses the Jenkins native warning alert on `/manage/` and links directly to the Secret Guard system page
 
 Jelly resources live under:
 
