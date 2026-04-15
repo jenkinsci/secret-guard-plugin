@@ -1,0 +1,49 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout">
+    <l:layout title="Secret Guard">
+        <l:main-panel>
+            <h1>Secret Guard Report for ${it.job.fullDisplayName}</h1>
+            <j:choose>
+                <j:when test="${it.hasFindings()}">
+                    <p>Last scan: ${it.result.scannedAt}</p>
+                    <table class="jenkins-table sortable">
+                        <thead>
+                            <tr>
+                                <th>Severity</th>
+                                <th>Rule</th>
+                                <th>Location</th>
+                                <th>Field</th>
+                                <th>Line</th>
+                                <th>Masked snippet</th>
+                                <th>Recommendation</th>
+                                <th>Exempted</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <j:forEach var="finding" items="${it.findings}">
+                                <tr>
+                                    <td>${finding.severity}</td>
+                                    <td>${finding.ruleId}</td>
+                                    <td>${finding.sourceName}</td>
+                                    <td>${finding.fieldName}</td>
+                                    <td>${finding.lineNumber}</td>
+                                    <td>${finding.maskedSnippet}</td>
+                                    <td>${finding.recommendation}</td>
+                                    <td>
+                                        <j:choose>
+                                            <j:when test="${finding.exempted}">Yes: ${finding.exemptionReason}</j:when>
+                                            <j:otherwise>No</j:otherwise>
+                                        </j:choose>
+                                    </td>
+                                </tr>
+                            </j:forEach>
+                        </tbody>
+                    </table>
+                </j:when>
+                <j:otherwise>
+                    <p>No Secret Guard findings have been recorded for this job.</p>
+                </j:otherwise>
+            </j:choose>
+        </l:main-panel>
+    </l:layout>
+</j:jelly>

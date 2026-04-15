@@ -1,0 +1,29 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+    <f:section title="Jenkins Secret Guard">
+        <f:entry title="Enabled" field="enabled">
+            <f:checkbox />
+        </f:entry>
+        <f:entry title="Enforcement mode" field="enforcementMode">
+            <f:select />
+        </f:entry>
+        <f:entry title="Block threshold" field="blockThreshold">
+            <f:select />
+        </f:entry>
+        <f:entry title="Rule ID whitelist" field="ruleIdWhitelist">
+            <f:textarea />
+        </f:entry>
+        <f:entry title="Job whitelist" field="jobWhitelist">
+            <f:textarea />
+        </f:entry>
+        <f:entry title="Field name whitelist" field="fieldNameWhitelist">
+            <f:textarea />
+        </f:entry>
+        <f:entry title="Exemptions" field="exemptions">
+            <f:textarea />
+            <div class="jenkins-form-description">
+                Use one exemption per line: jobFullName|ruleId|reason
+            </div>
+        </f:entry>
+    </f:section>
+</j:jelly>

@@ -1,0 +1,34 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout">
+    <l:layout title="Secret Guard">
+        <l:main-panel>
+            <h1>Secret Guard Build Report</h1>
+            <table class="jenkins-table sortable">
+                <thead>
+                    <tr>
+                        <th>Severity</th>
+                        <th>Rule</th>
+                        <th>Location</th>
+                        <th>Line</th>
+                        <th>Masked snippet</th>
+                        <th>Recommendation</th>
+                        <th>Exempted</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <j:forEach var="finding" items="${it.findings}">
+                        <tr>
+                            <td>${finding.severity}</td>
+                            <td>${finding.ruleId}</td>
+                            <td>${finding.sourceName}</td>
+                            <td>${finding.lineNumber}</td>
+                            <td>${finding.maskedSnippet}</td>
+                            <td>${finding.recommendation}</td>
+                            <td>${finding.exempted}</td>
+                        </tr>
+                    </j:forEach>
+                </tbody>
+            </table>
+        </l:main-panel>
+    </l:layout>
+</j:jelly>

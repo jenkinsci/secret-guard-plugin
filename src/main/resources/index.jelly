@@ -1,0 +1,5 @@
+<?jelly escape-by-default='true'?>
+<div>
+    Jenkins Secret Guard detects hardcoded secrets in Jenkins job configuration and Pipeline scripts.
+    Configure the global enforcement mode from “Manage Jenkins”.
+</div>

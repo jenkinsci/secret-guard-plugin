@@ -1,0 +1,5 @@
+<?jelly escape-by-default='true'?>
+<div>
+    Jenkins Secret Guard has detected ${it.unexemptedHighCount} unexempted high severity secret finding(s).
+    Review the Secret Guard report from the Jenkins side panel.
+</div>

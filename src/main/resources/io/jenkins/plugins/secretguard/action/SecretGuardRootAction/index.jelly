@@ -1,0 +1,33 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout">
+    <l:layout title="Secret Guard">
+        <l:main-panel>
+            <h1>Jenkins Secret Guard</h1>
+            <p>Unexempted high severity findings: ${it.unexemptedHighCount}</p>
+            <table class="jenkins-table sortable">
+                <thead>
+                    <tr>
+                        <th>Job</th>
+                        <th>Target type</th>
+                        <th>Highest severity</th>
+                        <th>Findings</th>
+                        <th>Blocked</th>
+                        <th>Scanned at</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <j:forEach var="result" items="${it.results}">
+                        <tr>
+                            <td>${result.targetId}</td>
+                            <td>${result.targetType}</td>
+                            <td>${result.highestSeverity}</td>
+                            <td>${result.findings.size()}</td>
+                            <td>${result.blocked}</td>
+                            <td>${result.scannedAt}</td>
+                        </tr>
+                    </j:forEach>
+                </tbody>
+            </table>
+        </l:main-panel>
+    </l:layout>
+</j:jelly>
