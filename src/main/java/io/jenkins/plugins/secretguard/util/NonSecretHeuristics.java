@@ -13,8 +13,7 @@ public final class NonSecretHeuristics {
             Pattern.compile("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
     private static final Pattern HEADER_NAME_IN_LINE = Pattern.compile("\\bname\\s*:\\s*['\"]([^'\"]+)['\"]");
 
-    private NonSecretHeuristics() {
-    }
+    private NonSecretHeuristics() {}
 
     public static boolean looksLikeSafeReference(String value) {
         if (value == null) {
@@ -49,8 +48,7 @@ public final class NonSecretHeuristics {
     public static boolean isPublicCertificateContext(String value) {
         String upper = nullToEmpty(value).toUpperCase(Locale.ENGLISH);
         return !upper.contains("PRIVATE KEY")
-                && (upper.contains("-----BEGIN CERTIFICATE-----")
-                        || upper.contains("-----BEGIN PUBLIC KEY-----"));
+                && (upper.contains("-----BEGIN CERTIFICATE-----") || upper.contains("-----BEGIN PUBLIC KEY-----"));
     }
 
     public static boolean isBenignTrackingHeaderName(String headerName) {
@@ -156,12 +154,7 @@ public final class NonSecretHeuristics {
     }
 
     private static boolean isPathLikeChar(char c) {
-        return Character.isLetterOrDigit(c)
-                || c == '/'
-                || c == '.'
-                || c == '_'
-                || c == '-'
-                || c == ':';
+        return Character.isLetterOrDigit(c) || c == '/' || c == '.' || c == '_' || c == '-' || c == ':';
     }
 
     private static boolean looksLikeHumanReadableIdentifier(String value) {

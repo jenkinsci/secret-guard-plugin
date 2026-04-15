@@ -22,12 +22,8 @@ class ScanResultStoreTest {
     void persistsAndReloadsLatestScanResult() {
         ScanResultStore writer = ScanResultStore.inDirectory(temporaryDirectory);
         Instant scannedAt = Instant.parse("2026-04-15T12:00:00Z");
-        SecretScanResult result = new SecretScanResult(
-                "folder/job",
-                "WorkflowJob",
-                List.of(finding(false)),
-                true,
-                scannedAt);
+        SecretScanResult result =
+                new SecretScanResult("folder/job", "WorkflowJob", List.of(finding(false)), true, scannedAt);
 
         writer.put(result);
 
@@ -46,14 +42,11 @@ class ScanResultStoreTest {
     void persistsExemptionStateAndCanRemoveResult() {
         ScanResultStore store = ScanResultStore.inDirectory(temporaryDirectory);
         store.put(new SecretScanResult(
-                "folder/job",
-                "WorkflowJob",
-                List.of(finding(true)),
-                false,
-                Instant.parse("2026-04-15T12:00:00Z")));
+                "folder/job", "WorkflowJob", List.of(finding(true)), false, Instant.parse("2026-04-15T12:00:00Z")));
 
         ScanResultStore reader = ScanResultStore.inDirectory(temporaryDirectory);
-        SecretFinding loadedFinding = reader.get("folder/job").orElseThrow().getFindings().get(0);
+        SecretFinding loadedFinding =
+                reader.get("folder/job").orElseThrow().getFindings().get(0);
         assertTrue(loadedFinding.isExempted());
         assertEquals("approved test exemption", loadedFinding.getExemptionReason());
 

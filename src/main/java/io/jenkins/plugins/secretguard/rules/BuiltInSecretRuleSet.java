@@ -42,7 +42,8 @@ public class BuiltInSecretRuleSet {
                 "aws-secret-key",
                 "AWS secret key pattern is hardcoded",
                 Severity.HIGH,
-                Pattern.compile("(?i)(?:aws(.{0,20})?)?(?:secret|secretAccessKey|secret_access_key)['\"\\s:=]+([A-Za-z0-9/+=]{40})"),
+                Pattern.compile(
+                        "(?i)(?:aws(.{0,20})?)?(?:secret|secretAccessKey|secret_access_key)['\"\\s:=]+([A-Za-z0-9/+=]{40})"),
                 Recommendations.CREDENTIALS,
                 2));
         builtIns.add(new PatternSecretRule(
@@ -263,10 +264,15 @@ public class BuiltInSecretRuleSet {
     }
 
     private static final class Recommendations {
-        private static final String CREDENTIALS = "Move the plaintext secret to Jenkins Credentials and inject it only at runtime.";
-        private static final String NO_CONFIG_SECRET = "Do not persist secrets in Job configuration; move the value to Jenkins Credentials.";
-        private static final String NO_COMMAND_LINE_SECRET = "Use withCredentials and avoid placing secrets directly in command-line arguments or headers.";
-        private static final String NO_URL_SECRET = "Do not embed secrets in URLs; use Jenkins Credentials and safe request configuration.";
-        private static final String NO_URL_QUERY_SECRET = "Move URL query secrets such as webhook keys to Jenkins Credentials and inject them at runtime.";
+        private static final String CREDENTIALS =
+                "Move the plaintext secret to Jenkins Credentials and inject it only at runtime.";
+        private static final String NO_CONFIG_SECRET =
+                "Do not persist secrets in Job configuration; move the value to Jenkins Credentials.";
+        private static final String NO_COMMAND_LINE_SECRET =
+                "Use withCredentials and avoid placing secrets directly in command-line arguments or headers.";
+        private static final String NO_URL_SECRET =
+                "Do not embed secrets in URLs; use Jenkins Credentials and safe request configuration.";
+        private static final String NO_URL_QUERY_SECRET =
+                "Move URL query secrets such as webhook keys to Jenkins Credentials and inject them at runtime.";
     }
 }

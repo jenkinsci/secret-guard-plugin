@@ -38,7 +38,8 @@ class BuiltInSecretRuleSetTest {
 
     @Test
     void doesNotTreatPathsOrDockerImagesAsHighEntropySecrets() {
-        assertTrue(scan("", "registry.example.invalid/team/tooling/cicd/example_runner:0.2").isEmpty());
+        assertTrue(scan("", "registry.example.invalid/team/tooling/cicd/example_runner:0.2")
+                .isEmpty());
         assertTrue(scan("", "/opt/example-tools/run-task-reporter.py").isEmpty());
         assertTrue(scan("", "/var/run/docker.sock:/var/run/docker.sock").isEmpty());
     }
@@ -46,7 +47,8 @@ class BuiltInSecretRuleSetTest {
     @Test
     void doesNotTreatCredentialIdsAsSecrets() {
         assertTrue(scan("registryCredentialsId", "jfrog-cred-default").isEmpty());
-        assertTrue(scan("tokenCredentialId", "ghp_012345678901234567890123456789012345").isEmpty());
+        assertTrue(scan("tokenCredentialId", "ghp_012345678901234567890123456789012345")
+                .isEmpty());
     }
 
     @Test
@@ -54,7 +56,9 @@ class BuiltInSecretRuleSetTest {
         assertTrue(scan("checksum", "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
                 .isEmpty());
         assertTrue(scan("commit", "0123456789abcdef0123456789abcdef01234567").isEmpty());
-        assertTrue(scan("imageDigest", "repo/image@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+        assertTrue(scan(
+                        "imageDigest",
+                        "repo/image@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
                 .isEmpty());
     }
 
@@ -70,9 +74,8 @@ class BuiltInSecretRuleSetTest {
 
     @Test
     void detectsSecretInUrlQueryParameter() {
-        List<SecretFinding> findings = scan(
-                "",
-                "https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999");
+        List<SecretFinding> findings =
+                scan("", "https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999");
         assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("url-query-secret")));
         assertTrue(findings.stream().anyMatch(finding -> finding.getSeverity() == Severity.HIGH));
     }

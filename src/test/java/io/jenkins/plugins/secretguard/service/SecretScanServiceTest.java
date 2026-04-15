@@ -20,22 +20,23 @@ class SecretScanServiceTest {
     @Test
     void blocksOnActionableHighFindings() {
         SecretScanService service = new SecretScanService(new WhitelistService(), new ExemptionService());
-        SecretScanResult result = service.scan(
-                scannerWith(singleFinding(false)),
-                context(EnforcementMode.BLOCK),
-                "ignored");
+        SecretScanResult result =
+                service.scan(scannerWith(singleFinding(false)), context(EnforcementMode.BLOCK), "ignored");
         assertTrue(result.isBlocked());
     }
 
     @Test
     void whitelistedFindingsDoNotBlock() {
-        SecretScanService service = new SecretScanService(new WhitelistService() {
-            @Override
-            public boolean isWhitelisted(SecretFinding finding) {
-                return true;
-            }
-        }, new ExemptionService());
-        SecretScanResult result = service.scan(scannerWith(singleFinding(false)), context(EnforcementMode.BLOCK), "ignored");
+        SecretScanService service = new SecretScanService(
+                new WhitelistService() {
+                    @Override
+                    public boolean isWhitelisted(SecretFinding finding) {
+                        return true;
+                    }
+                },
+                new ExemptionService());
+        SecretScanResult result =
+                service.scan(scannerWith(singleFinding(false)), context(EnforcementMode.BLOCK), "ignored");
         assertFalse(result.isBlocked());
         assertTrue(result.getFindings().get(0).isExempted());
     }
@@ -53,28 +54,18 @@ class SecretScanServiceTest {
     void suppressesHighEntropyWhenSpecificRuleHitsSameFinding() {
         SecretScanService service = new SecretScanService(new WhitelistService(), new ExemptionService());
         List<SecretFinding> findings = new ArrayList<>();
-        findings.add(finding(
-                "high-entropy-string",
-                Severity.MEDIUM,
-                "x-example-auth",
-                "Exa…DEF"));
-        findings.add(finding(
-                "http-request-hardcoded-header-secret",
-                Severity.HIGH,
-                "x-example-auth",
-                "Exa…DEF"));
-        findings.add(finding(
-                "http-request-unmasked-header-secret",
-                Severity.HIGH,
-                "x-example-auth",
-                "Exa…DEF"));
+        findings.add(finding("high-entropy-string", Severity.MEDIUM, "x-example-auth", "Exa…DEF"));
+        findings.add(finding("http-request-hardcoded-header-secret", Severity.HIGH, "x-example-auth", "Exa…DEF"));
+        findings.add(finding("http-request-unmasked-header-secret", Severity.HIGH, "x-example-auth", "Exa…DEF"));
 
-        SecretScanResult result =
-                service.scan((context, content) -> new SecretScanResult(context.getJobFullName(), context.getTargetType(), findings, false),
-                        context(EnforcementMode.BLOCK),
-                        "ignored");
+        SecretScanResult result = service.scan(
+                (context, content) ->
+                        new SecretScanResult(context.getJobFullName(), context.getTargetType(), findings, false),
+                context(EnforcementMode.BLOCK),
+                "ignored");
 
-        assertFalse(result.getFindings().stream().anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
         assertTrue(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
         assertTrue(result.getFindings().stream()
@@ -111,7 +102,8 @@ class SecretScanServiceTest {
         SecretScanService service = new SecretScanService(new WhitelistService(), new ExemptionService());
         SecretScanResult result = service.scan(new ConfigXmlScanner(), context(EnforcementMode.BLOCK), xml);
 
-        assertFalse(result.getFindings().stream().anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
         assertTrue(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
         assertTrue(result.getFindings().stream()
@@ -119,7 +111,8 @@ class SecretScanServiceTest {
     }
 
     private SecretScanner scannerWith(SecretFinding finding) {
-        return (context, content) -> new SecretScanResult(context.getJobFullName(), context.getTargetType(), List.of(finding), false);
+        return (context, content) ->
+                new SecretScanResult(context.getJobFullName(), context.getTargetType(), List.of(finding), false);
     }
 
     private SecretFinding singleFinding(boolean exempted) {

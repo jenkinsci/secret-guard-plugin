@@ -7,8 +7,7 @@ public final class SecretMasker {
     private static final Pattern URL_USERINFO = Pattern.compile("(?i)(https?://)([^/@\\s]+)@([^\\s\"'<>]+)");
     private static final Pattern JWT = Pattern.compile("([A-Za-z0-9_-]+)\\.([A-Za-z0-9_-]+)\\.([A-Za-z0-9_-]+)");
 
-    private SecretMasker() {
-    }
+    private SecretMasker() {}
 
     public static String mask(String value) {
         if (value == null || value.isBlank()) {

@@ -73,7 +73,8 @@ public class ConfigXmlScanner implements SecretScanner {
         if (!directText.isBlank()) {
             if (isPipelineScriptElement(path, element.getNodeName(), directText)) {
                 ScanContext scriptContext = context.withLocationType(FindingLocationType.PIPELINE_SCRIPT);
-                findings.addAll(pipelineScriptScanner.scan(scriptContext, directText).getFindings());
+                findings.addAll(
+                        pipelineScriptScanner.scan(scriptContext, directText).getFindings());
             } else {
                 scanValue(context, content, findings, path, element.getNodeName(), directText);
             }
@@ -146,7 +147,8 @@ public class ConfigXmlScanner implements SecretScanner {
         for (int index = 0; index < lines.length; index++) {
             String line = lines[index];
             for (SecretRule rule : ruleSet.getRules()) {
-                findings.addAll(rule.scan(context, context.getSourceName(), index + 1, extractXmlFieldName(line), line));
+                findings.addAll(
+                        rule.scan(context, context.getSourceName(), index + 1, extractXmlFieldName(line), line));
             }
         }
     }

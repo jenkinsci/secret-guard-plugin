@@ -49,7 +49,8 @@ public class SecretGuardRunListener extends RunListener<Run<?, ?>> {
         if (!result.hasFindings()) {
             return;
         }
-        listener.getLogger().println("[Secret Guard] Found " + result.getFindings().size() + " potential secret risk(s).");
+        listener.getLogger()
+                .println("[Secret Guard] Found " + result.getFindings().size() + " potential secret risk(s).");
         EnforcementMode mode = configuration == null ? EnforcementMode.AUDIT : configuration.getEnforcementMode();
         if (mode == EnforcementMode.WARN) {
             run.setResult(Result.UNSTABLE);

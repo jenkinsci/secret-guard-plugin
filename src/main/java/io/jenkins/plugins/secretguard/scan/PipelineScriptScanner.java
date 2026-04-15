@@ -87,16 +87,16 @@ public class PipelineScriptScanner implements SecretScanner {
             FindingLocationType locationType = classifyLine(trimmed, environmentDepth > 0, context.getLocationType());
             ScanContext locationContext = context.withLocationType(locationType);
             String fieldName = extractFieldName(trimmed);
-            String effectiveFieldName =
-                    customHeadersWindow > 0 && fieldName.isBlank() && !currentHeaderName.isBlank()
-                            ? currentHeaderName
-                            : fieldName;
+            String effectiveFieldName = customHeadersWindow > 0 && fieldName.isBlank() && !currentHeaderName.isBlank()
+                    ? currentHeaderName
+                    : fieldName;
             for (SecretRule rule : ruleSet.getRules()) {
-                findings.addAll(rule.scan(
-                        locationContext, context.getSourceName(), index + 1, effectiveFieldName, trimmed));
+                findings.addAll(
+                        rule.scan(locationContext, context.getSourceName(), index + 1, effectiveFieldName, trimmed));
             }
             if (customHeadersWindow > 0) {
-                findings.addAll(scanHardcodedCustomHeader(locationContext, index + 1, trimmed, currentHeaderName, currentHeaderMaskFalse));
+                findings.addAll(scanHardcodedCustomHeader(
+                        locationContext, index + 1, trimmed, currentHeaderName, currentHeaderMaskFalse));
                 if (trimmed.contains("]")) {
                     currentHeaderMaskFalse = false;
                 }
@@ -152,7 +152,10 @@ public class PipelineScriptScanner implements SecretScanner {
             return false;
         }
         String trimmed = headerValue.trim();
-        if (trimmed.contains("${") || trimmed.startsWith("$") || trimmed.contains("credentials(") || trimmed.contains("env.")) {
+        if (trimmed.contains("${")
+                || trimmed.startsWith("$")
+                || trimmed.contains("credentials(")
+                || trimmed.contains("env.")) {
             return false;
         }
         if (HEADER_SENSITIVE_NAME.matcher(headerName == null ? "" : headerName).find()) {

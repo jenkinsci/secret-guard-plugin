@@ -71,7 +71,9 @@ public class ScanResultStore {
 
     public long getUnexemptedHighCount() {
         loadAllFromDisk();
-        return results.values().stream().mapToLong(SecretScanResult::getUnexemptedHighCount).sum();
+        return results.values().stream()
+                .mapToLong(SecretScanResult::getUnexemptedHighCount)
+                .sum();
     }
 
     public void remove(String targetId) {

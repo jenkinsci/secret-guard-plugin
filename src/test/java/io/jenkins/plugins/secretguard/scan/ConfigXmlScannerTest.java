@@ -45,7 +45,8 @@ class ConfigXmlScannerTest {
         SecretScanResult result = scanner.scan(context, xml);
         assertTrue(result.getFindings().stream()
                 .anyMatch(finding -> finding.getLocationType() == FindingLocationType.PARAMETER_DEFAULT));
-        assertTrue(result.getFindings().stream().anyMatch(finding -> finding.getFieldName().equals("password")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getFieldName().equals("password")));
         assertEquals("folder/job", result.getTargetId());
     }
 

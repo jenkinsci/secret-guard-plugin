@@ -61,7 +61,8 @@ public class SecretScanResult {
 
     public boolean hasActionableFindingsAtOrAbove(Severity severity) {
         return findings.stream()
-                .anyMatch(finding -> finding.isActionable() && finding.getSeverity().isAtLeast(severity));
+                .anyMatch(finding ->
+                        finding.isActionable() && finding.getSeverity().isAtLeast(severity));
     }
 
     public long getUnexemptedHighCount() {

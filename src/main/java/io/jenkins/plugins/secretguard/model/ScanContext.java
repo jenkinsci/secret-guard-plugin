@@ -56,12 +56,6 @@ public class ScanContext {
 
     public ScanContext withLocationType(FindingLocationType newLocationType) {
         return new ScanContext(
-                jobFullName,
-                sourceName,
-                targetType,
-                newLocationType,
-                scanPhase,
-                enforcementMode,
-                blockThreshold);
+                jobFullName, sourceName, targetType, newLocationType, scanPhase, enforcementMode, blockThreshold);
     }
 }

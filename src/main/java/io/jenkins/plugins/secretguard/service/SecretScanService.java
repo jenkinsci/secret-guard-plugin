@@ -69,7 +69,8 @@ public class SecretScanService {
         }
         Severity threshold = context.getBlockThreshold();
         return findings.stream()
-                .anyMatch(finding -> finding.isActionable() && finding.getSeverity().isAtLeast(threshold));
+                .anyMatch(finding ->
+                        finding.isActionable() && finding.getSeverity().isAtLeast(threshold));
     }
 
     private List<SecretFinding> dedupeByRulePriority(List<SecretFinding> findings) {
