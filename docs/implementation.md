@@ -186,6 +186,7 @@ Persisted results contain only report data such as rule IDs, severity, source lo
   - shows findings for a build
 - `SecretGuardRootAction`
   - shows global summary
+  - links each listed job to its job-level Secret Guard report
 - `SecretGuardAdministrativeMonitor`
   - activates when unexempted high-severity findings exist
 

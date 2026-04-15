@@ -18,7 +18,15 @@
                 <tbody>
                     <j:forEach var="result" items="${it.results}">
                         <tr>
-                            <td>${result.targetId}</td>
+                            <j:set var="jobUrl" value="${it.getJobSecretGuardUrl(result)}" />
+                            <td>
+                                <j:choose>
+                                    <j:when test="${jobUrl != null}">
+                                        <a href="${jobUrl}">${result.targetId}</a>
+                                    </j:when>
+                                    <j:otherwise>${result.targetId}</j:otherwise>
+                                </j:choose>
+                            </td>
                             <td>${result.targetType}</td>
                             <td>${result.highestSeverity}</td>
                             <td>${result.findings.size()}</td>
