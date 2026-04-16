@@ -2,21 +2,27 @@ package io.jenkins.plugins.secretguard.listener;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import hudson.model.Failure;
 import hudson.model.FreeStyleProject;
+import io.jenkins.plugins.secretguard.action.SecretGuardRunAction;
 import io.jenkins.plugins.secretguard.config.SecretGuardGlobalConfiguration;
 import io.jenkins.plugins.secretguard.model.EnforcementMode;
 import io.jenkins.plugins.secretguard.model.Severity;
 import java.io.StringReader;
+import java.nio.file.Files;
 import javax.xml.transform.stream.StreamSource;
 import org.htmlunit.HttpMethod;
 import org.htmlunit.Page;
 import org.htmlunit.WebRequest;
 import org.junit.jupiter.api.Test;
+import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
+import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
@@ -86,6 +92,29 @@ class SecretGuardEnforcementIntegrationTest {
         assertTrue(failure.getMessage().contains("Secret Guard blocked copying"));
         assertFalse(jenkinsRule.jenkins.getAllItems(FreeStyleProject.class).stream()
                 .anyMatch(project -> project.getName().equals("copy-target")));
+    }
+
+    @Test
+    @WithJenkins
+    void persistsRunActionForPipelineBuildWithoutJavaTimeSerializationFailure(JenkinsRule jenkinsRule) throws Exception {
+        configure(EnforcementMode.AUDIT);
+        WorkflowJob job = jenkinsRule.createProject(WorkflowJob.class, "pipeline-run-action");
+        job.setDefinition(new CpsFlowDefinition(
+                """
+                def webhookUrl = 'https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999'
+                """,
+                true));
+
+        WorkflowRun run = jenkinsRule.buildAndAssertSuccess(job);
+
+        SecretGuardRunAction action = run.getAction(SecretGuardRunAction.class);
+        assertNotNull(action);
+        assertFalse(action.getFindings().isEmpty());
+        assertTrue(action.getFindings().stream().anyMatch(finding -> finding.getRuleId().equals("url-query-secret")));
+
+        String buildXml = Files.readString(run.getRootDir().toPath().resolve("build.xml"));
+        assertTrue(buildXml.contains("<scannedAtEpochMillis>"));
+        assertFalse(buildXml.contains("java.time.Instant"));
     }
 
     private void configure(EnforcementMode mode) {

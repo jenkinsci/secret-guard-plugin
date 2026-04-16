@@ -11,7 +11,7 @@ public class SecretScanResult {
     private final List<SecretFinding> findings;
     private final Severity highestSeverity;
     private final boolean blocked;
-    private final Instant scannedAt;
+    private final long scannedAtEpochMillis;
 
     public SecretScanResult(String targetId, String targetType, List<SecretFinding> findings, boolean blocked) {
         this(targetId, targetType, findings, blocked, Instant.now());
@@ -24,7 +24,7 @@ public class SecretScanResult {
         this.findings = Collections.unmodifiableList(new ArrayList<>(findings));
         this.highestSeverity = calculateHighestSeverity(findings);
         this.blocked = blocked;
-        this.scannedAt = scannedAt == null ? Instant.now() : scannedAt;
+        this.scannedAtEpochMillis = (scannedAt == null ? Instant.now() : scannedAt).toEpochMilli();
     }
 
     public static SecretScanResult empty(String targetId, String targetType) {
@@ -52,7 +52,7 @@ public class SecretScanResult {
     }
 
     public Instant getScannedAt() {
-        return scannedAt;
+        return Instant.ofEpochMilli(scannedAtEpochMillis);
     }
 
     public boolean hasFindings() {
