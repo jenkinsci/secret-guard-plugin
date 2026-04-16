@@ -43,7 +43,7 @@ The Java sources are organized under `io.jenkins.plugins.secretguard`:
 
 1. Jenkins starts a build
 2. `SecretGuardRunListener` asks `PipelineDefinitionExtractor` for Pipeline text
-3. Inline Pipeline scripts are read from the job definition; Pipeline-from-SCM Jenkinsfiles are read with lightweight `SCMFileSystem` access
+3. Inline Pipeline scripts are read from the job definition; Pipeline-from-SCM and multibranch Jenkinsfiles are read with lightweight `SCMFileSystem` access
 4. `PipelineScriptScanner` scans the script text
 5. `SecretScanService` post-processes the findings
 6. `SecretGuardRunAction` is attached to the build
@@ -61,7 +61,7 @@ If SCM Jenkinsfile content cannot be read through lightweight access, the build-
 3. `SecretGuardJobAction#doScanNow` checks `Item.CONFIGURE`
 4. `ManualJobScanService` reads the current `config.xml`
 5. `ConfigXmlScanner` scans XML content and inline Pipeline script content
-6. `PipelineDefinitionExtractor` tries to read Pipeline-from-SCM Jenkinsfile content through `SCMFileSystem`
+6. `PipelineDefinitionExtractor` tries to read Pipeline-from-SCM or multibranch Jenkinsfile content through `SCMFileSystem`
 7. `PipelineScriptScanner` scans the SCM Jenkinsfile as `JENKINSFILE` when it is available
 8. `SecretScanService` applies whitelist, exemptions, deduplication, and latest-result persistence
 9. User is redirected back to the Job report page with the refreshed latest result
@@ -144,7 +144,8 @@ When adding a new rule:
 #### `PipelineDefinitionExtractor`
 
 - detects inline Pipeline definitions through `getDefinition().getScript()`
-- detects Pipeline-from-SCM definitions through `getDefinition().getScm()` and `getDefinition().getScriptPath()`
+- detects ordinary Pipeline-from-SCM definitions through `getDefinition().getScm()` and `getDefinition().getScriptPath()`
+- resolves multibranch branch jobs through `BranchJobProperty`, `SCMSourceOwner`, branch head metadata, and lightweight SCM reads
 - keeps production code decoupled from concrete workflow classes by using reflection
 - returns a `PipelineScriptSource` with source name, content, and location type
 
@@ -155,6 +156,33 @@ When adding a new rule:
 - reports SCM Jenkinsfile findings with `FindingLocationType.JENKINSFILE`
 - returns empty when lightweight access is unsupported, the file is missing, or reading fails
 - never performs a workspace checkout fallback in MVP
+
+#### `MultibranchContextResolver`
+
+- resolves branch jobs created by multibranch Pipeline
+- looks up `BranchJobProperty` reflectively so the plugin still starts without a hard runtime dependency on `workflow-multibranch`
+- extracts branch `SCMHead`, source ID, optional revision, and multibranch `scriptPath`
+- falls back safely when source or revision metadata is unavailable
+
+#### `MultibranchJenkinsfileReader`
+
+- reads branch-specific Jenkinsfiles with `SCMFileSystem.of(SCMSource, SCMHead, SCMRevision)`
+- uses the run revision when available so build-time scans align with the exact branch revision Jenkins is building
+- reports multibranch findings as `JENKINSFILE` with source names like `Jenkinsfile from Multibranch SCM: ci/Jenkinsfile`
+
+#### Operational logging
+
+- configure Jenkins system log logger `io.jenkins.plugins.secretguard`
+- log messages use fixed prefixes so troubleshooting can be filtered quickly
+- `[Secret Guard][Manual Scan]` covers page-triggered rescans
+- `[Secret Guard][Build Scan]` covers build-start scanning and enforcement
+- `[Secret Guard][Pipeline Source]` covers inline, SCM, and multibranch source resolution
+- `[Secret Guard][Multibranch]` covers branch metadata, source, revision, and script path resolution
+- `[Secret Guard][SCM Read]` and `[Secret Guard][SCM Read][Multibranch]` cover lightweight Jenkinsfile reads
+- `[Secret Guard][Save Scan]` covers save-time config scanning failures
+- `[Secret Guard][Item Sync]` covers item create/update/copy synchronization failures
+- `[Secret Guard][ClassLoader]` covers optional plugin class resolution
+- `[Secret Guard][Persistence]` covers latest-result disk persistence and restore failures
 
 #### `NonSecretHeuristics`
 
@@ -326,7 +354,7 @@ Recommended next layer:
 
 ## Known Gaps
 
-- Pipeline-from-SCM support depends on SCM plugins exposing lightweight `SCMFileSystem` access
+- Pipeline-from-SCM and multibranch support depend on SCM plugins exposing lightweight `SCMFileSystem` access
 - save/create blocking intentionally does not perform SCM Jenkinsfile reads
 - multibranch-specific indexing integration is not implemented
 - no trend/history view exists

@@ -17,6 +17,7 @@ import java.util.logging.Logger;
 @Extension
 public class SecretGuardItemListener extends ItemListener {
     private static final Logger LOGGER = Logger.getLogger(SecretGuardItemListener.class.getName());
+    private static final String LOG_PREFIX = "[Secret Guard][Item Sync] ";
 
     private final JobConfigEnforcementService enforcementService = new JobConfigEnforcementService();
 
@@ -50,7 +51,10 @@ public class SecretGuardItemListener extends ItemListener {
             }
             throw new Failure(enforcementService.buildBlockedMessage("copying", job.getFullName(), result));
         } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Failed to scan job configuration before copying " + job.getFullName(), e);
+            LOGGER.log(
+                    Level.WARNING,
+                    LOG_PREFIX + "Failed to scan job configuration before copying " + job.getFullName(),
+                    e);
         }
     }
 
@@ -67,7 +71,7 @@ public class SecretGuardItemListener extends ItemListener {
         try {
             enforcementService.scan(job, abstractItem.getConfigFile().asString(), ScanPhase.SAVE);
         } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Failed to scan updated item " + item.getFullName(), e);
+            LOGGER.log(Level.WARNING, LOG_PREFIX + "Failed to scan updated item " + item.getFullName(), e);
         }
     }
 }

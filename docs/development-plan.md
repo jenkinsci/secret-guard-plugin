@@ -191,7 +191,7 @@ Acceptance criteria:
 
 Priority: `P0`
 
-Status: ordinary Pipeline-from-SCM jobs are implemented through lightweight `SCMFileSystem`; multibranch-specific coverage remains.
+Status: ordinary Pipeline-from-SCM jobs and multibranch-specific Jenkinsfile reads are implemented through lightweight `SCMFileSystem`.
 
 Tasks:
 
@@ -200,7 +200,7 @@ Tasks:
 - [x] scan retrieved Jenkinsfile as `JENKINSFILE`
 - [x] report source name as Jenkinsfile path
 - [x] handle unavailable Jenkinsfile without failing the build
-- [ ] add multibranch-specific coverage
+- [x] add multibranch-specific coverage
 - [ ] add explicit UI reporting for unavailable Jenkinsfile reads
 
 Acceptance criteria:

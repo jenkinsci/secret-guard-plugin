@@ -1,7 +1,5 @@
 package io.jenkins.plugins.secretguard.service;
 
-import hudson.model.Item;
-import hudson.scm.SCM;
 import io.jenkins.plugins.secretguard.model.FindingLocationType;
 import java.io.IOException;
 import java.util.Optional;
@@ -10,50 +8,46 @@ import java.util.logging.Logger;
 import jenkins.scm.api.SCMFile;
 import jenkins.scm.api.SCMFileSystem;
 
-public class ScmJenkinsfileReader {
-    private static final Logger LOGGER = Logger.getLogger(ScmJenkinsfileReader.class.getName());
-    private static final String LOG_PREFIX = "[Secret Guard][SCM Read] ";
+public class MultibranchJenkinsfileReader {
+    private static final Logger LOGGER = Logger.getLogger(MultibranchJenkinsfileReader.class.getName());
+    private static final String LOG_PREFIX = "[Secret Guard][SCM Read][Multibranch] ";
     private static final String DEFAULT_SCRIPT_PATH = "Jenkinsfile";
 
-    public Optional<PipelineScriptSource> read(Item item, SCM scm, String scriptPath) {
-        if (item == null || scm == null) {
+    public Optional<PipelineScriptSource> read(MultibranchContext context) {
+        if (context == null || context.getSource() == null || context.getHead() == null) {
             return Optional.empty();
         }
-        String normalizedPath = normalizeScriptPath(scriptPath);
-        try (SCMFileSystem fileSystem = SCMFileSystem.of(item, scm)) {
+        String normalizedPath = normalizeScriptPath(context.getScriptPath());
+        try (SCMFileSystem fileSystem = context.getRevision() == null
+                ? SCMFileSystem.of(context.getSource(), context.getHead())
+                : SCMFileSystem.of(context.getSource(), context.getHead(), context.getRevision())) {
             if (fileSystem == null) {
                 LOGGER.log(
                         Level.FINE,
-                        LOG_PREFIX + "SCM does not support lightweight Jenkinsfile access for {0}",
-                        item.getFullName());
+                        LOG_PREFIX + "SCM source does not support lightweight multibranch Jenkinsfile access");
                 return Optional.empty();
             }
             SCMFile jenkinsfile = fileSystem.getRoot().child(normalizedPath);
             if (!jenkinsfile.isFile()) {
-                LOGGER.log(Level.FINE, LOG_PREFIX + "SCM Jenkinsfile {0} was not found for {1}", new Object[] {
-                    normalizedPath, item.getFullName()
-                });
+                LOGGER.log(Level.FINE, LOG_PREFIX + "Multibranch Jenkinsfile {0} was not found", normalizedPath);
                 return Optional.empty();
             }
             String content = jenkinsfile.contentAsString();
             if (content == null || content.isBlank()) {
-                LOGGER.log(Level.FINE, LOG_PREFIX + "SCM Jenkinsfile {0} for {1} is empty", new Object[] {
-                    normalizedPath, item.getFullName()
-                });
+                LOGGER.log(Level.FINE, LOG_PREFIX + "Multibranch Jenkinsfile {0} is empty", normalizedPath);
                 return Optional.empty();
             }
             LOGGER.log(
                     Level.FINE,
-                    LOG_PREFIX + "Read SCM Jenkinsfile {0} for {1} via lightweight access",
-                    new Object[] {normalizedPath, item.getFullName()});
+                    LOG_PREFIX + "Read multibranch Jenkinsfile {0} via lightweight access; revisionPresent={1}",
+                    new Object[] {normalizedPath, context.getRevision() != null});
             return Optional.of(new PipelineScriptSource(
-                    "Jenkinsfile from SCM: " + normalizedPath, content, FindingLocationType.JENKINSFILE));
+                    "Jenkinsfile from Multibranch SCM: " + normalizedPath, content, FindingLocationType.JENKINSFILE));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            LOGGER.log(
-                    Level.FINE, LOG_PREFIX + "Interrupted while reading SCM Jenkinsfile for " + item.getFullName(), e);
+            LOGGER.log(Level.FINE, LOG_PREFIX + "Interrupted while reading multibranch Jenkinsfile", e);
         } catch (IOException | RuntimeException e) {
-            LOGGER.log(Level.FINE, LOG_PREFIX + "Unable to read SCM Jenkinsfile for " + item.getFullName(), e);
+            LOGGER.log(Level.FINE, LOG_PREFIX + "Unable to read multibranch Jenkinsfile", e);
         }
         return Optional.empty();
     }

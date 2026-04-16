@@ -17,17 +17,18 @@ class SecretGuardRunActionTest {
         SecretGuardRunAction action = new SecretGuardRunAction(new SecretScanResult(
                 "folder/job",
                 "WorkflowJob",
-                List.of(new SecretFinding(
-                        "url-query-secret",
-                        "Secret is embedded in a URL query parameter",
-                        Severity.HIGH,
-                        FindingLocationType.COMMAND_STEP,
-                        "folder/job",
-                        "Pipeline script",
-                        12,
-                        "key",
-                        "Exa…DEF",
-                        "Move URL query secrets such as webhook keys to Jenkins Credentials and inject them at runtime.")),
+                List.of(
+                        new SecretFinding(
+                                "url-query-secret",
+                                "Secret is embedded in a URL query parameter",
+                                Severity.HIGH,
+                                FindingLocationType.COMMAND_STEP,
+                                "folder/job",
+                                "Pipeline script",
+                                12,
+                                "key",
+                                "Exa…DEF",
+                                "Move URL query secrets such as webhook keys to Jenkins Credentials and inject them at runtime.")),
                 true,
                 Instant.parse("2026-04-16T00:00:00Z")));
 

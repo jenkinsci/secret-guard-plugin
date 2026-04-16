@@ -1,17 +1,21 @@
 package io.jenkins.plugins.secretguard.action;
 
+import hudson.model.Action;
 import hudson.model.Failure;
 import hudson.model.Item;
-import hudson.model.Action;
 import hudson.model.Job;
+import hudson.model.JobProperty;
 import io.jenkins.plugins.secretguard.config.SecretGuardGlobalConfiguration;
 import io.jenkins.plugins.secretguard.model.SecretFinding;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import io.jenkins.plugins.secretguard.service.ManualJobScanService;
 import io.jenkins.plugins.secretguard.service.ScanResultStore;
+import io.jenkins.plugins.secretguard.util.OptionalPluginClassResolver;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.Stapler;
@@ -19,6 +23,11 @@ import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 public class SecretGuardJobAction implements Action, SeverityBadgeSupport {
+    private static final Logger LOGGER = Logger.getLogger(SecretGuardJobAction.class.getName());
+    private static final String LOG_PREFIX = "[Secret Guard][Manual Scan] ";
+    private static final String BRANCH_JOB_PROPERTY_CLASS =
+            "org.jenkinsci.plugins.workflow.multibranch.BranchJobProperty";
+
     private final Job<?, ?> job;
     private final ManualJobScanService manualJobScanService;
 
@@ -51,7 +60,8 @@ public class SecretGuardJobAction implements Action, SeverityBadgeSupport {
     }
 
     public SecretScanResult getResult() {
-        return result().orElse(SecretScanResult.empty(job.getFullName(), job.getClass().getSimpleName()));
+        return result().orElse(
+                        SecretScanResult.empty(job.getFullName(), job.getClass().getSimpleName()));
     }
 
     public List<SecretFinding> getFindings() {
@@ -76,7 +86,7 @@ public class SecretGuardJobAction implements Action, SeverityBadgeSupport {
     }
 
     public boolean canScanNow() {
-        return job != null && isPluginEnabled() && job.hasPermission(Item.CONFIGURE);
+        return job != null && isPluginEnabled() && hasManualScanPermission();
     }
 
     public boolean isManualScanCompleted() {
@@ -86,10 +96,16 @@ public class SecretGuardJobAction implements Action, SeverityBadgeSupport {
 
     @RequirePOST
     public HttpResponse doScanNow() throws Exception {
-        job.checkPermission(Item.CONFIGURE);
+        LOGGER.log(Level.FINE, LOG_PREFIX + "Manual Secret Guard scan requested for {0}", job.getFullName());
+        checkManualScanPermission();
         try {
-            manualJobScanService.scanJob(job);
+            SecretScanResult result = manualJobScanService.scanJob(job);
+            LOGGER.log(
+                    Level.FINE,
+                    LOG_PREFIX + "Manual Secret Guard scan completed for {0}: findings={1}, highestSeverity={2}",
+                    new Object[] {job.getFullName(), result.getFindings().size(), result.getHighestSeverity()});
         } catch (Exception e) {
+            LOGGER.log(Level.FINE, LOG_PREFIX + "Manual Secret Guard scan failed for " + job.getFullName(), e);
             throw new Failure("Secret Guard manual scan failed: " + e.getMessage());
         }
         return HttpResponses.redirectViaContextPath(
@@ -98,5 +114,42 @@ public class SecretGuardJobAction implements Action, SeverityBadgeSupport {
 
     private Optional<SecretScanResult> result() {
         return ScanResultStore.get().get(job.getFullName());
+    }
+
+    private boolean hasManualScanPermission() {
+        if (job.hasPermission(Item.CONFIGURE)) {
+            return true;
+        }
+        return multibranchOwner()
+                .map(owner -> owner.hasPermission(Item.CONFIGURE))
+                .orElse(false);
+    }
+
+    private void checkManualScanPermission() {
+        if (job.hasPermission(Item.CONFIGURE)) {
+            return;
+        }
+        Optional<Item> owner = multibranchOwner();
+        if (owner.isPresent()) {
+            owner.get().checkPermission(Item.CONFIGURE);
+            return;
+        }
+        job.checkPermission(Item.CONFIGURE);
+    }
+
+    private Optional<Item> multibranchOwner() {
+        if (!isMultibranchBranchJob()) {
+            return Optional.empty();
+        }
+        return job.getParent() instanceof Item item ? Optional.of(item) : Optional.empty();
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private boolean isMultibranchBranchJob() {
+        Optional<Class<?>> propertyClass = OptionalPluginClassResolver.resolve(BRANCH_JOB_PROPERTY_CLASS, getClass());
+        if (propertyClass.isEmpty() || !JobProperty.class.isAssignableFrom(propertyClass.get())) {
+            return false;
+        }
+        return job.getProperty((Class) propertyClass.get()) != null;
     }
 }

@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 @Extension
 public class SecretGuardSaveableListener extends SaveableListener {
     private static final Logger LOGGER = Logger.getLogger(SecretGuardSaveableListener.class.getName());
+    private static final String LOG_PREFIX = "[Secret Guard][Save Scan] ";
 
     private final JobConfigEnforcementService enforcementService = new JobConfigEnforcementService();
 
@@ -25,7 +26,7 @@ public class SecretGuardSaveableListener extends SaveableListener {
         try {
             enforcementService.scan(job, file.asString(), ScanPhase.SAVE);
         } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Failed to scan job configuration for " + job.getFullName(), e);
+            LOGGER.log(Level.WARNING, LOG_PREFIX + "Failed to scan job configuration for " + job.getFullName(), e);
         }
     }
 }

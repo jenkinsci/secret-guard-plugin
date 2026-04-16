@@ -15,8 +15,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class ManualJobScanService {
+    private static final Logger LOGGER = Logger.getLogger(ManualJobScanService.class.getName());
+    private static final String LOG_PREFIX = "[Secret Guard][Manual Scan] ";
+
     private final SecretScanService scanService;
     private final ConfigXmlScanner configXmlScanner;
     private final PipelineScriptScanner pipelineScriptScanner;
@@ -42,6 +47,7 @@ public class ManualJobScanService {
     }
 
     public SecretScanResult scanJob(Job<?, ?> job) throws IOException {
+        LOGGER.log(Level.FINE, LOG_PREFIX + "Starting manual Secret Guard scan for {0}", job.getFullName());
         SecretGuardGlobalConfiguration configuration = SecretGuardGlobalConfiguration.get();
         ScanContext context = new ScanContext(
                 job.getFullName(),
@@ -51,11 +57,18 @@ public class ManualJobScanService {
                 ScanPhase.MANUAL,
                 EnforcementMode.AUDIT,
                 configuration == null ? Severity.HIGH : configuration.getBlockThreshold());
-        List<SecretFinding> findings =
-                new ArrayList<>(configXmlScanner.scan(context, job.getConfigFile().asString()).getFindings());
+        List<SecretFinding> findings = new ArrayList<>(
+                configXmlScanner.scan(context, job.getConfigFile().asString()).getFindings());
+        LOGGER.log(Level.FINE, LOG_PREFIX + "Config XML scan for {0} produced {1} finding(s)", new Object[] {
+            job.getFullName(), findings.size()
+        });
         Optional<PipelineScriptSource> scmScript = pipelineDefinitionExtractor.extractScmScript(job);
         if (scmScript.isPresent()) {
             PipelineScriptSource source = scmScript.get();
+            LOGGER.log(
+                    Level.FINE,
+                    LOG_PREFIX + "Manual scan for {0} will also inspect external Pipeline source {1}",
+                    new Object[] {job.getFullName(), source.getSourceName()});
             ScanContext scmContext = new ScanContext(
                     job.getFullName(),
                     source.getSourceName(),
@@ -64,8 +77,19 @@ public class ManualJobScanService {
                     ScanPhase.MANUAL,
                     EnforcementMode.AUDIT,
                     configuration == null ? Severity.HIGH : configuration.getBlockThreshold());
-            findings.addAll(pipelineScriptScanner.scan(scmContext, source.getContent()).getFindings());
+            findings.addAll(
+                    pipelineScriptScanner.scan(scmContext, source.getContent()).getFindings());
+        } else {
+            LOGGER.log(
+                    Level.FINE,
+                    LOG_PREFIX + "No external Pipeline source was available for manual scan of {0}",
+                    job.getFullName());
         }
-        return scanService.process(context, findings);
+        SecretScanResult result = scanService.process(context, findings);
+        LOGGER.log(
+                Level.FINE,
+                LOG_PREFIX + "Finished manual Secret Guard scan for {0}: findings={1}, highestSeverity={2}",
+                new Object[] {job.getFullName(), result.getFindings().size(), result.getHighestSeverity()});
+        return result;
     }
 }

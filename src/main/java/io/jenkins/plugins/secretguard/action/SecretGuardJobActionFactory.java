@@ -2,7 +2,6 @@ package io.jenkins.plugins.secretguard.action;
 
 import hudson.Extension;
 import hudson.model.Job;
-import io.jenkins.plugins.secretguard.service.ScanResultStore;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.function.Predicate;

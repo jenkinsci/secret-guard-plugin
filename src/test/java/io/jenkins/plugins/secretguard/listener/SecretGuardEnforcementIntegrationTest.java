@@ -11,6 +11,7 @@ import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.Failure;
 import hudson.model.FreeStyleProject;
+import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
@@ -20,8 +21,8 @@ import hudson.scm.SCMDescriptor;
 import hudson.scm.SCMRevisionState;
 import io.jenkins.plugins.secretguard.action.SecretGuardRunAction;
 import io.jenkins.plugins.secretguard.config.SecretGuardGlobalConfiguration;
-import io.jenkins.plugins.secretguard.model.FindingLocationType;
 import io.jenkins.plugins.secretguard.model.EnforcementMode;
+import io.jenkins.plugins.secretguard.model.FindingLocationType;
 import io.jenkins.plugins.secretguard.model.Severity;
 import io.jenkins.plugins.secretguard.service.ScanResultStore;
 import java.io.ByteArrayInputStream;
@@ -35,22 +36,32 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.xml.transform.stream.StreamSource;
+import jenkins.branch.BranchSource;
+import jenkins.model.Jenkins;
+import jenkins.scm.api.SCMFile;
+import jenkins.scm.api.SCMFileSystem;
+import jenkins.scm.api.SCMHead;
+import jenkins.scm.api.SCMHeadEvent;
+import jenkins.scm.api.SCMHeadObserver;
+import jenkins.scm.api.SCMProbeStat;
+import jenkins.scm.api.SCMRevision;
+import jenkins.scm.api.SCMSource;
+import jenkins.scm.api.SCMSourceCriteria;
+import jenkins.scm.api.SCMSourceDescriptor;
 import org.htmlunit.HttpMethod;
 import org.htmlunit.Page;
 import org.htmlunit.WebRequest;
-import org.junit.jupiter.api.Test;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.multibranch.WorkflowBranchProjectFactory;
+import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.TestExtension;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
-import jenkins.scm.api.SCMFile;
-import jenkins.scm.api.SCMFileSystem;
-import jenkins.scm.api.SCMRevision;
-import jenkins.scm.api.SCMSource;
-import jenkins.scm.api.SCMSourceDescriptor;
 
 class SecretGuardEnforcementIntegrationTest {
     @Test
@@ -122,21 +133,21 @@ class SecretGuardEnforcementIntegrationTest {
 
     @Test
     @WithJenkins
-    void persistsRunActionForPipelineBuildWithoutJavaTimeSerializationFailure(JenkinsRule jenkinsRule) throws Exception {
+    void persistsRunActionForPipelineBuildWithoutJavaTimeSerializationFailure(JenkinsRule jenkinsRule)
+            throws Exception {
         configure(EnforcementMode.AUDIT);
         WorkflowJob job = jenkinsRule.createProject(WorkflowJob.class, "pipeline-run-action");
-        job.setDefinition(new CpsFlowDefinition(
-                """
+        job.setDefinition(new CpsFlowDefinition("""
                 def webhookUrl = 'https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999'
-                """,
-                true));
+                """, true));
 
         WorkflowRun run = jenkinsRule.buildAndAssertSuccess(job);
 
         SecretGuardRunAction action = run.getAction(SecretGuardRunAction.class);
         assertNotNull(action);
         assertFalse(action.getFindings().isEmpty());
-        assertTrue(action.getFindings().stream().anyMatch(finding -> finding.getRuleId().equals("url-query-secret")));
+        assertTrue(action.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")));
 
         String buildXml = Files.readString(run.getRootDir().toPath().resolve("build.xml"));
         assertTrue(buildXml.contains("<scannedAtEpochMillis>"));
@@ -149,7 +160,8 @@ class SecretGuardEnforcementIntegrationTest {
         SecretGuardGlobalConfiguration configuration = SecretGuardGlobalConfiguration.get();
         configuration.setEnabled(false);
         FreeStyleProject project = jenkinsRule.createFreeStyleProject("manual-scan");
-        project.updateByXml(new StreamSource(new StringReader(withRiskyParameter(project.getConfigFile().asString()))));
+        project.updateByXml(new StreamSource(
+                new StringReader(withRiskyParameter(project.getConfigFile().asString()))));
         assertFalse(ScanResultStore.get().get(project.getFullName()).isPresent());
 
         configure(EnforcementMode.AUDIT);
@@ -163,7 +175,8 @@ class SecretGuardEnforcementIntegrationTest {
         assertEquals(200, page.getWebResponse().getStatusCode());
         assertTrue(page.getWebResponse().getContentAsString().contains("Manual scan completed."));
         assertTrue(ScanResultStore.get().get(project.getFullName()).isPresent());
-        assertTrue(ScanResultStore.get().get(project.getFullName()).orElseThrow().hasFindings());
+        assertTrue(
+                ScanResultStore.get().get(project.getFullName()).orElseThrow().hasFindings());
     }
 
     @Test
@@ -172,9 +185,10 @@ class SecretGuardEnforcementIntegrationTest {
         configure(EnforcementMode.AUDIT);
         WorkflowJob job = jenkinsRule.createProject(WorkflowJob.class, "manual-scm-scan");
         job.setDefinition(new CpsScmFlowDefinition(
-                new MemoryScm(Map.of(
-                        "ci/Jenkinsfile",
-                        "def webhookUrl = 'https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999'")),
+                new MemoryScm(
+                        Map.of(
+                                "ci/Jenkinsfile",
+                                "def webhookUrl = 'https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999'")),
                 "ci/Jenkinsfile"));
 
         JenkinsRule.WebClient webClient = jenkinsRule.createWebClient().withThrowExceptionOnFailingStatusCode(false);
@@ -185,11 +199,7 @@ class SecretGuardEnforcementIntegrationTest {
 
         assertEquals(200, page.getWebResponse().getStatusCode());
         assertTrue(page.getWebResponse().getContentAsString().contains("Manual scan completed."));
-        assertTrue(ScanResultStore.get()
-                .get(job.getFullName())
-                .orElseThrow()
-                .getFindings()
-                .stream()
+        assertTrue(ScanResultStore.get().get(job.getFullName()).orElseThrow().getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")
                         && finding.getLocationType() == FindingLocationType.JENKINSFILE
                         && finding.getSourceName().equals("Jenkinsfile from SCM: ci/Jenkinsfile")));
@@ -201,9 +211,10 @@ class SecretGuardEnforcementIntegrationTest {
         configure(EnforcementMode.WARN);
         WorkflowJob job = jenkinsRule.createProject(WorkflowJob.class, "build-scm-scan");
         job.setDefinition(new CpsScmFlowDefinition(
-                new MemoryScm(Map.of(
-                        "Jenkinsfile",
-                        "def webhookUrl = 'https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999'")),
+                new MemoryScm(
+                        Map.of(
+                                "Jenkinsfile",
+                                "def webhookUrl = 'https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999'")),
                 "Jenkinsfile"));
 
         WorkflowRun run = jenkinsRule.buildAndAssertStatus(Result.UNSTABLE, job);
@@ -214,6 +225,160 @@ class SecretGuardEnforcementIntegrationTest {
                 .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")
                         && finding.getLocationType() == FindingLocationType.JENKINSFILE
                         && finding.getSourceName().equals("Jenkinsfile from SCM: Jenkinsfile")));
+    }
+
+    @Test
+    @WithJenkins
+    void manualScanServiceReadsMultibranchJenkinsfile(JenkinsRule jenkinsRule) throws Exception {
+        configure(EnforcementMode.AUDIT);
+        WorkflowJob branchJob = createMultibranchJob(jenkinsRule, "manual-multibranch-scan", "ci/Jenkinsfile", """
+                def webhookUrl = 'https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999'
+                """);
+
+        assertTrue(new io.jenkins.plugins.secretguard.service.ManualJobScanService()
+                .scanJob(branchJob).getFindings().stream()
+                        .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")
+                                && finding.getLocationType() == FindingLocationType.JENKINSFILE
+                                && finding.getSourceName().equals("Jenkinsfile from Multibranch SCM: ci/Jenkinsfile")));
+        assertTrue(ScanResultStore.get().get(branchJob.getFullName()).isPresent());
+    }
+
+    @Test
+    @WithJenkins
+    void warnModeScansMultibranchJenkinsfileAtBuildStart(JenkinsRule jenkinsRule) throws Exception {
+        configure(EnforcementMode.WARN);
+        WorkflowJob branchJob = createMultibranchJob(jenkinsRule, "build-multibranch-scan", "Jenkinsfile", """
+                def webhookUrl = 'https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999'
+                """);
+
+        WorkflowRun run = jenkinsRule.buildAndAssertStatus(Result.UNSTABLE, branchJob);
+
+        SecretGuardRunAction action = run.getAction(SecretGuardRunAction.class);
+        assertNotNull(action);
+        assertTrue(action.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")
+                        && finding.getLocationType() == FindingLocationType.JENKINSFILE
+                        && finding.getSourceName().equals("Jenkinsfile from Multibranch SCM: Jenkinsfile")));
+    }
+
+    @Test
+    @WithJenkins
+    void multibranchManualScanRequiresConfigurePermissionForBuildUser(JenkinsRule jenkinsRule) throws Exception {
+        configure(EnforcementMode.AUDIT);
+        WorkflowJob branchJob = createMultibranchJob(jenkinsRule, "multibranch-scan-button", "ci/Jenkinsfile", """
+                def webhookUrl = 'https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999'
+                """);
+        JenkinsRule.WebClient webClient = createBuildOnlyWebClient(jenkinsRule, branchJob);
+
+        webClient.goTo(branchJob.getUrl() + "secret-guard");
+
+        WebRequest request = new WebRequest(
+                webClient.createCrumbedUrl(branchJob.getUrl() + "secret-guard/scanNow"), HttpMethod.POST);
+        Page postResult = webClient.getPage(request);
+
+        assertEquals(403, postResult.getWebResponse().getStatusCode());
+    }
+
+    @Test
+    @WithJenkins
+    void multibranchManualScanRequiresConfigurePermissionForReadOnlyUser(JenkinsRule jenkinsRule) throws Exception {
+        configure(EnforcementMode.AUDIT);
+        WorkflowJob branchJob =
+                createMultibranchJob(jenkinsRule, "multibranch-read-scan-button", "ci/Jenkinsfile", """
+                def webhookUrl = 'https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999'
+                """);
+        JenkinsRule.WebClient webClient = createReadOnlyWebClient(jenkinsRule, branchJob);
+
+        webClient.goTo(branchJob.getUrl() + "secret-guard");
+
+        WebRequest request = new WebRequest(
+                webClient.createCrumbedUrl(branchJob.getUrl() + "secret-guard/scanNow"), HttpMethod.POST);
+        Page postResult = webClient.getPage(request);
+
+        assertEquals(403, postResult.getWebResponse().getStatusCode());
+    }
+
+    @Test
+    @WithJenkins
+    void multibranchSecretGuardPageShowsScanButtonForConfigureUser(JenkinsRule jenkinsRule) throws Exception {
+        configure(EnforcementMode.AUDIT);
+        WorkflowJob branchJob =
+                createMultibranchJob(jenkinsRule, "multibranch-configure-scan-button", "ci/Jenkinsfile", """
+                def webhookUrl = 'https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999'
+                """);
+        JenkinsRule.WebClient webClient = createConfigureWebClient(jenkinsRule, branchJob);
+
+        Page secretGuardPage = webClient.goTo(branchJob.getUrl() + "secret-guard");
+
+        assertTrue(secretGuardPage.getWebResponse().getContentAsString().contains("Scan Now"));
+    }
+
+    private WorkflowJob createMultibranchJob(
+            JenkinsRule jenkinsRule, String projectName, String scriptPath, String jenkinsfile) throws Exception {
+        WorkflowMultiBranchProject project = jenkinsRule.createProject(WorkflowMultiBranchProject.class, projectName);
+        ((WorkflowBranchProjectFactory) project.getProjectFactory()).setScriptPath(scriptPath);
+        project.getSourcesList()
+                .add(new BranchSource(
+                        new MemoryScmSource("memory-source", Map.of("main", Map.of(scriptPath, jenkinsfile)))));
+        project.scheduleBuild2(0);
+        jenkinsRule.waitUntilNoActivity();
+        WorkflowJob branchJob = project.getItemByBranchName("main");
+        assertNotNull(branchJob);
+        return branchJob;
+    }
+
+    private JenkinsRule.WebClient createBuildOnlyWebClient(JenkinsRule jenkinsRule, WorkflowJob branchJob)
+            throws Exception {
+        jenkinsRule.jenkins.setSecurityRealm(jenkinsRule.createDummySecurityRealm());
+        jenkinsRule.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy()
+                .grant(Jenkins.ADMINISTER)
+                .everywhere()
+                .to("admin")
+                .grant(Jenkins.READ)
+                .everywhere()
+                .to("alice")
+                .grant(Item.READ, Item.BUILD)
+                .onItems((Item) branchJob.getParent(), branchJob)
+                .to("alice"));
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient().withThrowExceptionOnFailingStatusCode(false);
+        webClient.login("alice");
+        return webClient;
+    }
+
+    private JenkinsRule.WebClient createReadOnlyWebClient(JenkinsRule jenkinsRule, WorkflowJob branchJob)
+            throws Exception {
+        jenkinsRule.jenkins.setSecurityRealm(jenkinsRule.createDummySecurityRealm());
+        jenkinsRule.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy()
+                .grant(Jenkins.ADMINISTER)
+                .everywhere()
+                .to("admin")
+                .grant(Jenkins.READ)
+                .everywhere()
+                .to("alice")
+                .grant(Item.READ)
+                .onItems((Item) branchJob.getParent(), branchJob)
+                .to("alice"));
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient().withThrowExceptionOnFailingStatusCode(false);
+        webClient.login("alice");
+        return webClient;
+    }
+
+    private JenkinsRule.WebClient createConfigureWebClient(JenkinsRule jenkinsRule, WorkflowJob branchJob)
+            throws Exception {
+        jenkinsRule.jenkins.setSecurityRealm(jenkinsRule.createDummySecurityRealm());
+        jenkinsRule.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy()
+                .grant(Jenkins.ADMINISTER)
+                .everywhere()
+                .to("admin")
+                .grant(Jenkins.READ)
+                .everywhere()
+                .to("alice")
+                .grant(Item.READ, Item.CONFIGURE)
+                .onItems((Item) branchJob.getParent(), branchJob)
+                .to("alice"));
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient().withThrowExceptionOnFailingStatusCode(false);
+        webClient.login("alice");
+        return webClient;
     }
 
     private void configure(EnforcementMode mode) {
@@ -265,6 +430,117 @@ class SecretGuardEnforcementIntegrationTest {
         }
     }
 
+    public static class MemoryScmSource extends SCMSource {
+        private final Map<String, Map<String, String>> branches;
+
+        MemoryScmSource(String id, Map<String, Map<String, String>> branches) {
+            super(id);
+            this.branches = new LinkedHashMap<>();
+            for (Map.Entry<String, Map<String, String>> branch : branches.entrySet()) {
+                this.branches.put(branch.getKey(), new LinkedHashMap<>(branch.getValue()));
+            }
+        }
+
+        @Override
+        protected void retrieve(
+                SCMSourceCriteria criteria, SCMHeadObserver observer, SCMHeadEvent<?> event, TaskListener listener)
+                throws IOException, InterruptedException {
+            for (Map.Entry<String, Map<String, String>> branch : branches.entrySet()) {
+                SCMHead head = new SCMHead(branch.getKey());
+                MemoryScmRevision revision = new MemoryScmRevision(head, "revision-" + branch.getKey());
+                if (criteria == null || criteria.isHead(new MemoryScmProbe(head, branch.getValue()), listener)) {
+                    observer.observe(head, revision);
+                }
+                if (!observer.isObserving()) {
+                    return;
+                }
+            }
+        }
+
+        @Override
+        protected SCMRevision retrieve(SCMHead head, TaskListener listener) {
+            if (branches.containsKey(head.getName())) {
+                return new MemoryScmRevision(head, "revision-" + head.getName());
+            }
+            return null;
+        }
+
+        @Override
+        public SCM build(SCMHead head, SCMRevision revision) {
+            return new MemoryScm(branches.getOrDefault(head.getName(), Collections.emptyMap()));
+        }
+
+        private Map<String, String> filesFor(SCMHead head) {
+            return branches.getOrDefault(head.getName(), Collections.emptyMap());
+        }
+
+        @TestExtension
+        public static class DescriptorImpl extends SCMSourceDescriptor {
+            @Override
+            public String getDisplayName() {
+                return "Memory SCM Source";
+            }
+        }
+    }
+
+    private static class MemoryScmRevision extends SCMRevision {
+        private final String hash;
+
+        MemoryScmRevision(SCMHead head, String hash) {
+            super(head);
+            this.hash = hash;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof MemoryScmRevision that
+                    && getHead().equals(that.getHead())
+                    && hash.equals(that.hash);
+        }
+
+        @Override
+        public int hashCode() {
+            return getHead().hashCode() * 31 + hash.hashCode();
+        }
+    }
+
+    private static class MemoryScmProbe extends SCMSourceCriteria.Probe {
+        private final SCMHead head;
+        private final Map<String, String> files;
+
+        MemoryScmProbe(SCMHead head, Map<String, String> files) {
+            this.head = head;
+            this.files = files;
+        }
+
+        @Override
+        public String name() {
+            return head.getName();
+        }
+
+        @Override
+        public long lastModified() {
+            return 0;
+        }
+
+        @Override
+        public boolean exists(String path) {
+            return files.containsKey(path);
+        }
+
+        @Override
+        public SCMProbeStat stat(String path) {
+            if (files.containsKey(path)) {
+                return SCMProbeStat.fromType(SCMFile.Type.REGULAR_FILE);
+            }
+            String prefix = path.endsWith("/") ? path : path + "/";
+            if (files.keySet().stream().anyMatch(file -> file.startsWith(prefix))) {
+                return SCMProbeStat.fromType(SCMFile.Type.DIRECTORY);
+            }
+            return SCMProbeStat.fromType(SCMFile.Type.NONEXISTENT);
+        }
+    }
+
     @TestExtension
     public static class MemoryScmFileSystemBuilder extends SCMFileSystem.Builder {
         @Override
@@ -274,7 +550,7 @@ class SecretGuardEnforcementIntegrationTest {
 
         @Override
         public boolean supports(SCMSource source) {
-            return false;
+            return source instanceof MemoryScmSource;
         }
 
         @Override
@@ -296,6 +572,11 @@ class SecretGuardEnforcementIntegrationTest {
         public SCMFileSystem build(hudson.model.Item owner, SCM scm, SCMRevision rev, Run<?, ?> run) {
             return new MemoryScmFileSystem((MemoryScm) scm);
         }
+
+        @Override
+        public SCMFileSystem build(SCMSource source, SCMHead head, SCMRevision rev) {
+            return new MemoryScmFileSystem(((MemoryScmSource) source).filesFor(head));
+        }
     }
 
     private static class MemoryScmFileSystem extends SCMFileSystem {
@@ -303,8 +584,12 @@ class SecretGuardEnforcementIntegrationTest {
         private final SCMFile root;
 
         MemoryScmFileSystem(MemoryScm scm) {
+            this(scm.files);
+        }
+
+        MemoryScmFileSystem(Map<String, String> files) {
             super(null);
-            this.files = scm.files;
+            this.files = files;
             this.root = new MemoryScmFile(this);
         }
 

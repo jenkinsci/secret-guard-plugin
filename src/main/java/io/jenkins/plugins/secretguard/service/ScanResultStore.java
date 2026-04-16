@@ -24,6 +24,7 @@ import jenkins.model.Jenkins;
 
 public class ScanResultStore {
     private static final Logger LOGGER = Logger.getLogger(ScanResultStore.class.getName());
+    private static final String LOG_PREFIX = "[Secret Guard][Persistence] ";
     private static final XStream2 XSTREAM = new XStream2();
     private static final ScanResultStore INSTANCE = new ScanResultStore(null);
 
@@ -83,7 +84,7 @@ public class ScanResultStore {
         results.remove(targetId);
         File file = resultFile(targetId);
         if (file != null && file.isFile() && !file.delete()) {
-            LOGGER.log(Level.FINE, "Failed to delete Secret Guard result file {0}", file);
+            LOGGER.log(Level.FINE, LOG_PREFIX + "Failed to delete Secret Guard result file {0}", file);
         }
     }
 
@@ -94,13 +95,16 @@ public class ScanResultStore {
         }
         File parent = file.getParentFile();
         if (!parent.isDirectory() && !parent.mkdirs()) {
-            LOGGER.log(Level.FINE, "Failed to create Secret Guard result directory {0}", parent);
+            LOGGER.log(Level.FINE, LOG_PREFIX + "Failed to create Secret Guard result directory {0}", parent);
             return;
         }
         try {
             new XmlFile(XSTREAM, file).write(PersistedScanResult.from(result));
         } catch (IOException | RuntimeException e) {
-            LOGGER.log(Level.WARNING, "Failed to persist Secret Guard scan result for " + result.getTargetId(), e);
+            LOGGER.log(
+                    Level.WARNING,
+                    LOG_PREFIX + "Failed to persist Secret Guard scan result for " + result.getTargetId(),
+                    e);
         }
     }
 
@@ -122,7 +126,7 @@ public class ScanResultStore {
                 }
             }
         } catch (IOException | RuntimeException e) {
-            LOGGER.log(Level.WARNING, "Failed to load Secret Guard scan result from " + file, e);
+            LOGGER.log(Level.WARNING, LOG_PREFIX + "Failed to load Secret Guard scan result from " + file, e);
         }
         return Optional.empty();
     }

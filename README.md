@@ -14,6 +14,7 @@ Supported MVP scan targets:
 - Job `config.xml`
 - Pipeline inline scripts
 - Pipeline-from-SCM Jenkinsfiles when lightweight `SCMFileSystem` access is available
+- Multibranch Pipeline Jenkinsfiles when lightweight `SCMFileSystem` access is available
 - Build parameter default values
 - Environment variable definitions
 - `sh`, `bat`, `powershell`, and HTTP request style command content
@@ -79,6 +80,23 @@ Typical remediation guidance:
 Each Job page exposes a `Scan Now` action through the `Secret Guard` side-panel entry.
 The manual scan re-checks the current Job `config.xml`, inline Pipeline script content, and Pipeline-from-SCM Jenkinsfile content when lightweight SCM access is available, then refreshes the latest report for that Job.
 Manual scan only updates the report and does not block saves or change build results.
+
+## Troubleshooting
+
+For Jenkins system log troubleshooting, configure the logger `io.jenkins.plugins.secretguard`.
+
+Key message prefixes:
+
+- `[Secret Guard][Manual Scan]`
+- `[Secret Guard][Build Scan]`
+- `[Secret Guard][Pipeline Source]`
+- `[Secret Guard][Multibranch]`
+- `[Secret Guard][SCM Read]`
+- `[Secret Guard][SCM Read][Multibranch]`
+- `[Secret Guard][Save Scan]`
+- `[Secret Guard][Item Sync]`
+- `[Secret Guard][ClassLoader]`
+- `[Secret Guard][Persistence]`
 
 ## Documentation
 

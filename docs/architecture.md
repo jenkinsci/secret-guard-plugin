@@ -118,6 +118,7 @@ Pipeline definitions are extracted through `PipelineDefinitionExtractor`:
 
 - inline Pipeline definitions are read from `getDefinition().getScript()`
 - Pipeline-from-SCM definitions are read from the configured `scriptPath`, defaulting to `Jenkinsfile`
+- multibranch branch jobs are resolved from branch metadata, `SCMSourceOwner`, and `scriptPath`
 - SCM Jenkinsfile content is retrieved through Jenkins `SCMFileSystem` lightweight access
 - unsupported SCMs or unreadable Jenkinsfiles are skipped without failing saves or builds
 
