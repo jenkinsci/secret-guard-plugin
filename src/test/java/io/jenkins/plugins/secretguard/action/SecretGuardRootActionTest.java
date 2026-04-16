@@ -113,7 +113,11 @@ class SecretGuardRootActionTest {
         Page completedPage = webClient.goTo("secret-guard");
 
         assertTrue(completedPage.getWebResponse().getContentAsString().contains("COMPLETED"));
-        assertTrue(completedPage.getWebResponse().getContentAsString().contains("Scanned 1 of 1 jobs"));
+        assertTrue(completedPage
+                .getWebResponse()
+                .getContentAsString()
+                .contains(
+                        "Scanned 1 of 1 jobs, jobs with findings: 1, jobs with high severity findings: 1, failed: 0."));
         assertTrue(completedPage.getWebResponse().getContentAsString().contains("Hide Scan Status"));
         assertFalse(rootAction.canCancelScanAll());
         assertTrue(rootAction.canDismissScanAllStatus());

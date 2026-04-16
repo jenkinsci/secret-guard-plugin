@@ -95,9 +95,9 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
             return "No global scan has run yet.";
         }
         return "Scanned " + status.getJobsScanned() + " of " + status.getTotalJobs() + " jobs"
-                + ", findings in " + status.getJobsWithFindings()
-                + ", high severity in " + status.getJobsWithHighSeverity()
-                + ", failed " + status.getJobsFailed() + ".";
+                + ", jobs with findings: " + status.getJobsWithFindings()
+                + ", jobs with high severity findings: " + status.getJobsWithHighSeverity()
+                + ", failed: " + status.getJobsFailed() + ".";
     }
 
     public String getScanAllDurationText() {
