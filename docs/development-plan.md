@@ -18,17 +18,18 @@ The current implementation includes:
 - false-positive heuristics for credential IDs, hashes, public certificates, tracking headers, paths, and Docker images
 - priority-based duplicate suppression for generic fallback rules
 - save-time listener
-- build-time listener for inline Pipeline jobs
+- build-time listener for inline Pipeline jobs and lightweight Pipeline-from-SCM Jenkinsfiles
+- manual Job `Scan Now` action
+- Pipeline-from-SCM Jenkinsfile retrieval through `SCMFileSystem`
 - disk-backed latest-result store under `$JENKINS_HOME/secret-guard/results/`
 - Job, Run, root, and administrative report surfaces
-- unit tests for rules, scanners, masking, and service policy
+- unit and JenkinsRule tests for rules, scanners, masking, service policy, save blocking, build scanning, manual scanning, and Pipeline-from-SCM coverage
 
 Known limitations:
 
-- external SCM `Jenkinsfile` scanning is not implemented
+- Pipeline-from-SCM support depends on lightweight `SCMFileSystem` access
+- multibranch-specific indexing integration is not implemented
 - scan history is not retained beyond the latest result
-- save/build enforcement lacks JenkinsRule integration tests
-- manual re-scan is not implemented
 - no export, trend, or history view exists
 - no dedicated adapters for common plugin-specific credential fields
 
@@ -51,8 +52,8 @@ Goal: make the plugin viable for production rollout in controlled environments.
 
 Expected outcome:
 
-- manual re-scan
-- Pipeline-from-SCM support
+- global scan-all action
+- multibranch-specific Jenkinsfile support
 - clearer admin UX
 - better exemption validation
 
@@ -190,13 +191,17 @@ Acceptance criteria:
 
 Priority: `P0`
 
+Status: ordinary Pipeline-from-SCM jobs are implemented through lightweight `SCMFileSystem`; multibranch-specific coverage remains.
+
 Tasks:
 
-- detect Pipeline definitions that reference SCM
-- retrieve Jenkinsfile content from the workspace or SCM definition where safe and available
-- scan retrieved Jenkinsfile as `JENKINSFILE`
-- report source name as Jenkinsfile path
-- handle unavailable Jenkinsfile without failing the build
+- [x] detect Pipeline definitions that reference SCM
+- [x] retrieve Jenkinsfile content through lightweight SCM access where safe and available
+- [x] scan retrieved Jenkinsfile as `JENKINSFILE`
+- [x] report source name as Jenkinsfile path
+- [x] handle unavailable Jenkinsfile without failing the build
+- [ ] add multibranch-specific coverage
+- [ ] add explicit UI reporting for unavailable Jenkinsfile reads
 
 Acceptance criteria:
 
@@ -374,4 +379,4 @@ The next sprint should focus only on hardening:
 4. config validation for exemptions
 5. UI smoke tests
 
-This keeps the MVP stable before expanding coverage to Pipeline-from-SCM or historical reporting.
+This keeps the MVP stable before expanding coverage to multibranch-specific Jenkinsfile handling or historical reporting.

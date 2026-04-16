@@ -2,7 +2,6 @@ package io.jenkins.plugins.secretguard.listener;
 
 import hudson.Extension;
 import hudson.model.Executor;
-import hudson.model.Job;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
@@ -10,41 +9,39 @@ import hudson.model.listeners.RunListener;
 import io.jenkins.plugins.secretguard.action.SecretGuardRunAction;
 import io.jenkins.plugins.secretguard.config.SecretGuardGlobalConfiguration;
 import io.jenkins.plugins.secretguard.model.EnforcementMode;
-import io.jenkins.plugins.secretguard.model.FindingLocationType;
 import io.jenkins.plugins.secretguard.model.ScanContext;
 import io.jenkins.plugins.secretguard.model.ScanPhase;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import io.jenkins.plugins.secretguard.model.Severity;
 import io.jenkins.plugins.secretguard.scan.PipelineScriptScanner;
+import io.jenkins.plugins.secretguard.service.PipelineDefinitionExtractor;
+import io.jenkins.plugins.secretguard.service.PipelineScriptSource;
 import io.jenkins.plugins.secretguard.service.SecretScanService;
-import java.lang.reflect.Method;
 import java.util.Optional;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 @Extension
 public class SecretGuardRunListener extends RunListener<Run<?, ?>> {
-    private static final Logger LOGGER = Logger.getLogger(SecretGuardRunListener.class.getName());
-
     private final SecretScanService scanService = new SecretScanService();
     private final PipelineScriptScanner pipelineScriptScanner = new PipelineScriptScanner();
+    private final PipelineDefinitionExtractor pipelineDefinitionExtractor = new PipelineDefinitionExtractor();
 
     @Override
     public void onStarted(Run<?, ?> run, TaskListener listener) {
-        Optional<String> script = extractPipelineScript(run.getParent());
+        Optional<PipelineScriptSource> script = pipelineDefinitionExtractor.extractScript(run.getParent());
         if (script.isEmpty()) {
             return;
         }
+        PipelineScriptSource source = script.get();
         SecretGuardGlobalConfiguration configuration = SecretGuardGlobalConfiguration.get();
         ScanContext context = new ScanContext(
                 run.getParent().getFullName(),
-                "Pipeline script",
+                source.getSourceName(),
                 run.getParent().getClass().getSimpleName(),
-                FindingLocationType.PIPELINE_SCRIPT,
+                source.getLocationType(),
                 ScanPhase.BUILD,
                 configuration == null ? EnforcementMode.AUDIT : configuration.getEnforcementMode(),
                 configuration == null ? Severity.HIGH : configuration.getBlockThreshold());
-        SecretScanResult result = scanService.scan(pipelineScriptScanner, context, script.get());
+        SecretScanResult result = scanService.scan(pipelineScriptScanner, context, source.getContent());
         run.addAction(new SecretGuardRunAction(result));
         if (!result.hasFindings()) {
             return;
@@ -63,23 +60,5 @@ public class SecretGuardRunListener extends RunListener<Run<?, ?>> {
                 executor.interrupt(Result.FAILURE);
             }
         }
-    }
-
-    private Optional<String> extractPipelineScript(Job<?, ?> job) {
-        try {
-            Method getDefinition = job.getClass().getMethod("getDefinition");
-            Object definition = getDefinition.invoke(job);
-            if (definition == null) {
-                return Optional.empty();
-            }
-            Method getScript = definition.getClass().getMethod("getScript");
-            Object script = getScript.invoke(definition);
-            if (script instanceof String scriptText && !scriptText.isBlank()) {
-                return Optional.of(scriptText);
-            }
-        } catch (ReflectiveOperationException | SecurityException e) {
-            LOGGER.log(Level.FINE, "Job does not expose an inline Pipeline script: " + job.getFullName(), e);
-        }
-        return Optional.empty();
     }
 }

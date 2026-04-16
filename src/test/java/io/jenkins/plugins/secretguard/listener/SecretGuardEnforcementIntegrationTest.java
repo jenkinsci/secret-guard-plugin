@@ -7,25 +7,50 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import hudson.FilePath;
+import hudson.Launcher;
 import hudson.model.Failure;
 import hudson.model.FreeStyleProject;
+import hudson.model.Result;
+import hudson.model.Run;
+import hudson.model.TaskListener;
+import hudson.scm.NullSCM;
+import hudson.scm.SCM;
+import hudson.scm.SCMDescriptor;
+import hudson.scm.SCMRevisionState;
 import io.jenkins.plugins.secretguard.action.SecretGuardRunAction;
 import io.jenkins.plugins.secretguard.config.SecretGuardGlobalConfiguration;
+import io.jenkins.plugins.secretguard.model.FindingLocationType;
 import io.jenkins.plugins.secretguard.model.EnforcementMode;
-import io.jenkins.plugins.secretguard.service.ScanResultStore;
 import io.jenkins.plugins.secretguard.model.Severity;
+import io.jenkins.plugins.secretguard.service.ScanResultStore;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import javax.xml.transform.stream.StreamSource;
 import org.htmlunit.HttpMethod;
 import org.htmlunit.Page;
 import org.htmlunit.WebRequest;
 import org.junit.jupiter.api.Test;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
+import org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.TestExtension;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
+import jenkins.scm.api.SCMFile;
+import jenkins.scm.api.SCMFileSystem;
+import jenkins.scm.api.SCMRevision;
+import jenkins.scm.api.SCMSource;
+import jenkins.scm.api.SCMSourceDescriptor;
 
 class SecretGuardEnforcementIntegrationTest {
     @Test
@@ -141,6 +166,56 @@ class SecretGuardEnforcementIntegrationTest {
         assertTrue(ScanResultStore.get().get(project.getFullName()).orElseThrow().hasFindings());
     }
 
+    @Test
+    @WithJenkins
+    void manualScanEndpointReadsPipelineFromScmJenkinsfile(JenkinsRule jenkinsRule) throws Exception {
+        configure(EnforcementMode.AUDIT);
+        WorkflowJob job = jenkinsRule.createProject(WorkflowJob.class, "manual-scm-scan");
+        job.setDefinition(new CpsScmFlowDefinition(
+                new MemoryScm(Map.of(
+                        "ci/Jenkinsfile",
+                        "def webhookUrl = 'https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999'")),
+                "ci/Jenkinsfile"));
+
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient().withThrowExceptionOnFailingStatusCode(false);
+        WebRequest request =
+                new WebRequest(webClient.createCrumbedUrl(job.getUrl() + "secret-guard/scanNow"), HttpMethod.POST);
+
+        Page page = webClient.getPage(request);
+
+        assertEquals(200, page.getWebResponse().getStatusCode());
+        assertTrue(page.getWebResponse().getContentAsString().contains("Manual scan completed."));
+        assertTrue(ScanResultStore.get()
+                .get(job.getFullName())
+                .orElseThrow()
+                .getFindings()
+                .stream()
+                .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")
+                        && finding.getLocationType() == FindingLocationType.JENKINSFILE
+                        && finding.getSourceName().equals("Jenkinsfile from SCM: ci/Jenkinsfile")));
+    }
+
+    @Test
+    @WithJenkins
+    void warnModeScansPipelineFromScmJenkinsfileAtBuildStart(JenkinsRule jenkinsRule) throws Exception {
+        configure(EnforcementMode.WARN);
+        WorkflowJob job = jenkinsRule.createProject(WorkflowJob.class, "build-scm-scan");
+        job.setDefinition(new CpsScmFlowDefinition(
+                new MemoryScm(Map.of(
+                        "Jenkinsfile",
+                        "def webhookUrl = 'https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999'")),
+                "Jenkinsfile"));
+
+        WorkflowRun run = jenkinsRule.buildAndAssertStatus(Result.UNSTABLE, job);
+
+        SecretGuardRunAction action = run.getAction(SecretGuardRunAction.class);
+        assertNotNull(action);
+        assertTrue(action.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")
+                        && finding.getLocationType() == FindingLocationType.JENKINSFILE
+                        && finding.getSourceName().equals("Jenkinsfile from SCM: Jenkinsfile")));
+    }
+
     private void configure(EnforcementMode mode) {
         SecretGuardGlobalConfiguration configuration = SecretGuardGlobalConfiguration.get();
         configuration.setEnabled(true);
@@ -166,5 +241,136 @@ class SecretGuardEnforcementIntegrationTest {
             return xml.replace("<properties/>", property);
         }
         return xml.replace("<properties></properties>", property);
+    }
+
+    public static class MemoryScm extends NullSCM {
+        private final Map<String, String> files;
+
+        MemoryScm(Map<String, String> files) {
+            this.files = new LinkedHashMap<>(files);
+        }
+
+        @Override
+        public void checkout(
+                Run<?, ?> build,
+                Launcher launcher,
+                FilePath workspace,
+                TaskListener listener,
+                File changelogFile,
+                SCMRevisionState baseline)
+                throws IOException, InterruptedException {
+            for (Map.Entry<String, String> entry : files.entrySet()) {
+                workspace.child(entry.getKey()).write(entry.getValue(), StandardCharsets.UTF_8.name());
+            }
+        }
+    }
+
+    @TestExtension
+    public static class MemoryScmFileSystemBuilder extends SCMFileSystem.Builder {
+        @Override
+        public boolean supports(SCM scm) {
+            return scm instanceof MemoryScm;
+        }
+
+        @Override
+        public boolean supports(SCMSource source) {
+            return false;
+        }
+
+        @Override
+        protected boolean supportsDescriptor(SCMDescriptor descriptor) {
+            return false;
+        }
+
+        @Override
+        protected boolean supportsDescriptor(SCMSourceDescriptor descriptor) {
+            return false;
+        }
+
+        @Override
+        public SCMFileSystem build(hudson.model.Item owner, SCM scm, SCMRevision rev) {
+            return new MemoryScmFileSystem((MemoryScm) scm);
+        }
+
+        @Override
+        public SCMFileSystem build(hudson.model.Item owner, SCM scm, SCMRevision rev, Run<?, ?> run) {
+            return new MemoryScmFileSystem((MemoryScm) scm);
+        }
+    }
+
+    private static class MemoryScmFileSystem extends SCMFileSystem {
+        private final Map<String, String> files;
+        private final SCMFile root;
+
+        MemoryScmFileSystem(MemoryScm scm) {
+            super(null);
+            this.files = scm.files;
+            this.root = new MemoryScmFile(this);
+        }
+
+        @Override
+        public long lastModified() {
+            return 0;
+        }
+
+        @Override
+        public SCMFile getRoot() {
+            return root;
+        }
+    }
+
+    private static class MemoryScmFile extends SCMFile {
+        private final MemoryScmFileSystem fileSystem;
+        private final String path;
+
+        MemoryScmFile(MemoryScmFileSystem fileSystem) {
+            super();
+            this.fileSystem = fileSystem;
+            this.path = "";
+        }
+
+        MemoryScmFile(MemoryScmFile parent, String name) {
+            super(parent, name);
+            this.fileSystem = parent.fileSystem;
+            this.path = parent.path.isBlank() ? name : parent.path + "/" + name;
+        }
+
+        @Override
+        protected SCMFile newChild(String name, boolean assumeIsDirectory) {
+            return new MemoryScmFile(this, name);
+        }
+
+        @Override
+        public Iterable<SCMFile> children() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public long lastModified() {
+            return 0;
+        }
+
+        @Override
+        protected Type type() {
+            if (path.isBlank()) {
+                return Type.DIRECTORY;
+            }
+            if (fileSystem.files.containsKey(path)) {
+                return Type.REGULAR_FILE;
+            }
+            String prefix = path + "/";
+            return fileSystem.files.keySet().stream().anyMatch(file -> file.startsWith(prefix))
+                    ? Type.DIRECTORY
+                    : Type.NONEXISTENT;
+        }
+
+        @Override
+        public InputStream content() throws IOException {
+            String content = fileSystem.files.get(path);
+            if (content == null) {
+                throw new IOException("No such file: " + path);
+            }
+            return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+        }
     }
 }

@@ -42,14 +42,17 @@ The Java sources are organized under `io.jenkins.plugins.secretguard`:
 ### Build-time flow
 
 1. Jenkins starts a build
-2. `SecretGuardRunListener` tries to extract inline Pipeline script from the job definition
-3. `PipelineScriptScanner` scans the script text
-4. `SecretScanService` post-processes the findings
-5. `SecretGuardRunAction` is attached to the build
-6. Depending on mode:
+2. `SecretGuardRunListener` asks `PipelineDefinitionExtractor` for Pipeline text
+3. Inline Pipeline scripts are read from the job definition; Pipeline-from-SCM Jenkinsfiles are read with lightweight `SCMFileSystem` access
+4. `PipelineScriptScanner` scans the script text
+5. `SecretScanService` post-processes the findings
+6. `SecretGuardRunAction` is attached to the build
+7. Depending on mode:
    - `AUDIT`: log/report only
    - `WARN`: mark build `UNSTABLE`
    - `BLOCK`: interrupt build with `FAILURE`
+
+If SCM Jenkinsfile content cannot be read through lightweight access, the build-time scan is skipped for that Jenkinsfile and the build is not failed by the read failure.
 
 ### Manual Job scan flow
 
@@ -58,10 +61,18 @@ The Java sources are organized under `io.jenkins.plugins.secretguard`:
 3. `SecretGuardJobAction#doScanNow` checks `Item.CONFIGURE`
 4. `ManualJobScanService` reads the current `config.xml`
 5. `ConfigXmlScanner` scans XML content and inline Pipeline script content
-6. `SecretScanService` applies whitelist, exemptions, deduplication, and latest-result persistence
-7. User is redirected back to the Job report page with the refreshed latest result
+6. `PipelineDefinitionExtractor` tries to read Pipeline-from-SCM Jenkinsfile content through `SCMFileSystem`
+7. `PipelineScriptScanner` scans the SCM Jenkinsfile as `JENKINSFILE` when it is available
+8. `SecretScanService` applies whitelist, exemptions, deduplication, and latest-result persistence
+9. User is redirected back to the Job report page with the refreshed latest result
 
 Manual scan always runs in report-only mode for MVP. It refreshes findings but does not block save operations and does not change build results.
+
+### Save-time flow for Pipeline-from-SCM
+
+Save-time enforcement continues to scan the submitted Job `config.xml`.
+It does not perform SCM network reads in the blocking save path.
+Pipeline-from-SCM Jenkinsfiles are scanned during manual scans and build-time scans when lightweight SCM access is available.
 
 ## Main Classes
 
@@ -129,6 +140,21 @@ When adding a new rule:
 - detects hardcoded secrets embedded in URL query parameters such as `?key=...` and `?token=...`
 - passes header names into generic rules so benign tracking headers do not trigger high-entropy false positives
 - keeps implementation text-based so it does not require Pipeline AST integration
+
+#### `PipelineDefinitionExtractor`
+
+- detects inline Pipeline definitions through `getDefinition().getScript()`
+- detects Pipeline-from-SCM definitions through `getDefinition().getScm()` and `getDefinition().getScriptPath()`
+- keeps production code decoupled from concrete workflow classes by using reflection
+- returns a `PipelineScriptSource` with source name, content, and location type
+
+#### `ScmJenkinsfileReader`
+
+- reads configured Jenkinsfile paths with Jenkins `SCMFileSystem`
+- defaults blank script paths to `Jenkinsfile`
+- reports SCM Jenkinsfile findings with `FindingLocationType.JENKINSFILE`
+- returns empty when lightweight access is unsupported, the file is missing, or reading fails
+- never performs a workspace checkout fallback in MVP
 
 #### `NonSecretHeuristics`
 
@@ -253,6 +279,11 @@ Current test coverage is intentionally focused on the deterministic core:
   - whitelist effect
   - warn-mode handling
   - priority-based duplicate suppression
+- `SecretGuardEnforcementIntegrationTest`
+  - save/create/copy blocking
+  - manual scan endpoint persistence
+  - build-time RunAction serialization
+  - Pipeline-from-SCM manual and build-time scanning through lightweight SCM access
 - `ScanResultStoreTest`
   - latest result persistence and lazy reload
   - exemption state restoration
@@ -262,9 +293,9 @@ Current test coverage is intentionally focused on the deterministic core:
 
 Recommended next layer:
 
-- JenkinsRule integration tests for save blocking
-- JenkinsRule integration tests for build `UNSTABLE` and `FAILURE`
 - UI smoke tests for Job and root actions
+- multibranch-specific Jenkinsfile coverage
+- SCM read failure reporting tests
 
 ## Safe Change Guidelines
 
@@ -295,16 +326,14 @@ Recommended next layer:
 
 ## Known Gaps
 
-- build-time scanning only covers inline Pipeline scripts exposed by `getDefinition().getScript()`
-- external SCM `Jenkinsfile` retrieval is not implemented
-- save/create blocking still needs deeper JenkinsRule coverage for UI and XML API flows
-- report storage is volatile
+- Pipeline-from-SCM support depends on SCM plugins exposing lightweight `SCMFileSystem` access
+- save/create blocking intentionally does not perform SCM Jenkinsfile reads
+- multibranch-specific indexing integration is not implemented
 - no trend/history view exists
 
 ## Suggested Next Steps
 
-1. Add JenkinsRule tests for save/build enforcement
-2. Support Pipeline-from-SCM / multibranch `Jenkinsfile`
-3. Add optional manual re-scan action
-4. Persist report history if auditability becomes a requirement
-5. Expand plugin-specific adapters for common credential-bearing publishers and builders
+1. Add multibranch-specific Jenkinsfile coverage
+2. Add optional Pipeline step support
+3. Persist report history if auditability becomes a requirement
+4. Expand plugin-specific adapters for common credential-bearing publishers and builders

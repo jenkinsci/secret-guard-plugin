@@ -39,13 +39,17 @@ public class SecretScanService {
     }
 
     public SecretScanResult scan(SecretScanner scanner, ScanContext context, String content) {
+        SecretScanResult rawResult = scanner.scan(context, content);
+        return process(context, rawResult.getFindings());
+    }
+
+    public SecretScanResult process(ScanContext context, List<SecretFinding> rawFindings) {
         SecretGuardGlobalConfiguration configuration = SecretGuardGlobalConfiguration.get();
         if (configuration != null && !configuration.isEnabled()) {
             return SecretScanResult.empty(context.getJobFullName(), context.getTargetType());
         }
-        SecretScanResult rawResult = scanner.scan(context, content);
         List<SecretFinding> processedFindings = new ArrayList<>();
-        for (SecretFinding finding : rawResult.getFindings()) {
+        for (SecretFinding finding : rawFindings) {
             SecretFinding processed = whitelistService.isWhitelisted(finding)
                     ? finding.withExemption("Whitelisted by global Secret Guard configuration")
                     : exemptionService.applyExemption(finding);
@@ -54,7 +58,7 @@ public class SecretScanService {
         processedFindings = dedupeByRulePriority(processedFindings);
         boolean blocked = shouldBlock(context, processedFindings);
         SecretScanResult result =
-                new SecretScanResult(rawResult.getTargetId(), rawResult.getTargetType(), processedFindings, blocked);
+                new SecretScanResult(context.getJobFullName(), context.getTargetType(), processedFindings, blocked);
         ScanResultStore.get().put(result);
         return result;
     }

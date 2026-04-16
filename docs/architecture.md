@@ -6,6 +6,7 @@ Jenkins Secret Guard is a focused Jenkins plugin for detecting and preventing se
 
 - Job `config.xml`
 - Pipeline inline scripts
+- Pipeline-from-SCM Jenkinsfiles when lightweight SCM access is available
 - Build parameter default values
 - Environment variable definitions
 - Command steps such as `sh`, `bat`, and `powershell`
@@ -113,6 +114,13 @@ Two scanners implement `SecretScanner`:
   - detects URL query secrets in shell commands and other script strings, such as webhook URLs with hardcoded `key` or `token` parameters
   - avoids heavy Groovy parsing in MVP
 
+Pipeline definitions are extracted through `PipelineDefinitionExtractor`:
+
+- inline Pipeline definitions are read from `getDefinition().getScript()`
+- Pipeline-from-SCM definitions are read from the configured `scriptPath`, defaulting to `Jenkinsfile`
+- SCM Jenkinsfile content is retrieved through Jenkins `SCMFileSystem` lightweight access
+- unsupported SCMs or unreadable Jenkinsfiles are skipped without failing saves or builds
+
 The scanner layer is responsible for extracting candidate values and location metadata, not for enforcement.
 
 ### 5. Orchestration and Policy
@@ -147,7 +155,7 @@ The plugin integrates at three levels:
   - blocks copying a risky Job before the copy is created in `BLOCK` mode
   - complements save-time reporting
 - `SecretGuardRunListener`
-  - scans inline Pipeline script at build start
+  - scans inline Pipeline scripts and lightweight Pipeline-from-SCM Jenkinsfiles at build start
   - adds a run action report
   - marks builds `UNSTABLE` in `WARN`
   - interrupts builds in `BLOCK`
@@ -161,7 +169,7 @@ Results are exposed through:
 - `SecretGuardRootAction`
 - `SecretGuardAdministrativeMonitor`
 
-Job-level reports are attached only after a job has a stored scan result, so unscanned jobs do not show a Secret Guard page.
+Job-level reports are available on each Job page so users can run `Scan Now` even before a previous scan result exists.
 
 `ScanResultStore` keeps the latest result in memory and persists one masked latest-result XML file per target under `$JENKINS_HOME/secret-guard/results/`. Reports can be restored lazily after a controller restart without storing raw secret values.
 
@@ -169,7 +177,8 @@ Job-level reports are attached only after a job has a stored scan result, so uns
 
 The current implementation deliberately does not include:
 
-- SCM-fetched external `Jenkinsfile` parsing before build
+- SCM checkout fallback when lightweight `SCMFileSystem` access is unavailable
+- multibranch-specific branch indexing integration
 - Groovy AST or taint analysis
 - plugin-specific deep adapters for every Jenkins plugin
 - history trends or long-term scan retention
@@ -183,8 +192,8 @@ Recommended evolution path:
 1. Add more `SecretRule` implementations without changing listener code
 2. Add dedicated scanners for plugin-specific configuration blocks
 3. Add historical result retention if trend or audit reporting becomes required
-4. Add Pipeline step or manual re-scan endpoint
-5. Add SCM `Jenkinsfile` retrieval for multibranch and Pipeline-from-SCM jobs
+4. Add Pipeline step support for explicit in-pipeline scans
+5. Add multibranch-specific Jenkinsfile coverage and SCM fallback strategies
 
 ## Key Tradeoffs
 
