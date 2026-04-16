@@ -6,13 +6,18 @@ import hudson.model.RootAction;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import io.jenkins.plugins.secretguard.service.ScanResultStore;
 import java.util.List;
+import jenkins.model.Jenkins;
 import org.kohsuke.stapler.Stapler;
+import org.kohsuke.stapler.StaplerProxy;
 import org.kohsuke.stapler.StaplerRequest2;
 
 @Extension
-public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport {
+public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, StaplerProxy {
     @Override
     public String getIconFileName() {
+        if (!Jenkins.get().hasPermission(Jenkins.MANAGE)) {
+            return null;
+        }
         return "symbol-shield-checkmark-outline plugin-ionicons-api";
     }
 
@@ -24,6 +29,11 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport {
     @Override
     public String getUrlName() {
         return "secret-guard";
+    }
+
+    public Object getTarget() {
+        Jenkins.get().checkPermission(Jenkins.MANAGE);
+        return this;
     }
 
     public List<SecretScanResult> getResults() {
