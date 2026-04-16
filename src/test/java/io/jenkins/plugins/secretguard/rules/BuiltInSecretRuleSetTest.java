@@ -42,6 +42,9 @@ class BuiltInSecretRuleSetTest {
                 .isEmpty());
         assertTrue(scan("", "/opt/example-tools/run-task-reporter.py").isEmpty());
         assertTrue(scan("", "/var/run/docker.sock:/var/run/docker.sock").isEmpty());
+        assertTrue(scan("", "publishAllPublicationsToMavenRepository").isEmpty());
+        assertTrue(
+                scan("", "artifact-internal/inf/tool/tool_prebuild_binary/test").isEmpty());
     }
 
     @Test

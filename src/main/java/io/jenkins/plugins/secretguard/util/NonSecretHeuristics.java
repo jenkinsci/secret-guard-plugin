@@ -188,6 +188,7 @@ public final class NonSecretHeuristics {
                 || lowerToken.contains(".net/")
                 || lowerToken.contains(".org/")
                 || FILE_EXTENSION.matcher(lowerToken).matches()
+                || looksLikeRepositoryPath(lowerToken)
                 || DOCKER_IMAGE_REFERENCE.matcher(lowerToken).matches();
     }
 
@@ -215,18 +216,58 @@ public final class NonSecretHeuristics {
     }
 
     private static boolean looksLikeHumanReadableIdentifier(String value) {
-        String lower = nullToEmpty(value).toLowerCase(Locale.ENGLISH);
-        if (!lower.contains("_") && !lower.contains("-")) {
+        String normalized = nullToEmpty(value).trim();
+        if (normalized.isEmpty()) {
             return false;
         }
-        String[] parts = lower.split("[_-]+");
+        String[] parts;
+        String lower = normalized.toLowerCase(Locale.ENGLISH);
+        if (lower.contains("_") || lower.contains("-")) {
+            parts = lower.split("[_-]+");
+        } else if (looksLikeCamelCaseIdentifier(normalized)) {
+            parts = normalized.split("(?<=[a-z0-9])(?=[A-Z])");
+        } else {
+            return false;
+        }
         int wordLikeParts = 0;
         for (String part : parts) {
-            if (part.length() >= 3 && part.matches("[a-z][a-z0-9]*")) {
+            if (part.length() >= 2 && part.toLowerCase(Locale.ENGLISH).matches("[a-z][a-z0-9]*")) {
                 wordLikeParts++;
             }
         }
         return wordLikeParts >= 3;
+    }
+
+    private static boolean looksLikeCamelCaseIdentifier(String value) {
+        return value.matches("[a-z][A-Za-z0-9]*") && value.matches(".*[A-Z].*") && value.matches(".*[a-z][A-Z].*");
+    }
+
+    private static boolean looksLikeRepositoryPath(String value) {
+        if (value == null || !value.contains("/")) {
+            return false;
+        }
+        String[] segments = value.split("/+");
+        int readableSegments = 0;
+        for (String segment : segments) {
+            if (segment.isBlank()) {
+                continue;
+            }
+            if (!looksLikeReadablePathSegment(segment)) {
+                return false;
+            }
+            readableSegments++;
+        }
+        return readableSegments >= 3;
+    }
+
+    private static boolean looksLikeReadablePathSegment(String segment) {
+        if (segment.length() > 24 || !segment.matches("[a-z0-9._-]+") || !segment.matches(".*[a-z].*")) {
+            return false;
+        }
+        return looksLikeHumanReadableIdentifier(segment)
+                || segment.matches("[a-z0-9]+")
+                || segment.contains("_")
+                || segment.contains("-");
     }
 
     private static String normalize(String value) {

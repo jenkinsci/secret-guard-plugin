@@ -229,6 +229,28 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void doesNotFlagHumanReadableGradleTaskNamesAsHighEntropySecrets() {
+        String script = """
+                sh './gradlew --info --refresh-dependencies -Prelease -PskipAndroid=true -PskipCodegen=true build publishAllPublicationsToMavenRepository -x test -x check -PmavenUser=$USER -PmavenPassword=$PASSWORD'
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
+    void doesNotFlagHumanReadableArtifactRepositoryPathsAsHighEntropySecrets() {
+        String script = """
+                sh 'jfrog rt u /opt/tool/tool-$ARCH-$TIMESTAMP.tar artifact-internal/inf/tool/tool_prebuild_binary/test/$DATE/tool-$ARCH-$TIMESTAMP.tar'
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
     void doesNotFlagDockerImageOrScriptPathAsHighEntropySecret() {
         String script = """
                 pipeline {
