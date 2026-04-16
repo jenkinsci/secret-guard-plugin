@@ -64,8 +64,12 @@ public class PipelineScriptScanner implements SecretScanner {
             }
             FindingLocationType locationType = classifyLine(trimmed, environmentDepth > 0, context.getLocationType());
             ScanContext locationContext = context.withLocationType(locationType);
-            String fieldName = extractFieldName(trimmed);
             List<ParsedCustomHeader> parsedHeaders = customHeadersByLine.get(index + 1);
+            String genericLine = trimToNull(
+                    parsedHeaders == null || parsedHeaders.isEmpty()
+                            ? trimmed
+                            : sanitizeLineForGenericRuleScan(trimmed, parsedHeaders));
+            String fieldName = extractFieldName(genericLine == null ? "" : genericLine);
             if (parsedHeaders != null && !parsedHeaders.isEmpty()) {
                 ScanContext headerContext = context.withLocationType(FindingLocationType.COMMAND_STEP);
                 for (ParsedCustomHeader parsedHeader : parsedHeaders) {
@@ -86,9 +90,11 @@ public class PipelineScriptScanner implements SecretScanner {
                             parsedHeader.valueExpression(),
                             parsedHeader.maskValueFalse()));
                 }
-            } else {
+            }
+            if (genericLine != null) {
                 for (SecretRule rule : ruleSet.getRules()) {
-                    findings.addAll(rule.scan(locationContext, context.getSourceName(), index + 1, fieldName, trimmed));
+                    findings.addAll(
+                            rule.scan(locationContext, context.getSourceName(), index + 1, fieldName, genericLine));
                 }
             }
             environmentDepth = updateEnvironmentDepth(trimmed, environmentDepth, opensEnvironment);
@@ -148,6 +154,19 @@ public class PipelineScriptScanner implements SecretScanner {
         return !header.name().isBlank()
                 && !header.valueExpression().isBlank()
                 && !looksLikeGroovyVariableReference(header.valueExpression());
+    }
+
+    private String sanitizeLineForGenericRuleScan(String line, List<ParsedCustomHeader> parsedHeaders) {
+        String sanitized = line;
+        for (ParsedCustomHeader parsedHeader : parsedHeaders) {
+            String valueExpression = parsedHeader.valueExpression();
+            int matchIndex = sanitized.indexOf(valueExpression);
+            if (matchIndex >= 0) {
+                sanitized = sanitized.substring(0, matchIndex) + "SG_HEADER_VALUE"
+                        + sanitized.substring(matchIndex + valueExpression.length());
+            }
+        }
+        return sanitized;
     }
 
     private Map<Integer, List<ParsedCustomHeader>> parseCustomHeadersByLine(String[] lines) {
@@ -379,6 +398,14 @@ public class PipelineScriptScanner implements SecretScanner {
             }
         }
         return count;
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private String unquote(String value) {

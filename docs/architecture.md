@@ -110,7 +110,7 @@ Two scanners implement `SecretScanner`:
   - scans Pipeline text line by line
   - tracks `environment {}` scope
   - classifies command steps and HTTP-style secret usage
-  - tracks multi-line `httpRequest customHeaders` blocks so header `name`, `value`, and `maskValue` are evaluated together
+  - parses literal `httpRequest customHeaders` lists into per-header entries so `name`, `value`, and `maskValue` are evaluated together across single-line and multi-line layouts
   - detects URL query secrets in shell commands and other script strings, such as webhook URLs with hardcoded `key` or `token` parameters
   - avoids heavy Groovy parsing in MVP
 

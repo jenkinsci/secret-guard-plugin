@@ -187,6 +187,21 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void stillScansOtherArgumentsOnSameLineAsCustomHeaders() {
+        String script = """
+                def response = httpRequest(customHeaders: [[name: "Authorization", value: "Bearer hardcodedHeaderValue0123456789ABCDEF", maskValue: false]], url: "https://chat.example.invalid/cgi-bin/webhook/send?token=123e4567-e89b-12d3-a456-426614174999")
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-unmasked-header-secret")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")));
+    }
+
+    @Test
     void doesNotFlagDockerImageOrScriptPathAsHighEntropySecret() {
         String script = """
                 pipeline {
