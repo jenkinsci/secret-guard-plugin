@@ -1,6 +1,7 @@
 package io.jenkins.plugins.secretguard.scan;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.jenkins.plugins.secretguard.model.EnforcementMode;
@@ -88,6 +89,79 @@ class ConfigXmlScannerTest {
                 .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
         assertTrue(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("http-request-unmasked-header-secret")));
+    }
+
+    @Test
+    void doesNotFlagRuntimeReferencesFromConfigXmlOrInlinePipeline() {
+        String xml = """
+                <flow-definition>
+                  <properties>
+                    <somePublisher>
+                      <password>$SERVICE_API_TOKEN</password>
+                    </somePublisher>
+                    <otherPublisher>
+                      <token>params.SERVICE_API_TOKEN</token>
+                    </otherPublisher>
+                    <thirdPublisher>
+                      <secret>env['SERVICE_API_TOKEN']</secret>
+                    </thirdPublisher>
+                  </properties>
+                  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition">
+                    <script><![CDATA[
+                def response = httpRequest(
+                    httpMode: "POST",
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [[name: "x-service-token", value: "${SERVICE_API_TOKEN}", maskValue: true]]
+                )
+                def alternate = httpRequest(
+                    httpMode: "POST",
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [[name: "Authorization", value: 'Bearer ' + params.SERVICE_API_TOKEN, maskValue: true]]
+                )
+                    ]]></script>
+                    <sandbox>true</sandbox>
+                  </definition>
+                </flow-definition>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("WorkflowJob"), xml);
+
+        assertFalse(result.hasFindings());
+    }
+
+    @Test
+    void parsesMixedCustomHeadersFromInlinePipelineScript() {
+        String xml = """
+                <flow-definition>
+                  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition">
+                    <script><![CDATA[
+                def response = httpRequest(
+                    httpMode: "POST",
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [
+                        [name: "x-safe-token", value: params.SERVICE_API_TOKEN, maskValue: true],
+                        [
+                            name: "Authorization",
+                            value: "Bearer hardcodedHeaderValue0123456789ABCDEF",
+                            maskValue: false
+                        ]
+                    ]
+                )
+                    ]]></script>
+                    <sandbox>true</sandbox>
+                  </definition>
+                </flow-definition>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("WorkflowJob"), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-unmasked-header-secret")));
+        assertFalse(result.getFindings().stream()
+                .filter(finding -> finding.getRuleId().startsWith("http-request-"))
+                .anyMatch(finding -> finding.getFieldName().equals("x-safe-token")));
     }
 
     private ScanContext context(String targetType) {

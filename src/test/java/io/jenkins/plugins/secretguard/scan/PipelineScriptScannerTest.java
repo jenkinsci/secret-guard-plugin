@@ -111,6 +111,82 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void doesNotFlagAdditionalRuntimeHeaderReferenceForms() {
+        String script = """
+                def first = httpRequest(
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [[name: "x-service-token", value: params.SERVICE_API_TOKEN, maskValue: true]]
+                )
+                def second = httpRequest(
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [[name: "x-service-token", value: env['SERVICE_API_TOKEN'], maskValue: true]]
+                )
+                def third = httpRequest(
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [[name: "Authorization", value: "Bearer ${env.SERVICE_API_TOKEN}", maskValue: true]]
+                )
+                def fourth = httpRequest(
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [[name: "Authorization", value: 'Bearer ' + params.SERVICE_API_TOKEN, maskValue: true]]
+                )
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().startsWith("http-request-")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
+    void parsesMultipleCustomHeadersAcrossMixedLayouts() {
+        String script = """
+                def response = httpRequest(
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [
+                        [
+                            name: "x-safe-token",
+                            value: env['SERVICE_API_TOKEN'],
+                            maskValue: true
+                        ],
+                        [name: "Authorization", value: "Bearer hardcodedHeaderValue0123456789ABCDEF", maskValue: false]],
+                    quiet: true
+                )
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-unmasked-header-secret")));
+        assertFalse(result.getFindings().stream()
+                .filter(finding -> finding.getRuleId().startsWith("http-request-"))
+                .anyMatch(finding -> finding.getFieldName().equals("x-safe-token")));
+    }
+
+    @Test
+    void parsesNestedHeaderValueExpressionsWithoutCarryingWrongContext() {
+        String script = """
+                def response = httpRequest(
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [[
+                        name: "Authorization",
+                        value: "Bearer ${helper([token: env.SERVICE_API_TOKEN, meta: [source: 'jenkins']])}",
+                        maskValue: true
+                    ]]
+                )
+                def response_content = readJSON text: response.content
+                def response_code = response_content['code']
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().startsWith("http-request-")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
     void doesNotFlagDockerImageOrScriptPathAsHighEntropySecret() {
         String script = """
                 pipeline {

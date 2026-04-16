@@ -10,8 +10,10 @@ import io.jenkins.plugins.secretguard.rules.SecretRule;
 import io.jenkins.plugins.secretguard.util.NonSecretHeuristics;
 import io.jenkins.plugins.secretguard.util.SecretMasker;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -22,9 +24,7 @@ public class PipelineScriptScanner implements SecretScanner {
     private static final Pattern HTTP_REQUEST = Pattern.compile("\\bhttpRequest\\b");
     private static final Pattern CUSTOM_HEADERS = Pattern.compile("\\bcustomHeaders\\s*:");
     private static final Pattern HEADER_NAME = Pattern.compile("\\bname\\s*:\\s*['\"]([^'\"]+)['\"]");
-    private static final Pattern HEADER_VALUE = Pattern.compile("\\bvalue\\s*:\\s*(['\"])([^'\"]{8,})\\1");
-    private static final Pattern HEADER_VALUE_REFERENCE = Pattern.compile(
-            "\\bvalue\\s*:\\s*(['\"])(\\$\\{[^'\"]+}|\\$[A-Za-z_][A-Za-z0-9_]*|env\\.[A-Za-z_][A-Za-z0-9_.]*)\\1");
+    private static final Pattern HEADER_VALUE_START = Pattern.compile("\\bvalue\\s*:");
     private static final Pattern MASK_VALUE_FALSE = Pattern.compile("\\bmaskValue\\s*:\\s*false\\b");
     private static final Pattern HEADER_SENSITIVE_NAME =
             Pattern.compile("(?i)(authorization|token|secret|api[_-]?key|apikey|auth|credential)");
@@ -50,37 +50,13 @@ public class PipelineScriptScanner implements SecretScanner {
         }
         List<SecretFinding> findings = new ArrayList<>();
         String[] lines = content.split("\\R", -1);
+        Map<Integer, List<ParsedCustomHeader>> customHeadersByLine = parseCustomHeadersByLine(lines);
         int environmentDepth = 0;
-        int httpRequestWindow = 0;
-        int customHeadersWindow = 0;
-        String currentHeaderName = "";
-        boolean currentHeaderMaskFalse = false;
         for (int index = 0; index < lines.length; index++) {
             String line = lines[index];
             String trimmed = line.trim();
             if (trimmed.startsWith("//") || trimmed.startsWith("#")) {
                 continue;
-            }
-            if (HTTP_REQUEST.matcher(trimmed).find()) {
-                httpRequestWindow = 12;
-            } else if (httpRequestWindow > 0) {
-                httpRequestWindow--;
-            }
-            if (httpRequestWindow > 0 && CUSTOM_HEADERS.matcher(trimmed).find()) {
-                customHeadersWindow = 12;
-                currentHeaderName = "";
-                currentHeaderMaskFalse = false;
-            } else if (customHeadersWindow > 0) {
-                customHeadersWindow--;
-            }
-            if (customHeadersWindow > 0) {
-                Matcher headerNameMatcher = HEADER_NAME.matcher(trimmed);
-                if (headerNameMatcher.find()) {
-                    currentHeaderName = headerNameMatcher.group(1);
-                }
-                if (MASK_VALUE_FALSE.matcher(trimmed).find()) {
-                    currentHeaderMaskFalse = true;
-                }
             }
             boolean opensEnvironment = trimmed.matches(".*\\benvironment\\s*\\{.*");
             if (opensEnvironment && environmentDepth == 0) {
@@ -89,28 +65,30 @@ public class PipelineScriptScanner implements SecretScanner {
             FindingLocationType locationType = classifyLine(trimmed, environmentDepth > 0, context.getLocationType());
             ScanContext locationContext = context.withLocationType(locationType);
             String fieldName = extractFieldName(trimmed);
-            String effectiveFieldName = fieldName;
-            String effectiveValue = trimmed;
-            if (customHeadersWindow > 0 && fieldName.isBlank()) {
-                Matcher headerValueMatcher = HEADER_VALUE.matcher(trimmed);
-                Matcher headerValueReferenceMatcher = HEADER_VALUE_REFERENCE.matcher(trimmed);
-                if (headerValueMatcher.find() && !currentHeaderName.isBlank()) {
-                    effectiveFieldName = currentHeaderName;
-                    effectiveValue = headerValueMatcher.group(2);
-                } else if (headerValueReferenceMatcher.find() && !currentHeaderName.isBlank()) {
-                    effectiveFieldName = currentHeaderName;
-                    effectiveValue = headerValueReferenceMatcher.group(2);
+            List<ParsedCustomHeader> parsedHeaders = customHeadersByLine.get(index + 1);
+            if (parsedHeaders != null && !parsedHeaders.isEmpty()) {
+                ScanContext headerContext = context.withLocationType(FindingLocationType.COMMAND_STEP);
+                for (ParsedCustomHeader parsedHeader : parsedHeaders) {
+                    if (shouldScanWithGenericRules(parsedHeader)) {
+                        for (SecretRule rule : ruleSet.getRules()) {
+                            findings.addAll(rule.scan(
+                                    headerContext,
+                                    context.getSourceName(),
+                                    parsedHeader.lineNumber(),
+                                    parsedHeader.name(),
+                                    parsedHeader.valueExpression()));
+                        }
+                    }
+                    findings.addAll(scanHardcodedCustomHeader(
+                            headerContext,
+                            parsedHeader.lineNumber(),
+                            parsedHeader.name(),
+                            parsedHeader.valueExpression(),
+                            parsedHeader.maskValueFalse()));
                 }
-            }
-            for (SecretRule rule : ruleSet.getRules()) {
-                findings.addAll(rule.scan(
-                        locationContext, context.getSourceName(), index + 1, effectiveFieldName, effectiveValue));
-            }
-            if (customHeadersWindow > 0) {
-                findings.addAll(scanHardcodedCustomHeader(
-                        locationContext, index + 1, trimmed, currentHeaderName, currentHeaderMaskFalse));
-                if (trimmed.contains("]")) {
-                    currentHeaderMaskFalse = false;
+            } else {
+                for (SecretRule rule : ruleSet.getRules()) {
+                    findings.addAll(rule.scan(locationContext, context.getSourceName(), index + 1, fieldName, trimmed));
                 }
             }
             environmentDepth = updateEnvironmentDepth(trimmed, environmentDepth, opensEnvironment);
@@ -119,12 +97,17 @@ public class PipelineScriptScanner implements SecretScanner {
     }
 
     private List<SecretFinding> scanHardcodedCustomHeader(
-            ScanContext context, int lineNumber, String line, String headerName, boolean maskValueFalse) {
-        Matcher matcher = HEADER_VALUE.matcher(line);
-        if (!matcher.find()) {
+            ScanContext context,
+            int lineNumber,
+            String headerName,
+            String headerValueExpression,
+            boolean maskValueFalse) {
+        if (headerValueExpression.isBlank()
+                || looksLikeGroovyVariableReference(headerValueExpression)
+                || NonSecretHeuristics.isRuntimeSecretReference(headerValueExpression)) {
             return List.of();
         }
-        String headerValue = matcher.group(2);
+        String headerValue = unquote(headerValueExpression);
         if (!looksLikeHardcodedSecretHeaderValue(headerName, headerValue)) {
             return List.of();
         }
@@ -156,6 +139,258 @@ public class PipelineScriptScanner implements SecretScanner {
         return findings;
     }
 
+    private boolean looksLikeGroovyVariableReference(String value) {
+        String trimmed = value.trim();
+        return trimmed.matches("[A-Za-z_][A-Za-z0-9_]*");
+    }
+
+    private boolean shouldScanWithGenericRules(ParsedCustomHeader header) {
+        return !header.name().isBlank()
+                && !header.valueExpression().isBlank()
+                && !looksLikeGroovyVariableReference(header.valueExpression());
+    }
+
+    private Map<Integer, List<ParsedCustomHeader>> parseCustomHeadersByLine(String[] lines) {
+        Map<Integer, List<ParsedCustomHeader>> headersByLine = new HashMap<>();
+        int httpRequestWindow = 0;
+        for (int index = 0; index < lines.length; index++) {
+            String trimmed = lines[index].trim();
+            if (HTTP_REQUEST.matcher(trimmed).find()) {
+                httpRequestWindow = 16;
+            } else if (httpRequestWindow > 0) {
+                httpRequestWindow--;
+            }
+            if (httpRequestWindow <= 0 || !CUSTOM_HEADERS.matcher(trimmed).find()) {
+                continue;
+            }
+            ParsedCustomHeaders parsedHeaders = parseCustomHeaders(lines, index);
+            for (ParsedCustomHeader header : parsedHeaders.headers()) {
+                headersByLine
+                        .computeIfAbsent(header.lineNumber(), ignored -> new ArrayList<>())
+                        .add(header);
+            }
+        }
+        return headersByLine;
+    }
+
+    private ParsedCustomHeaders parseCustomHeaders(String[] lines, int startLineIndex) {
+        Matcher matcher = CUSTOM_HEADERS.matcher(lines[startLineIndex]);
+        if (!matcher.find()) {
+            return ParsedCustomHeaders.empty(startLineIndex);
+        }
+        ExtractedExpression expression = extractBracketedExpression(lines, startLineIndex, matcher.end());
+        if (expression.value().isBlank()) {
+            return ParsedCustomHeaders.empty(startLineIndex);
+        }
+        return new ParsedCustomHeaders(
+                parseCustomHeaderEntries(expression.value(), startLineIndex + 1), expression.endLineIndex());
+    }
+
+    private ExtractedExpression extractBracketedExpression(String[] lines, int startLineIndex, int startColumn) {
+        int lineIndex = startLineIndex;
+        int column = startColumn;
+        while (lineIndex < lines.length) {
+            String line = lines[lineIndex];
+            while (column < line.length() && Character.isWhitespace(line.charAt(column))) {
+                column++;
+            }
+            if (column < line.length()) {
+                break;
+            }
+            lineIndex++;
+            column = 0;
+        }
+        if (lineIndex >= lines.length
+                || column >= lines[lineIndex].length()
+                || lines[lineIndex].charAt(column) != '[') {
+            return ExtractedExpression.empty(startLineIndex);
+        }
+        StringBuilder expression = new StringBuilder();
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+        boolean escaping = false;
+        int bracketDepth = 0;
+        for (int currentLine = lineIndex; currentLine < lines.length; currentLine++) {
+            String line = lines[currentLine];
+            int start = currentLine == lineIndex ? column : 0;
+            for (int index = start; index < line.length(); index++) {
+                char c = line.charAt(index);
+                expression.append(c);
+                if (escaping) {
+                    escaping = false;
+                    continue;
+                }
+                if ((inSingleQuote || inDoubleQuote) && c == '\\') {
+                    escaping = true;
+                    continue;
+                }
+                if (inSingleQuote) {
+                    if (c == '\'') {
+                        inSingleQuote = false;
+                    }
+                    continue;
+                }
+                if (inDoubleQuote) {
+                    if (c == '"') {
+                        inDoubleQuote = false;
+                    }
+                    continue;
+                }
+                if (c == '\'') {
+                    inSingleQuote = true;
+                } else if (c == '"') {
+                    inDoubleQuote = true;
+                } else if (c == '[') {
+                    bracketDepth++;
+                } else if (c == ']') {
+                    bracketDepth--;
+                    if (bracketDepth == 0) {
+                        return new ExtractedExpression(expression.toString(), currentLine);
+                    }
+                }
+            }
+            if (currentLine + 1 < lines.length) {
+                expression.append('\n');
+            }
+        }
+        return ExtractedExpression.empty(startLineIndex);
+    }
+
+    private List<ParsedCustomHeader> parseCustomHeaderEntries(String expression, int baseLineNumber) {
+        String trimmed = expression.trim();
+        if (trimmed.length() < 2 || !trimmed.startsWith("[") || !trimmed.endsWith("]")) {
+            return List.of();
+        }
+        String listBody = trimmed.substring(1, trimmed.length() - 1);
+        List<ParsedCustomHeader> headers = new ArrayList<>();
+        for (Segment item : splitTopLevelSegments(listBody)) {
+            String itemText = item.text().trim();
+            if (itemText.length() < 2 || !itemText.startsWith("[") || !itemText.endsWith("]")) {
+                continue;
+            }
+            String mapBody = itemText.substring(1, itemText.length() - 1);
+            String headerName = "";
+            String headerValueExpression = "";
+            boolean maskValueFalse = false;
+            int lineNumber = baseLineNumber + countNewlines(listBody, item.startOffset());
+            for (Segment property : splitTopLevelSegments(mapBody)) {
+                String propertyText = property.text().trim();
+                int colonIndex = propertyText.indexOf(':');
+                if (colonIndex < 0) {
+                    continue;
+                }
+                String propertyName = propertyText.substring(0, colonIndex).trim();
+                String propertyValue = propertyText.substring(colonIndex + 1).trim();
+                if ("name".equals(propertyName)) {
+                    headerName = unquote(propertyValue);
+                } else if ("value".equals(propertyName)) {
+                    headerValueExpression = propertyValue;
+                    lineNumber = baseLineNumber + countNewlines(listBody, item.startOffset() + property.startOffset());
+                } else if ("maskValue".equals(propertyName)) {
+                    maskValueFalse = "false".equalsIgnoreCase(propertyValue);
+                }
+            }
+            if (!headerValueExpression.isBlank()) {
+                headers.add(new ParsedCustomHeader(headerName, headerValueExpression, maskValueFalse, lineNumber));
+            }
+        }
+        return headers;
+    }
+
+    private List<Segment> splitTopLevelSegments(String value) {
+        List<Segment> segments = new ArrayList<>();
+        if (value == null || value.isEmpty()) {
+            return segments;
+        }
+        int segmentStart = 0;
+        int parenthesisDepth = 0;
+        int bracketDepth = 0;
+        int braceDepth = 0;
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+        boolean escaping = false;
+        for (int index = 0; index < value.length(); index++) {
+            char c = value.charAt(index);
+            if (escaping) {
+                escaping = false;
+                continue;
+            }
+            if ((inSingleQuote || inDoubleQuote) && c == '\\') {
+                escaping = true;
+                continue;
+            }
+            if (inSingleQuote) {
+                if (c == '\'') {
+                    inSingleQuote = false;
+                }
+                continue;
+            }
+            if (inDoubleQuote) {
+                if (c == '"') {
+                    inDoubleQuote = false;
+                }
+                continue;
+            }
+            if (c == '\'') {
+                inSingleQuote = true;
+            } else if (c == '"') {
+                inDoubleQuote = true;
+            } else if (c == '(') {
+                parenthesisDepth++;
+            } else if (c == ')' && parenthesisDepth > 0) {
+                parenthesisDepth--;
+            } else if (c == '[') {
+                bracketDepth++;
+            } else if (c == ']' && bracketDepth > 0) {
+                bracketDepth--;
+            } else if (c == '{') {
+                braceDepth++;
+            } else if (c == '}' && braceDepth > 0) {
+                braceDepth--;
+            } else if (c == ',' && parenthesisDepth == 0 && bracketDepth == 0 && braceDepth == 0) {
+                addSegment(segments, value, segmentStart, index);
+                segmentStart = index + 1;
+            }
+        }
+        addSegment(segments, value, segmentStart, value.length());
+        return segments;
+    }
+
+    private void addSegment(List<Segment> segments, String source, int start, int end) {
+        int trimmedStart = start;
+        int trimmedEnd = end;
+        while (trimmedStart < trimmedEnd && Character.isWhitespace(source.charAt(trimmedStart))) {
+            trimmedStart++;
+        }
+        while (trimmedEnd > trimmedStart && Character.isWhitespace(source.charAt(trimmedEnd - 1))) {
+            trimmedEnd--;
+        }
+        if (trimmedStart < trimmedEnd) {
+            segments.add(new Segment(source.substring(trimmedStart, trimmedEnd), trimmedStart));
+        }
+    }
+
+    private int countNewlines(String value, int endExclusive) {
+        int limit = Math.max(0, Math.min(endExclusive, value.length()));
+        int count = 0;
+        for (int index = 0; index < limit; index++) {
+            if (value.charAt(index) == '\n') {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private String unquote(String value) {
+        String trimmed = value.trim();
+        if (trimmed.length() >= 2
+                && ((trimmed.startsWith("\"") && trimmed.endsWith("\""))
+                        || (trimmed.startsWith("'") && trimmed.endsWith("'")))) {
+            return trimmed.substring(1, trimmed.length() - 1);
+        }
+        return trimmed;
+    }
+
     private boolean looksLikeHardcodedSecretHeaderValue(String headerName, String headerValue) {
         if (headerValue == null || headerValue.isBlank()) {
             return false;
@@ -164,10 +399,7 @@ public class PipelineScriptScanner implements SecretScanner {
             return false;
         }
         String trimmed = headerValue.trim();
-        if (trimmed.contains("${")
-                || trimmed.startsWith("$")
-                || trimmed.contains("credentials(")
-                || trimmed.contains("env.")) {
+        if (NonSecretHeuristics.isRuntimeSecretReference(trimmed)) {
             return false;
         }
         if (HEADER_SENSITIVE_NAME.matcher(headerName == null ? "" : headerName).find()) {
@@ -228,4 +460,20 @@ public class PipelineScriptScanner implements SecretScanner {
         }
         return Math.max(0, depth);
     }
+
+    private record ParsedCustomHeaders(List<ParsedCustomHeader> headers, int endLineIndex) {
+        private static ParsedCustomHeaders empty(int lineIndex) {
+            return new ParsedCustomHeaders(List.of(), lineIndex);
+        }
+    }
+
+    private record ParsedCustomHeader(String name, String valueExpression, boolean maskValueFalse, int lineNumber) {}
+
+    private record ExtractedExpression(String value, int endLineIndex) {
+        private static ExtractedExpression empty(int lineIndex) {
+            return new ExtractedExpression("", lineIndex);
+        }
+    }
+
+    private record Segment(String text, int startOffset) {}
 }

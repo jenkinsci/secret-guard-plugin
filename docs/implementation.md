@@ -135,11 +135,12 @@ When adding a new rule:
   - environment assignments
   - command steps
   - HTTP-style authorization lines
-- tracks multi-line `httpRequest customHeaders` blocks
+- parses literal `httpRequest customHeaders` lists into per-header entries before scanning
 - detects hardcoded custom header literals and separately reports `maskValue: false`
 - detects hardcoded secrets embedded in URL query parameters such as `?key=...` and `?token=...`
-- passes header names into generic rules only for actual `value:` lines, so later lines in the same `httpRequest` block do not inherit the header context
-- treats runtime header references such as `"$TOKEN"`, `"${TOKEN}"`, and `"env.TOKEN"` as non-plaintext values
+- supports mixed single-line and multi-line header layouts, multiple headers in one request, and nested Groovy expressions inside header values
+- passes header names into generic rules only for parsed header `value:` entries, so later non-header lines in the same `httpRequest` block do not inherit the header context
+- treats runtime header references such as `"$TOKEN"`, `"${TOKEN}"`, `env.TOKEN`, `params.TOKEN`, `env['TOKEN']`, and simple GString/concatenation forms as non-plaintext values through shared `NonSecretHeuristics` helpers
 - passes header names into generic rules so benign tracking headers do not trigger high-entropy false positives
 - keeps implementation text-based so it does not require Pipeline AST integration
 
@@ -190,7 +191,7 @@ When adding a new rule:
 
 - centralizes false-positive suppression for common non-secret values
 - skips credential ID fields such as `credentialsId` and `credentialId`
-- skips runtime variable references such as `$TOKEN`, `${TOKEN}`, and `env.TOKEN`
+- exposes shared runtime-reference detection for values such as `$TOKEN`, `${TOKEN}`, `env.TOKEN`, `params.TOKEN`, `env['TOKEN']`, and `credentials(...)`
 - skips paths, Docker image references, hash/checksum/digest/commit contexts, public certificates, and trace/request ID headers
 - exposes a shared entropy helper for rules and Pipeline header analysis
 

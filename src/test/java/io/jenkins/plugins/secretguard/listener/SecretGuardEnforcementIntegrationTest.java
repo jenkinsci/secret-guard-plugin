@@ -133,6 +133,60 @@ class SecretGuardEnforcementIntegrationTest {
 
     @Test
     @WithJenkins
+    void allowsSavingPipelineConfigXmlWithRuntimeHeaderReferenceInBlockMode(JenkinsRule jenkinsRule) throws Exception {
+        configure(EnforcementMode.BLOCK);
+        WorkflowJob template = jenkinsRule.createProject(WorkflowJob.class, "runtime-save-template");
+        template.setDefinition(new CpsFlowDefinition(runtimeHeaderPipelineScript("\"$SERVICE_API_TOKEN\""), true));
+        String allowedXml = template.getConfigFile().asString();
+
+        WorkflowJob target = jenkinsRule.createProject(WorkflowJob.class, "runtime-save-target");
+        target.setDefinition(
+                new CpsFlowDefinition("pipeline { agent any; stages { stage('ok') { steps { echo 'ok' } } } }", true));
+
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient().withThrowExceptionOnFailingStatusCode(false);
+        WebRequest request =
+                new WebRequest(webClient.createCrumbedUrl(target.getUrl() + "config.xml"), HttpMethod.POST);
+        request.setAdditionalHeader("Content-Type", "application/xml");
+        request.setRequestBody(allowedXml);
+
+        Page page = webClient.getPage(request);
+
+        assertTrue(page.getWebResponse().getStatusCode() < 400);
+        assertFalse(page.getWebResponse().getContentAsString().contains("Secret Guard blocked saving"));
+        String persistedXml = jenkinsRule
+                .jenkins
+                .getItemByFullName(target.getFullName(), WorkflowJob.class)
+                .getConfigFile()
+                .asString();
+        assertTrue(persistedXml.contains("x-service-token"));
+        assertTrue(persistedXml.contains("$SERVICE_API_TOKEN"));
+    }
+
+    @Test
+    @WithJenkins
+    void allowsCreatingPipelineFromXmlWithRuntimeHeaderReferenceInBlockMode(JenkinsRule jenkinsRule) throws Exception {
+        configure(EnforcementMode.BLOCK);
+        WorkflowJob template = jenkinsRule.createProject(WorkflowJob.class, "runtime-create-template");
+        template.setDefinition(new CpsFlowDefinition(runtimeHeaderPipelineScript("\"${SERVICE_API_TOKEN}\""), true));
+        String allowedXml = template.getConfigFile().asString();
+
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient().withThrowExceptionOnFailingStatusCode(false);
+        WebRequest request =
+                new WebRequest(webClient.createCrumbedUrl("createItem?name=runtime-created-job"), HttpMethod.POST);
+        request.setAdditionalHeader("Content-Type", "application/xml");
+        request.setRequestBody(allowedXml);
+
+        Page page = webClient.getPage(request);
+
+        assertTrue(page.getWebResponse().getStatusCode() < 400);
+        assertFalse(page.getWebResponse().getContentAsString().contains("Secret Guard blocked creating"));
+        WorkflowJob created = jenkinsRule.jenkins.getItemByFullName("runtime-created-job", WorkflowJob.class);
+        assertNotNull(created);
+        assertTrue(created.getConfigFile().asString().contains("${SERVICE_API_TOKEN}"));
+    }
+
+    @Test
+    @WithJenkins
     void persistsRunActionForPipelineBuildWithoutJavaTimeSerializationFailure(JenkinsRule jenkinsRule)
             throws Exception {
         configure(EnforcementMode.AUDIT);
@@ -152,6 +206,20 @@ class SecretGuardEnforcementIntegrationTest {
         String buildXml = Files.readString(run.getRootDir().toPath().resolve("build.xml"));
         assertTrue(buildXml.contains("<scannedAtEpochMillis>"));
         assertFalse(buildXml.contains("java.time.Instant"));
+    }
+
+    @Test
+    @WithJenkins
+    void blockModeDoesNotFailBuildForRuntimeHeaderReference(JenkinsRule jenkinsRule) throws Exception {
+        configure(EnforcementMode.BLOCK);
+        WorkflowJob job = jenkinsRule.createProject(WorkflowJob.class, "runtime-build-safe");
+        job.setDefinition(new CpsFlowDefinition(runtimeHeaderPipelineScript("env.SERVICE_API_TOKEN"), true));
+
+        WorkflowRun run = jenkinsRule.buildAndAssertSuccess(job);
+
+        SecretGuardRunAction action = run.getAction(SecretGuardRunAction.class);
+        assertNotNull(action);
+        assertTrue(action.getFindings().isEmpty());
     }
 
     @Test
@@ -406,6 +474,32 @@ class SecretGuardEnforcementIntegrationTest {
             return xml.replace("<properties/>", property);
         }
         return xml.replace("<properties></properties>", property);
+    }
+
+    private String runtimeHeaderPipelineScript(String headerValueReference) {
+        return """
+                def invokeRemoteCheck() {
+                    def response = httpRequest(
+                        httpMode: "POST",
+                        contentType: 'APPLICATION_JSON',
+                        requestBody: groovy.json.JsonOutput.toJson([status: 'ok']),
+                        url: "https://api.example.invalid/v1/request-check",
+                        customHeaders: [[name: "x-service-token", value: %s, maskValue: true]]
+                    )
+                    return response
+                }
+
+                pipeline {
+                    agent any
+                    stages {
+                        stage('noop') {
+                            steps {
+                                echo 'ready'
+                            }
+                        }
+                    }
+                }
+                """.formatted(headerValueReference);
     }
 
     public static class MemoryScm extends NullSCM {

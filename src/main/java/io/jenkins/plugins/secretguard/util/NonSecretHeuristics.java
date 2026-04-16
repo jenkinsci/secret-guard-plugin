@@ -12,8 +12,24 @@ public final class NonSecretHeuristics {
     private static final Pattern UUID =
             Pattern.compile("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
     private static final Pattern HEADER_NAME_IN_LINE = Pattern.compile("\\bname\\s*:\\s*['\"]([^'\"]+)['\"]");
+    private static final Pattern DIRECT_RUNTIME_REFERENCE = Pattern.compile("\\$[A-Za-z_][A-Za-z0-9_]*"
+            + "|(?:env|params)\\.[A-Za-z_][A-Za-z0-9_]*"
+            + "|(?:env|params)\\[['\"][A-Za-z_][A-Za-z0-9_.-]*['\"]\\]"
+            + "|credentials\\([^\\r\\n]+\\)");
 
     private NonSecretHeuristics() {}
+
+    public static boolean isRuntimeSecretReference(String value) {
+        if (value == null) {
+            return false;
+        }
+        String trimmed = stripBalancedParens(value.trim());
+        return !trimmed.isEmpty()
+                && (trimmed.contains("${")
+                        || looksLikeInterpolatedString(trimmed)
+                        || DIRECT_RUNTIME_REFERENCE.matcher(trimmed).matches()
+                        || looksLikeRuntimeConcatenation(trimmed));
+    }
 
     public static boolean looksLikeSafeReference(String value) {
         if (value == null) {
@@ -21,10 +37,7 @@ public final class NonSecretHeuristics {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty()
-                || trimmed.contains("${")
-                || trimmed.startsWith("$")
-                || trimmed.startsWith("env.")
-                || trimmed.contains("credentials(")
+                || isRuntimeSecretReference(trimmed)
                 || trimmed.contains("credentialsId")
                 || trimmed.equals("****")
                 || trimmed.matches("\\{[A-Za-z0-9+/=]{16,}}");
@@ -115,6 +128,48 @@ public final class NonSecretHeuristics {
                 || lower.startsWith("http")
                 || lower.contains("example")
                 || UUID.matcher(lower).matches();
+    }
+
+    private static boolean looksLikeInterpolatedString(String value) {
+        return value.length() >= 2
+                && value.startsWith("\"")
+                && value.endsWith("\"")
+                && (value.contains("${") || value.matches(".*\\$[A-Za-z_][A-Za-z0-9_]*.*"));
+    }
+
+    private static boolean looksLikeRuntimeConcatenation(String value) {
+        if (!value.contains("+")) {
+            return false;
+        }
+        boolean hasRuntimeReference = false;
+        for (String segment : value.split("\\+")) {
+            String token = stripBalancedParens(segment.trim());
+            if (token.isEmpty()) {
+                return false;
+            }
+            if (DIRECT_RUNTIME_REFERENCE.matcher(token).matches() || looksLikeInterpolatedString(token)) {
+                hasRuntimeReference = true;
+                continue;
+            }
+            if (isQuotedString(token)) {
+                continue;
+            }
+            return false;
+        }
+        return hasRuntimeReference;
+    }
+
+    private static boolean isQuotedString(String value) {
+        return value.length() >= 2
+                && ((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("'") && value.endsWith("'")));
+    }
+
+    private static String stripBalancedParens(String value) {
+        String result = value;
+        while (result.length() >= 2 && result.startsWith("(") && result.endsWith(")")) {
+            result = result.substring(1, result.length() - 1).trim();
+        }
+        return result;
     }
 
     private static boolean looksLikePathOrImage(String originalValue, String candidate) {
