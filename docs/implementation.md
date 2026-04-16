@@ -104,6 +104,7 @@ Pipeline-from-SCM Jenkinsfiles are scanned during manual scans and build-time sc
     - `SensitiveFieldRule`
     - regex-driven `PatternSecretRule`
     - entropy-based `HighEntropyRule`
+  - downgrades strongly placeholder-like sensitive-field values to `LOW` instead of treating them as plaintext secrets
 
 When adding a new rule:
 
@@ -141,6 +142,7 @@ When adding a new rule:
 - supports mixed single-line and multi-line header layouts, multiple headers in one request, and nested Groovy expressions inside header values
 - passes header names into generic rules only for parsed header `value:` entries, so later non-header lines in the same `httpRequest` block do not inherit the header context
 - treats runtime header references such as `"$TOKEN"`, `"${TOKEN}"`, `env.TOKEN`, `params.TOKEN`, `env['TOKEN']`, simple GString/concatenation forms, and common `withCredentials`-bound variable combinations as non-plaintext values through shared `NonSecretHeuristics` helpers
+- treats obvious redaction placeholders in headers as non-hardcoded header secrets while still allowing generic low-severity sensitive-field reporting
 - passes header names into generic rules so benign tracking headers do not trigger high-entropy false positives
 - keeps implementation text-based so it does not require Pipeline AST integration
 
@@ -192,6 +194,7 @@ When adding a new rule:
 - centralizes false-positive suppression for common non-secret values
 - skips credential ID fields such as `credentialsId` and `credentialId`
 - exposes shared runtime-reference detection for values such as `$TOKEN`, `${TOKEN}`, `env.TOKEN`, `params.TOKEN`, `env['TOKEN']`, and `credentials(...)`
+- recognizes strongly placeholder-like literals such as redacted/masked/hidden markers and repeated mask characters, including simple assignments and XML text nodes
 - skips paths, Docker image references, hash/checksum/digest/commit contexts, public certificates, and trace/request ID headers
 - exposes a shared entropy helper for rules and Pipeline header analysis
 

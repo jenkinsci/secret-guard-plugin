@@ -1,5 +1,6 @@
 package io.jenkins.plugins.secretguard.rules;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -52,6 +53,15 @@ class BuiltInSecretRuleSetTest {
         assertTrue(scan("registryCredentialsId", "jfrog-cred-default").isEmpty());
         assertTrue(scan("tokenCredentialId", "ghp_012345678901234567890123456789012345")
                 .isEmpty());
+    }
+
+    @Test
+    void downgradesSensitivePlaceholderValues() {
+        List<SecretFinding> findings = scan("serviceApiToken", "__REDACTED__");
+
+        assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+        assertFalse(findings.stream().anyMatch(finding -> finding.getSeverity() == Severity.HIGH));
+        assertEquals(Severity.LOW, findings.get(0).getSeverity());
     }
 
     @Test

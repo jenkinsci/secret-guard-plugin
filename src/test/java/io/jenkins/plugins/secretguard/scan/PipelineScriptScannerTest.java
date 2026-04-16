@@ -60,6 +60,31 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void downgradesPlaceholderEnvironmentValues() {
+        String script = """
+                pipeline {
+                  agent any
+                  environment {
+                    SERVICE_API_TOKEN = '__REDACTED__'
+                    SERVICE_API_SECRET = '****'
+                  }
+                  stages {
+                    stage('noop') {
+                      steps {
+                        echo 'placeholder values are configured elsewhere'
+                      }
+                    }
+                  }
+                }
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+        assertFalse(result.getFindings().stream().anyMatch(finding -> finding.getSeverity() == Severity.HIGH));
+    }
+
+    @Test
     void detectsHardcodedHttpRequestCustomHeaderSecret() {
         String script = """
                 def sonarServer = "http://security.example.invalid/qa_auth"
@@ -86,6 +111,20 @@ class PipelineScriptScannerTest {
         SecretScanResult result = scanner.scan(context(), script);
         assertFalse(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().startsWith("http-request-")));
+    }
+
+    @Test
+    void doesNotTreatPlaceholderHttpRequestHeaderAsHardcodedSecret() {
+        String script = """
+                httpRequest customHeaders: [[maskValue: false, name: 'x-example-token',
+                            value: 'Bearer __MASKED__']],
+                            url: "https://example.invalid"
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().startsWith("http-request-")));
+        assertFalse(result.getFindings().stream().anyMatch(finding -> finding.getSeverity() == Severity.HIGH));
     }
 
     @Test

@@ -130,6 +130,26 @@ class ConfigXmlScannerTest {
     }
 
     @Test
+    void downgradesPlaceholderValuesFromConfigXml() {
+        String xml = """
+                <project>
+                  <publishers>
+                    <somePublisher>
+                      <apiToken>__REDACTED__</apiToken>
+                      <clientSecret>****</clientSecret>
+                    </somePublisher>
+                  </publishers>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+        assertFalse(result.getFindings().stream().anyMatch(finding -> finding.getSeverity() == Severity.HIGH));
+    }
+
+    @Test
     void parsesMixedCustomHeadersFromInlinePipelineScript() {
         String xml = """
                 <flow-definition>

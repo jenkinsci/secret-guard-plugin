@@ -426,7 +426,8 @@ public class PipelineScriptScanner implements SecretScanner {
             return false;
         }
         String trimmed = headerValue.trim();
-        if (NonSecretHeuristics.isRuntimeSecretReference(trimmed)) {
+        if (NonSecretHeuristics.isRuntimeSecretReference(trimmed)
+                || NonSecretHeuristics.looksLikePlaceholderValue(trimmed)) {
             return false;
         }
         if (HEADER_SENSITIVE_NAME.matcher(headerName == null ? "" : headerName).find()) {

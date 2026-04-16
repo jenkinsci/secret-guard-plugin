@@ -114,9 +114,22 @@ public class BuiltInSecretRuleSet {
         @Override
         public List<SecretFinding> scan(
                 ScanContext context, String sourceName, int lineNumber, String fieldName, String value) {
-            if (!isSensitiveField(fieldName)
-                    || NonSecretHeuristics.isCredentialIdField(fieldName)
-                    || looksLikeSafeReference(value)) {
+            if (!isSensitiveField(fieldName) || NonSecretHeuristics.isCredentialIdField(fieldName)) {
+                return Collections.emptyList();
+            }
+            if (NonSecretHeuristics.looksLikePlaceholderValue(value)) {
+                return List.of(finding(
+                        getId(),
+                        "Sensitive field contains a placeholder-like value",
+                        Severity.LOW,
+                        context,
+                        sourceName,
+                        lineNumber,
+                        fieldName,
+                        value,
+                        Recommendations.PLACEHOLDER));
+            }
+            if (looksLikeSafeReference(value)) {
                 return Collections.emptyList();
             }
             Severity severity = value.trim().length() >= 8 ? Severity.HIGH : Severity.LOW;
@@ -274,5 +287,7 @@ public class BuiltInSecretRuleSet {
                 "Do not embed secrets in URLs; use Jenkins Credentials and safe request configuration.";
         private static final String NO_URL_QUERY_SECRET =
                 "Move URL query secrets such as webhook keys to Jenkins Credentials and inject them at runtime.";
+        private static final String PLACEHOLDER =
+                "Verify this placeholder is not used as a real secret; store real values in Jenkins Credentials.";
     }
 }

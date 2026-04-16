@@ -16,6 +16,11 @@ public final class NonSecretHeuristics {
             + "|(?:env|params)\\.[A-Za-z_][A-Za-z0-9_]*"
             + "|(?:env|params)\\[['\"][A-Za-z_][A-Za-z0-9_.-]*['\"]\\]"
             + "|credentials\\([^\\r\\n]+\\)");
+    private static final Pattern ASSIGNED_QUOTED_LITERAL =
+            Pattern.compile("(?s).*\\b[A-Za-z_][A-Za-z0-9_]*\\s*=\\s*(['\"])(.*?)\\1\\s*,?\\s*");
+    private static final Pattern XML_TEXT_LITERAL = Pattern.compile("(?s)\\s*<[^>/][^>]*>\\s*([^<]+?)\\s*</[^>]+>\\s*");
+    private static final Pattern BEARER_LITERAL = Pattern.compile("(?i)Bearer\\s+(.+)");
+    private static final Pattern MASKED_PLACEHOLDER = Pattern.compile("[*xX•]{4,}");
 
     private NonSecretHeuristics() {}
 
@@ -38,9 +43,29 @@ public final class NonSecretHeuristics {
         String trimmed = value.trim();
         return trimmed.isEmpty()
                 || isRuntimeSecretReference(trimmed)
+                || looksLikePlaceholderValue(trimmed)
                 || trimmed.contains("credentialsId")
                 || trimmed.equals("****")
                 || trimmed.matches("\\{[A-Za-z0-9+/=]{16,}}");
+    }
+
+    public static boolean looksLikePlaceholderValue(String value) {
+        if (value == null) {
+            return false;
+        }
+        String candidate = extractLikelyLiteralValue(value.trim());
+        if (candidate.isEmpty()) {
+            return false;
+        }
+        String unquoted = unquote(candidate).trim();
+        if (MASKED_PLACEHOLDER.matcher(unquoted).matches()) {
+            return true;
+        }
+        String normalized = unquoted.toLowerCase(Locale.ENGLISH).replaceAll("^[^a-z0-9]+|[^a-z0-9]+$", "");
+        return normalized.equals("redacted")
+                || normalized.equals("masked")
+                || normalized.equals("hidden")
+                || normalized.equals("placeholder");
     }
 
     public static boolean isCredentialIdField(String fieldName) {
@@ -162,6 +187,34 @@ public final class NonSecretHeuristics {
     private static boolean isQuotedString(String value) {
         return value.length() >= 2
                 && ((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("'") && value.endsWith("'")));
+    }
+
+    private static String extractLikelyLiteralValue(String value) {
+        String trimmed = stripBalancedParens(value.trim());
+        if (isQuotedString(trimmed)) {
+            trimmed = unquote(trimmed);
+        }
+        Matcher assignmentMatcher = ASSIGNED_QUOTED_LITERAL.matcher(trimmed);
+        if (assignmentMatcher.matches()) {
+            return assignmentMatcher.group(2);
+        }
+        Matcher xmlMatcher = XML_TEXT_LITERAL.matcher(trimmed);
+        if (xmlMatcher.matches()) {
+            return xmlMatcher.group(1);
+        }
+        Matcher bearerMatcher = BEARER_LITERAL.matcher(trimmed);
+        if (bearerMatcher.matches()) {
+            return bearerMatcher.group(1);
+        }
+        return trimmed;
+    }
+
+    private static String unquote(String value) {
+        String trimmed = value.trim();
+        if (isQuotedString(trimmed)) {
+            return trimmed.substring(1, trimmed.length() - 1);
+        }
+        return trimmed;
     }
 
     private static String stripBalancedParens(String value) {

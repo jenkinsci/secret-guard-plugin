@@ -24,4 +24,14 @@ class NonSecretHeuristicsTest {
         assertFalse(NonSecretHeuristics.isRuntimeSecretReference("ExampleHeaderSecretValue0123456789ABCDEF"));
         assertFalse(NonSecretHeuristics.isRuntimeSecretReference("'Bearer ' + 'literal-token'"));
     }
+
+    @Test
+    void detectsStrongPlaceholderValues() {
+        assertTrue(NonSecretHeuristics.looksLikePlaceholderValue("__REDACTED__"));
+        assertTrue(NonSecretHeuristics.looksLikePlaceholderValue("SERVICE_SECRET = '__MASKED__'"));
+        assertTrue(NonSecretHeuristics.looksLikePlaceholderValue("<apiToken>****</apiToken>"));
+        assertTrue(NonSecretHeuristics.looksLikePlaceholderValue("Bearer __HIDDEN__"));
+        assertFalse(NonSecretHeuristics.looksLikePlaceholderValue("ExamplePlaintextSecret12345"));
+        assertFalse(NonSecretHeuristics.looksLikePlaceholderValue("change-me-later"));
+    }
 }
