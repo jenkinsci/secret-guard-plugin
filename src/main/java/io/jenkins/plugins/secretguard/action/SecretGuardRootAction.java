@@ -106,8 +106,15 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
             return null;
         }
         Instant finishedAt = status.getFinishedAt() == null ? Instant.now() : status.getFinishedAt();
-        Duration duration = Duration.between(status.getStartedAt(), finishedAt);
-        long seconds = Math.max(0, duration.getSeconds());
+        return formatDuration(Duration.between(status.getStartedAt(), finishedAt));
+    }
+
+    static String formatDuration(Duration duration) {
+        long millis = Math.max(0, duration.toMillis());
+        if (millis < 1000) {
+            return millis + "ms";
+        }
+        long seconds = millis / 1000;
         long hours = seconds / 3600;
         long minutes = (seconds % 3600) / 60;
         long remainingSeconds = seconds % 60;

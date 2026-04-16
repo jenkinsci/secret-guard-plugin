@@ -11,6 +11,7 @@ import io.jenkins.plugins.secretguard.model.EnforcementMode;
 import io.jenkins.plugins.secretguard.model.Severity;
 import io.jenkins.plugins.secretguard.service.ScanResultStore;
 import java.io.StringReader;
+import java.time.Duration;
 import javax.xml.transform.stream.StreamSource;
 import jenkins.model.Jenkins;
 import org.htmlunit.HttpMethod;
@@ -22,6 +23,13 @@ import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
 class SecretGuardRootActionTest {
+    @Test
+    void formatsSubSecondScanDurationWithMilliseconds() {
+        assertEquals("450ms", SecretGuardRootAction.formatDuration(Duration.ofMillis(450)));
+        assertEquals("1s", SecretGuardRootAction.formatDuration(Duration.ofMillis(1000)));
+        assertEquals("1m 5s", SecretGuardRootAction.formatDuration(Duration.ofSeconds(65)));
+    }
+
     @Test
     void buildsJobSecretGuardPathForNestedJob() {
         assertEquals(
