@@ -253,6 +253,7 @@ Persisted results contain only report data such as rule IDs, severity, source lo
   - shows findings for a build
 - `SecretGuardRootAction`
   - shows global summary
+  - exposes the `Scan All Jobs` POST endpoint for manage users
   - links each listed job to its job-level Secret Guard report
   - renders severity values as colored badges so `LOW`, `MEDIUM`, and `HIGH` are easier to distinguish
 - `SecretGuardAdministrativeMonitor`

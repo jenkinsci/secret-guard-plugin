@@ -178,14 +178,14 @@ Tasks:
 - add a Job-level “Scan now” action
 - scan current `config.xml`
 - store and display latest result
-- add global “scan all jobs” administrative action for admins
+- [x] add global “scan all jobs” administrative action for admins
 - protect actions with appropriate Jenkins permissions
 
 Acceptance criteria:
 
 - admins can re-scan without saving a Job
 - reports update immediately after manual scan
-- non-admin users cannot trigger global scans
+- [x] non-admin users cannot trigger global scans
 
 ### 2. Pipeline-from-SCM and multibranch support
 

@@ -4,8 +4,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import hudson.model.FreeStyleProject;
+import io.jenkins.plugins.secretguard.config.SecretGuardGlobalConfiguration;
+import io.jenkins.plugins.secretguard.model.EnforcementMode;
+import io.jenkins.plugins.secretguard.model.Severity;
+import io.jenkins.plugins.secretguard.service.ScanResultStore;
+import java.io.StringReader;
+import javax.xml.transform.stream.StreamSource;
 import jenkins.model.Jenkins;
+import org.htmlunit.HttpMethod;
 import org.htmlunit.Page;
+import org.htmlunit.WebRequest;
 import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
@@ -50,5 +59,65 @@ class SecretGuardRootActionTest {
         Page allowedPage = allowedClient.goTo("secret-guard");
         assertEquals(200, allowedPage.getWebResponse().getStatusCode());
         assertTrue(allowedPage.getWebResponse().getContentAsString().contains("Jenkins Secret Guard"));
+    }
+
+    @Test
+    @WithJenkins
+    void manageUserCanScanAllJobsFromRootPage(JenkinsRule jenkinsRule) throws Exception {
+        SecretGuardGlobalConfiguration configuration = SecretGuardGlobalConfiguration.get();
+        configuration.setEnabled(false);
+
+        FreeStyleProject project = jenkinsRule.createFreeStyleProject("scan-all-target");
+        project.updateByXml(new StreamSource(
+                new StringReader(withRiskyParameter(project.getConfigFile().asString()))));
+        assertTrue(ScanResultStore.get().get(project.getFullName()).isEmpty());
+
+        configuration.setEnabled(true);
+        configuration.setEnforcementMode(EnforcementMode.AUDIT);
+        configuration.setBlockThreshold(Severity.HIGH);
+
+        jenkinsRule.jenkins.setSecurityRealm(jenkinsRule.createDummySecurityRealm());
+        jenkinsRule.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy()
+                .grant(Jenkins.ADMINISTER)
+                .everywhere()
+                .to("admin")
+                .grant(Jenkins.READ, Jenkins.MANAGE)
+                .everywhere()
+                .to("bob"));
+
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient().withThrowExceptionOnFailingStatusCode(false);
+        webClient.login("bob");
+
+        Page page = webClient.goTo("secret-guard");
+        assertTrue(page.getWebResponse().getContentAsString().contains("Scan All Jobs"));
+
+        WebRequest request = new WebRequest(webClient.createCrumbedUrl("secret-guard/scanAll"), HttpMethod.POST);
+        Page postResult = webClient.getPage(request);
+
+        assertEquals(200, postResult.getWebResponse().getStatusCode());
+        assertTrue(postResult.getWebResponse().getContentAsString().contains("Scan completed."));
+        assertTrue(ScanResultStore.get().get(project.getFullName()).isPresent());
+        assertTrue(
+                ScanResultStore.get().get(project.getFullName()).orElseThrow().hasFindings());
+    }
+
+    private String withRiskyParameter(String xml) {
+        String property = """
+                <properties>
+                  <hudson.model.ParametersDefinitionProperty>
+                    <parameterDefinitions>
+                      <hudson.model.StringParameterDefinition>
+                        <name>API_TOKEN</name>
+                        <defaultValue>ghp_012345678901234567890123456789012345</defaultValue>
+                        <trim>false</trim>
+                      </hudson.model.StringParameterDefinition>
+                    </parameterDefinitions>
+                  </hudson.model.ParametersDefinitionProperty>
+                </properties>
+                """;
+        if (xml.contains("<properties/>")) {
+            return xml.replace("<properties/>", property);
+        }
+        return xml.replace("<properties></properties>", property);
     }
 }

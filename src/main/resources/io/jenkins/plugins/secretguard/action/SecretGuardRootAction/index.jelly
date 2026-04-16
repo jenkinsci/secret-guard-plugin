@@ -1,8 +1,24 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout">
+<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout" xmlns:f="/lib/form">
     <l:layout title="Secret Guard">
         <l:main-panel>
             <h1>Jenkins Secret Guard</h1>
+            <j:if test="${it.scanAllCompleted}">
+                <j:set var="summary" value="${it.scanAllSummary}" />
+                <p>
+                    Scan completed. Jobs scanned: ${summary.jobsScanned},
+                    jobs with findings: ${summary.jobsWithFindings},
+                    jobs with high severity findings: ${summary.jobsWithHighSeverity},
+                    jobs failed: ${summary.jobsFailed}.
+                </p>
+            </j:if>
+            <j:if test="${it.canScanAllNow()}">
+                <f:form method="post" action="scanAll">
+                    <f:block>
+                        <button class="jenkins-button" type="submit">Scan All Jobs</button>
+                    </f:block>
+                </f:form>
+            </j:if>
             <p>Unexempted high severity findings: ${it.unexemptedHighCount}</p>
             <table class="jenkins-table sortable">
                 <thead>
