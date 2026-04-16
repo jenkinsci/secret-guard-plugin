@@ -16,6 +16,7 @@ Supported MVP scan targets:
 - Build parameter default values
 - Environment variable definitions
 - `sh`, `bat`, `powershell`, and HTTP request style command content
+- Manual `Scan Now` action on each Job page
 
 Enforcement modes:
 
@@ -71,6 +72,12 @@ Typical remediation guidance:
 - Do not use secrets as build parameter default values.
 - Do not persist secrets in Job configuration.
 - Do not embed secrets in URLs or command-line arguments.
+
+## Manual Scan
+
+Each Job page exposes a `Scan Now` action through the `Secret Guard` side-panel entry.
+The manual scan re-checks the current Job `config.xml` and any inline Pipeline script stored in that configuration, then refreshes the latest report for that Job.
+Manual scan only updates the report and does not block saves or change build results.
 
 ## Documentation
 

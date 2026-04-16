@@ -10,14 +10,14 @@ import jenkins.model.TransientActionFactory;
 
 @Extension
 public class SecretGuardJobActionFactory extends TransientActionFactory<Job> {
-    private final Predicate<Job<?, ?>> hasScanResult;
+    private final Predicate<Job<?, ?>> showAction;
 
     public SecretGuardJobActionFactory() {
-        this(job -> ScanResultStore.get().get(job.getFullName()).isPresent());
+        this(job -> true);
     }
 
-    SecretGuardJobActionFactory(Predicate<Job<?, ?>> hasScanResult) {
-        this.hasScanResult = hasScanResult;
+    SecretGuardJobActionFactory(Predicate<Job<?, ?>> showAction) {
+        this.showAction = showAction;
     }
 
     @Override
@@ -27,7 +27,7 @@ public class SecretGuardJobActionFactory extends TransientActionFactory<Job> {
 
     @Override
     public Collection<SecretGuardJobAction> createFor(Job target) {
-        if (!hasScanResult.test(target)) {
+        if (!showAction.test(target)) {
             return Collections.emptyList();
         }
         return Collections.singletonList(new SecretGuardJobAction(target));

@@ -12,6 +12,7 @@ import hudson.model.FreeStyleProject;
 import io.jenkins.plugins.secretguard.action.SecretGuardRunAction;
 import io.jenkins.plugins.secretguard.config.SecretGuardGlobalConfiguration;
 import io.jenkins.plugins.secretguard.model.EnforcementMode;
+import io.jenkins.plugins.secretguard.service.ScanResultStore;
 import io.jenkins.plugins.secretguard.model.Severity;
 import java.io.StringReader;
 import java.nio.file.Files;
@@ -115,6 +116,29 @@ class SecretGuardEnforcementIntegrationTest {
         String buildXml = Files.readString(run.getRootDir().toPath().resolve("build.xml"));
         assertTrue(buildXml.contains("<scannedAtEpochMillis>"));
         assertFalse(buildXml.contains("java.time.Instant"));
+    }
+
+    @Test
+    @WithJenkins
+    void manualScanEndpointStoresFreshResultForJobPage(JenkinsRule jenkinsRule) throws Exception {
+        SecretGuardGlobalConfiguration configuration = SecretGuardGlobalConfiguration.get();
+        configuration.setEnabled(false);
+        FreeStyleProject project = jenkinsRule.createFreeStyleProject("manual-scan");
+        project.updateByXml(new StreamSource(new StringReader(withRiskyParameter(project.getConfigFile().asString()))));
+        assertFalse(ScanResultStore.get().get(project.getFullName()).isPresent());
+
+        configure(EnforcementMode.AUDIT);
+
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient().withThrowExceptionOnFailingStatusCode(false);
+        WebRequest request =
+                new WebRequest(webClient.createCrumbedUrl(project.getUrl() + "secret-guard/scanNow"), HttpMethod.POST);
+
+        Page page = webClient.getPage(request);
+
+        assertEquals(200, page.getWebResponse().getStatusCode());
+        assertTrue(page.getWebResponse().getContentAsString().contains("Manual scan completed."));
+        assertTrue(ScanResultStore.get().get(project.getFullName()).isPresent());
+        assertTrue(ScanResultStore.get().get(project.getFullName()).orElseThrow().hasFindings());
     }
 
     private void configure(EnforcementMode mode) {

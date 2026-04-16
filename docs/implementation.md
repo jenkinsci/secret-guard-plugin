@@ -51,6 +51,18 @@ The Java sources are organized under `io.jenkins.plugins.secretguard`:
    - `WARN`: mark build `UNSTABLE`
    - `BLOCK`: interrupt build with `FAILURE`
 
+### Manual Job scan flow
+
+1. User opens a Job's `Secret Guard` page
+2. User clicks `Scan Now`
+3. `SecretGuardJobAction#doScanNow` checks `Item.CONFIGURE`
+4. `ManualJobScanService` reads the current `config.xml`
+5. `ConfigXmlScanner` scans XML content and inline Pipeline script content
+6. `SecretScanService` applies whitelist, exemptions, deduplication, and latest-result persistence
+7. User is redirected back to the Job report page with the refreshed latest result
+
+Manual scan always runs in report-only mode for MVP. It refreshes findings but does not block save operations and does not change build results.
+
 ## Main Classes
 
 ### Configuration
@@ -182,6 +194,7 @@ Persisted results contain only report data such as rule IDs, severity, source lo
 
 - `SecretGuardJobAction`
   - shows latest findings for a job
+  - exposes the `Scan Now` POST endpoint for on-demand re-scan
 - `SecretGuardRunAction`
   - shows findings for a build
 - `SecretGuardRootAction`

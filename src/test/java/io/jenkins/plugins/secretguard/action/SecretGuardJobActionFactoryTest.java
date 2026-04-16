@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 
 class SecretGuardJobActionFactoryTest {
     @Test
-    void hidesActionWhenJobHasNoScanResult() {
+    void hidesActionWhenPredicateRejectsJob() {
         SecretGuardJobActionFactory factory = new SecretGuardJobActionFactory(job -> false);
 
         Collection<SecretGuardJobAction> actions = factory.createFor(null);
@@ -17,7 +17,7 @@ class SecretGuardJobActionFactoryTest {
     }
 
     @Test
-    void showsActionWhenJobHasScanResult() {
+    void showsActionWhenPredicateAcceptsJob() {
         SecretGuardJobActionFactory factory = new SecretGuardJobActionFactory(job -> true);
 
         Collection<SecretGuardJobAction> actions = factory.createFor(null);
