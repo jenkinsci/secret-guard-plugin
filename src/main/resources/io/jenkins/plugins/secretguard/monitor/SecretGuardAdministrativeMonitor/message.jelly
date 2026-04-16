@@ -1,6 +1,11 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core">
-    <div class="jenkins-alert jenkins-alert-warning" role="alert">
-        Jenkins Secret Guard has detected ${it.unexemptedHighCount} unexempted high severity secret finding(s). Review details on the <a href="${rootURL}/secret-guard">Secret Guard system page</a>.
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+    <div class="jenkins-alert jenkins-alert-warning" role="alert" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <span>Jenkins Secret Guard has detected ${it.unexemptedHighCount} unexempted high severity secret finding(s). Review details on the <a href="${rootURL}/secret-guard">Secret Guard system page</a>.</span>
+        <div style="margin-left:auto;">
+            <form method="post" action="${rootURL}/${it.url}/disable" style="margin:0;">
+                <f:submit value="Dismiss"/>
+            </form>
+        </div>
     </div>
 </j:jelly>
