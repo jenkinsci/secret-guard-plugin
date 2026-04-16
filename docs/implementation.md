@@ -138,6 +138,8 @@ When adding a new rule:
 - tracks multi-line `httpRequest customHeaders` blocks
 - detects hardcoded custom header literals and separately reports `maskValue: false`
 - detects hardcoded secrets embedded in URL query parameters such as `?key=...` and `?token=...`
+- passes header names into generic rules only for actual `value:` lines, so later lines in the same `httpRequest` block do not inherit the header context
+- treats runtime header references such as `"$TOKEN"`, `"${TOKEN}"`, and `"env.TOKEN"` as non-plaintext values
 - passes header names into generic rules so benign tracking headers do not trigger high-entropy false positives
 - keeps implementation text-based so it does not require Pipeline AST integration
 
@@ -188,6 +190,7 @@ When adding a new rule:
 
 - centralizes false-positive suppression for common non-secret values
 - skips credential ID fields such as `credentialsId` and `credentialId`
+- skips runtime variable references such as `$TOKEN`, `${TOKEN}`, and `env.TOKEN`
 - skips paths, Docker image references, hash/checksum/digest/commit contexts, public certificates, and trace/request ID headers
 - exposes a shared entropy helper for rules and Pipeline header analysis
 

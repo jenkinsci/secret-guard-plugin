@@ -23,6 +23,8 @@ public class PipelineScriptScanner implements SecretScanner {
     private static final Pattern CUSTOM_HEADERS = Pattern.compile("\\bcustomHeaders\\s*:");
     private static final Pattern HEADER_NAME = Pattern.compile("\\bname\\s*:\\s*['\"]([^'\"]+)['\"]");
     private static final Pattern HEADER_VALUE = Pattern.compile("\\bvalue\\s*:\\s*(['\"])([^'\"]{8,})\\1");
+    private static final Pattern HEADER_VALUE_REFERENCE = Pattern.compile(
+            "\\bvalue\\s*:\\s*(['\"])(\\$\\{[^'\"]+}|\\$[A-Za-z_][A-Za-z0-9_]*|env\\.[A-Za-z_][A-Za-z0-9_.]*)\\1");
     private static final Pattern MASK_VALUE_FALSE = Pattern.compile("\\bmaskValue\\s*:\\s*false\\b");
     private static final Pattern HEADER_SENSITIVE_NAME =
             Pattern.compile("(?i)(authorization|token|secret|api[_-]?key|apikey|auth|credential)");
@@ -87,12 +89,22 @@ public class PipelineScriptScanner implements SecretScanner {
             FindingLocationType locationType = classifyLine(trimmed, environmentDepth > 0, context.getLocationType());
             ScanContext locationContext = context.withLocationType(locationType);
             String fieldName = extractFieldName(trimmed);
-            String effectiveFieldName = customHeadersWindow > 0 && fieldName.isBlank() && !currentHeaderName.isBlank()
-                    ? currentHeaderName
-                    : fieldName;
+            String effectiveFieldName = fieldName;
+            String effectiveValue = trimmed;
+            if (customHeadersWindow > 0 && fieldName.isBlank()) {
+                Matcher headerValueMatcher = HEADER_VALUE.matcher(trimmed);
+                Matcher headerValueReferenceMatcher = HEADER_VALUE_REFERENCE.matcher(trimmed);
+                if (headerValueMatcher.find() && !currentHeaderName.isBlank()) {
+                    effectiveFieldName = currentHeaderName;
+                    effectiveValue = headerValueMatcher.group(2);
+                } else if (headerValueReferenceMatcher.find() && !currentHeaderName.isBlank()) {
+                    effectiveFieldName = currentHeaderName;
+                    effectiveValue = headerValueReferenceMatcher.group(2);
+                }
+            }
             for (SecretRule rule : ruleSet.getRules()) {
-                findings.addAll(
-                        rule.scan(locationContext, context.getSourceName(), index + 1, effectiveFieldName, trimmed));
+                findings.addAll(rule.scan(
+                        locationContext, context.getSourceName(), index + 1, effectiveFieldName, effectiveValue));
             }
             if (customHeadersWindow > 0) {
                 findings.addAll(scanHardcodedCustomHeader(

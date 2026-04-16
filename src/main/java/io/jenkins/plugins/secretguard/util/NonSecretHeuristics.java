@@ -22,6 +22,8 @@ public final class NonSecretHeuristics {
         String trimmed = value.trim();
         return trimmed.isEmpty()
                 || trimmed.contains("${")
+                || trimmed.startsWith("$")
+                || trimmed.startsWith("env.")
                 || trimmed.contains("credentials(")
                 || trimmed.contains("credentialsId")
                 || trimmed.equals("****")

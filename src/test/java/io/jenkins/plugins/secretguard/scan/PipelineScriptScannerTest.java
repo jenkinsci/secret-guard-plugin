@@ -7,6 +7,7 @@ import io.jenkins.plugins.secretguard.model.EnforcementMode;
 import io.jenkins.plugins.secretguard.model.FindingLocationType;
 import io.jenkins.plugins.secretguard.model.ScanContext;
 import io.jenkins.plugins.secretguard.model.ScanPhase;
+import io.jenkins.plugins.secretguard.model.SecretFinding;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import io.jenkins.plugins.secretguard.model.Severity;
 import org.junit.jupiter.api.Test;
@@ -85,6 +86,28 @@ class PipelineScriptScannerTest {
         SecretScanResult result = scanner.scan(context(), script);
         assertFalse(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().startsWith("http-request-")));
+    }
+
+    @Test
+    void doesNotCarryHeaderNameAcrossFollowingLinesWhenHeaderUsesRuntimeVariable() {
+        String script = """
+                def response = httpRequest \\
+                    httpMode: "POST",
+                    contentType: 'APPLICATION_JSON',
+                    requestBody: groovy.json.JsonOutput.toJson(request_body),
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [[name: "x-service-token", value: "$SERVICE_API_TOKEN", maskValue: true]]
+                def response_content = readJSON text: response.content
+                def response_code = response_content['code']
+                if (response_code != 0) {
+                  error("failed")
+                }
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+        assertFalse(
+                result.getFindings().stream().map(SecretFinding::getFieldName).anyMatch("x-service-token"::equals));
     }
 
     @Test
