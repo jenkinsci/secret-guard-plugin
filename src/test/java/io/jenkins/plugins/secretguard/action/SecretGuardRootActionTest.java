@@ -1,6 +1,7 @@
 package io.jenkins.plugins.secretguard.action;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -95,10 +96,30 @@ class SecretGuardRootActionTest {
         Page postResult = webClient.getPage(request);
 
         assertEquals(200, postResult.getWebResponse().getStatusCode());
-        assertTrue(postResult.getWebResponse().getContentAsString().contains("Scan completed."));
+        SecretGuardRootAction rootAction = jenkinsRule
+                .jenkins
+                .getExtensionList(SecretGuardRootAction.class)
+                .get(0);
+        waitForGlobalScanToFinish(rootAction);
+
+        Page completedPage = webClient.goTo("secret-guard");
+
+        assertTrue(completedPage.getWebResponse().getContentAsString().contains("COMPLETED"));
+        assertTrue(completedPage.getWebResponse().getContentAsString().contains("Scanned 1 of 1 jobs"));
+        assertTrue(completedPage.getWebResponse().getContentAsString().contains("Hide Scan Status"));
+        assertFalse(rootAction.canCancelScanAll());
+        assertTrue(rootAction.canDismissScanAllStatus());
         assertTrue(ScanResultStore.get().get(project.getFullName()).isPresent());
         assertTrue(
                 ScanResultStore.get().get(project.getFullName()).orElseThrow().hasFindings());
+
+        WebRequest dismissRequest =
+                new WebRequest(webClient.createCrumbedUrl("secret-guard/dismissScanAllStatus"), HttpMethod.POST);
+        Page dismissedPage = webClient.getPage(dismissRequest);
+
+        assertEquals(200, dismissedPage.getWebResponse().getStatusCode());
+        assertFalse(dismissedPage.getWebResponse().getContentAsString().contains("Hide Scan Status"));
+        assertFalse(rootAction.canDismissScanAllStatus());
     }
 
     private String withRiskyParameter(String xml) {
@@ -119,5 +140,13 @@ class SecretGuardRootActionTest {
             return xml.replace("<properties/>", property);
         }
         return xml.replace("<properties></properties>", property);
+    }
+
+    private void waitForGlobalScanToFinish(SecretGuardRootAction rootAction) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + 10000;
+        while (rootAction.getScanAllStatus().isRunning() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(100);
+        }
+        assertFalse(rootAction.getScanAllStatus().isRunning());
     }
 }

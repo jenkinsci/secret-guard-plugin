@@ -2,12 +2,13 @@ package io.jenkins.plugins.secretguard.action;
 
 import hudson.Extension;
 import hudson.Util;
-import hudson.model.Failure;
 import hudson.model.RootAction;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import io.jenkins.plugins.secretguard.service.GlobalJobScanService;
-import io.jenkins.plugins.secretguard.service.GlobalJobScanSummary;
+import io.jenkins.plugins.secretguard.service.GlobalJobScanStatus;
 import io.jenkins.plugins.secretguard.service.ScanResultStore;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import jenkins.model.Jenkins;
 import org.kohsuke.stapler.HttpResponse;
@@ -53,24 +54,91 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
     }
 
     public boolean canScanAllNow() {
-        return true;
+        return globalJobScanService.canStartScanAllJobs();
     }
 
-    public boolean isScanAllCompleted() {
-        StaplerRequest2 request = Stapler.getCurrentRequest2();
-        return request != null && "success".equals(request.getParameter("scanAll"));
+    public GlobalJobScanStatus getScanAllStatus() {
+        return globalJobScanService.getStatus();
     }
 
-    public GlobalJobScanSummary getScanAllSummary() {
-        StaplerRequest2 request = Stapler.getCurrentRequest2();
-        if (request == null || !"success".equals(request.getParameter("scanAll"))) {
+    public boolean hasScanAllStatus() {
+        return !getScanAllStatus().isIdle();
+    }
+
+    public boolean isScanAllRunning() {
+        return getScanAllStatus().isRunning();
+    }
+
+    public boolean canCancelScanAll() {
+        return isScanAllRunning();
+    }
+
+    public boolean canDismissScanAllStatus() {
+        return hasScanAllStatus() && !isScanAllRunning();
+    }
+
+    public String getScanAllPrimaryButtonLabel() {
+        if (isScanAllRunning()) {
+            return "Scanning...";
+        }
+        return hasScanAllStatus() ? "Scan Again" : "Scan All Jobs";
+    }
+
+    public boolean isScanAllDetailsOpen() {
+        GlobalJobScanStatus status = getScanAllStatus();
+        return status.isRunning() || status.getState() == GlobalJobScanStatus.State.FAILED;
+    }
+
+    public String getScanAllSummaryText() {
+        GlobalJobScanStatus status = getScanAllStatus();
+        if (status.isIdle()) {
+            return "No global scan has run yet.";
+        }
+        return "Scanned " + status.getJobsScanned() + " of " + status.getTotalJobs() + " jobs"
+                + ", findings in " + status.getJobsWithFindings()
+                + ", high severity in " + status.getJobsWithHighSeverity()
+                + ", failed " + status.getJobsFailed() + ".";
+    }
+
+    public String getScanAllDurationText() {
+        GlobalJobScanStatus status = getScanAllStatus();
+        if (status.getStartedAt() == null) {
             return null;
         }
-        return new GlobalJobScanSummary(
-                intParameter(request, "jobsScanned"),
-                intParameter(request, "jobsWithFindings"),
-                intParameter(request, "jobsWithHighSeverity"),
-                intParameter(request, "jobsFailed"));
+        Instant finishedAt = status.getFinishedAt() == null ? Instant.now() : status.getFinishedAt();
+        Duration duration = Duration.between(status.getStartedAt(), finishedAt);
+        long seconds = Math.max(0, duration.getSeconds());
+        long hours = seconds / 3600;
+        long minutes = (seconds % 3600) / 60;
+        long remainingSeconds = seconds % 60;
+        if (hours > 0) {
+            return hours + "h " + minutes + "m";
+        }
+        if (minutes > 0) {
+            return minutes + "m " + remainingSeconds + "s";
+        }
+        return remainingSeconds + "s";
+    }
+
+    public String getScanAllStateBadgeStyle(GlobalJobScanStatus.State state) {
+        if (state == GlobalJobScanStatus.State.COMPLETED) {
+            return "display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;"
+                    + "line-height:1.5;border:1px solid #b7dfb9;background:#edf7ed;color:#1e6b2a;";
+        }
+        if (state == GlobalJobScanStatus.State.RUNNING) {
+            return "display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;"
+                    + "line-height:1.5;border:1px solid #b6d4fe;background:#eff6ff;color:#175cd3;";
+        }
+        if (state == GlobalJobScanStatus.State.CANCELLED) {
+            return "display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;"
+                    + "line-height:1.5;border:1px solid #d5d7da;background:#f5f5f5;color:#344054;";
+        }
+        if (state == GlobalJobScanStatus.State.FAILED) {
+            return "display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;"
+                    + "line-height:1.5;border:1px solid #f5c2c0;background:#fff1f0;color:#b42318;";
+        }
+        return "display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;"
+                + "line-height:1.5;border:1px solid #d5d7da;background:#f5f5f5;color:#344054;";
     }
 
     public List<SecretScanResult> getResults() {
@@ -84,15 +152,22 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
     @RequirePOST
     public HttpResponse doScanAll() {
         Jenkins.get().checkPermission(Jenkins.MANAGE);
-        if (!canScanAllNow()) {
-            throw new Failure("Secret Guard global scan is unavailable.");
-        }
-        GlobalJobScanSummary summary = globalJobScanService.scanAllJobs();
-        return HttpResponses.redirectViaContextPath("secret-guard?scanAll=success"
-                + "&jobsScanned=" + summary.getJobsScanned()
-                + "&jobsWithFindings=" + summary.getJobsWithFindings()
-                + "&jobsWithHighSeverity=" + summary.getJobsWithHighSeverity()
-                + "&jobsFailed=" + summary.getJobsFailed());
+        globalJobScanService.startScanAllJobs();
+        return HttpResponses.redirectViaContextPath("secret-guard");
+    }
+
+    @RequirePOST
+    public HttpResponse doCancelScanAll() {
+        Jenkins.get().checkPermission(Jenkins.MANAGE);
+        globalJobScanService.cancelScanAllJobs();
+        return HttpResponses.redirectViaContextPath("secret-guard");
+    }
+
+    @RequirePOST
+    public HttpResponse doDismissScanAllStatus() {
+        Jenkins.get().checkPermission(Jenkins.MANAGE);
+        globalJobScanService.clearFinishedStatus();
+        return HttpResponses.redirectViaContextPath("secret-guard");
     }
 
     public String getJobSecretGuardUrl(SecretScanResult result) {
@@ -131,17 +206,5 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
         }
         path.append("/secret-guard");
         return path.toString();
-    }
-
-    private int intParameter(StaplerRequest2 request, String name) {
-        String value = request.getParameter(name);
-        if (value == null || value.isBlank()) {
-            return 0;
-        }
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException ignored) {
-            return 0;
-        }
     }
 }

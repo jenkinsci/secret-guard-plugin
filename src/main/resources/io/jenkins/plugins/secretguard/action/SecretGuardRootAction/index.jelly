@@ -3,22 +3,122 @@
     <l:layout title="Secret Guard">
         <l:main-panel>
             <h1>Jenkins Secret Guard</h1>
-            <j:if test="${it.scanAllCompleted}">
-                <j:set var="summary" value="${it.scanAllSummary}" />
-                <p>
-                    Scan completed. Jobs scanned: ${summary.jobsScanned},
-                    jobs with findings: ${summary.jobsWithFindings},
-                    jobs with high severity findings: ${summary.jobsWithHighSeverity},
-                    jobs failed: ${summary.jobsFailed}.
-                </p>
+            <j:set var="scanStatus" value="${it.scanAllStatus}" />
+            <j:if test="${it.scanAllRunning}">
+                <script>
+                    window.setTimeout(function () {
+                        window.location.reload();
+                    }, 3000);
+                </script>
             </j:if>
-            <j:if test="${it.canScanAllNow()}">
-                <f:form method="post" action="scanAll">
-                    <f:block>
-                        <button class="jenkins-button" type="submit">Scan All Jobs</button>
-                    </f:block>
+            <h2>Global Scan</h2>
+            <j:if test="${it.hasScanAllStatus()}">
+                <div class="jenkins-alert" role="status">
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+                        <span style="${it.getScanAllStateBadgeStyle(scanStatus.state)}">${scanStatus.state}</span>
+                        <strong>${it.scanAllSummaryText}</strong>
+                        <j:if test="${it.scanAllDurationText != null}">
+                            <span>Duration: ${it.scanAllDurationText}</span>
+                        </j:if>
+                    </div>
+                    <j:choose>
+                        <j:when test="${it.scanAllDetailsOpen()}">
+                            <details open="open">
+                                <summary>Details</summary>
+                                <div style="margin-top:8px;">
+                                    <j:if test="${scanStatus.message != null}">
+                                        <div>${scanStatus.message}</div>
+                                    </j:if>
+                                    <div>
+                                        Progress: ${scanStatus.jobsScanned} / ${scanStatus.totalJobs}
+                                        (${scanStatus.progressPercentage}%)
+                                    </div>
+                                    <progress max="${scanStatus.progressMax}" value="${scanStatus.jobsScanned}">
+                                        ${scanStatus.jobsScanned}/${scanStatus.totalJobs}
+                                    </progress>
+                                    <j:if test="${scanStatus.currentJobFullName != null}">
+                                        <div>Current job: <code>${scanStatus.currentJobFullName}</code></div>
+                                    </j:if>
+                                    <j:if test="${scanStatus.startedAt != null}">
+                                        <div>Started: ${scanStatus.startedAt}</div>
+                                    </j:if>
+                                    <j:if test="${scanStatus.finishedAt != null}">
+                                        <div>Finished: ${scanStatus.finishedAt}</div>
+                                    </j:if>
+                                    <j:if test="${scanStatus.hasFailedJobs()}">
+                                        <div style="margin-top:8px;">Recent failed jobs:</div>
+                                        <ul>
+                                            <j:forEach var="failedJob" items="${scanStatus.failedJobFullNames}">
+                                                <li><code>${failedJob}</code></li>
+                                            </j:forEach>
+                                        </ul>
+                                    </j:if>
+                                    <j:if test="${it.scanAllRunning}">
+                                        <div>This page refreshes automatically while the scan runs.</div>
+                                    </j:if>
+                                </div>
+                            </details>
+                        </j:when>
+                        <j:otherwise>
+                            <details>
+                                <summary>Details</summary>
+                                <div style="margin-top:8px;">
+                                    <j:if test="${scanStatus.message != null}">
+                                        <div>${scanStatus.message}</div>
+                                    </j:if>
+                                    <div>
+                                        Progress: ${scanStatus.jobsScanned} / ${scanStatus.totalJobs}
+                                        (${scanStatus.progressPercentage}%)
+                                    </div>
+                                    <progress max="${scanStatus.progressMax}" value="${scanStatus.jobsScanned}">
+                                        ${scanStatus.jobsScanned}/${scanStatus.totalJobs}
+                                    </progress>
+                                    <j:if test="${scanStatus.startedAt != null}">
+                                        <div>Started: ${scanStatus.startedAt}</div>
+                                    </j:if>
+                                    <j:if test="${scanStatus.finishedAt != null}">
+                                        <div>Finished: ${scanStatus.finishedAt}</div>
+                                    </j:if>
+                                    <j:if test="${scanStatus.hasFailedJobs()}">
+                                        <div style="margin-top:8px;">Recent failed jobs:</div>
+                                        <ul>
+                                            <j:forEach var="failedJob" items="${scanStatus.failedJobFullNames}">
+                                                <li><code>${failedJob}</code></li>
+                                            </j:forEach>
+                                        </ul>
+                                    </j:if>
+                                </div>
+                            </details>
+                        </j:otherwise>
+                    </j:choose>
+                </div>
+            </j:if>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <f:form method="post" action="scanAll" style="margin:0;">
+                    <j:choose>
+                        <j:when test="${it.canScanAllNow()}">
+                            <button class="jenkins-button jenkins-submit-button jenkins-button--primary" type="submit">
+                                ${it.scanAllPrimaryButtonLabel}
+                            </button>
+                        </j:when>
+                        <j:otherwise>
+                            <button class="jenkins-button jenkins-submit-button jenkins-button--primary" type="submit" disabled="disabled">
+                                ${it.scanAllPrimaryButtonLabel}
+                            </button>
+                        </j:otherwise>
+                    </j:choose>
                 </f:form>
-            </j:if>
+                <j:if test="${it.canCancelScanAll()}">
+                    <f:form method="post" action="cancelScanAll" style="margin:0;">
+                        <button class="jenkins-button jenkins-button--secondary" type="submit">Cancel Current Scan</button>
+                    </f:form>
+                </j:if>
+                <j:if test="${it.canDismissScanAllStatus()}">
+                    <f:form method="post" action="dismissScanAllStatus" style="margin:0;">
+                        <button class="jenkins-button jenkins-button--secondary" type="submit">Hide Scan Status</button>
+                    </f:form>
+                </j:if>
+            </div>
             <p>Unexempted high severity findings: ${it.unexemptedHighCount}</p>
             <table class="jenkins-table sortable">
                 <thead>

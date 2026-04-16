@@ -160,6 +160,9 @@ The plugin integrates at three levels:
   - adds a run action report
   - marks builds `UNSTABLE` in `WARN`
   - interrupts builds in `BLOCK`
+- `GlobalJobScanService`
+  - runs `Scan All Jobs` as a background task
+  - tracks progress, current job, summary counters, and cancellation state for the system page
 
 ### 7. Reporting
 
@@ -168,6 +171,7 @@ Results are exposed through:
 - `SecretGuardJobAction`
 - `SecretGuardRunAction`
 - `SecretGuardRootAction`
+- `GlobalJobScanStatus`
 - `SecretGuardAdministrativeMonitor`
 
 Job-level reports are available on each Job page so users can run `Scan Now` even before a previous scan result exists.

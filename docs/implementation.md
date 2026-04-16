@@ -212,6 +212,13 @@ Responsibilities:
 
 Priority-based deduplication suppresses generic rules, such as `high-entropy-string` and `sensitive-field-name`, when a more specific rule reports the same source name, line, field, and masked snippet.
 
+#### `GlobalJobScanService`
+
+- owns the background `Scan All Jobs` task
+- allows only one global scan at a time
+- updates `GlobalJobScanStatus` with total jobs, completed jobs, current job, findings counters, failures, and terminal state
+- supports cooperative cancellation between jobs so large Jenkins instances do not block the UI behind a synchronous request
+
 #### `WhitelistService`
 
 Supports matching by:
@@ -254,6 +261,7 @@ Persisted results contain only report data such as rule IDs, severity, source lo
 - `SecretGuardRootAction`
   - shows global summary
   - exposes the `Scan All Jobs` POST endpoint for manage users
+  - runs `Scan All Jobs` asynchronously and shows a status badge, short summary, expandable details, failure list, cancellation controls, and a dismiss action for finished scan status
   - links each listed job to its job-level Secret Guard report
   - renders severity values as colored badges so `LOW`, `MEDIUM`, and `HIGH` are easier to distinguish
 - `SecretGuardAdministrativeMonitor`
