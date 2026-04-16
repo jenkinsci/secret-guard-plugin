@@ -89,6 +89,33 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void doesNotFlagWithCredentialsUsernamePasswordAndStringCombinations() {
+        String script = """
+                withCredentials([
+                  string(credentialsId: 'service-api-token', variable: 'SERVICE_TOKEN'),
+                  usernamePassword(credentialsId: 'service-user-pass', usernameVariable: 'SERVICE_USER', passwordVariable: 'SERVICE_PASS')
+                ]) {
+                  httpRequest(
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [
+                      [name: "Authorization", value: "Bearer ${SERVICE_TOKEN}", maskValue: true],
+                      [name: "x-service-basic", value: "${SERVICE_USER}:${SERVICE_PASS}".bytes.encodeBase64().toString(), maskValue: true]
+                    ]
+                  )
+                  sh 'curl -u "$SERVICE_USER:$SERVICE_PASS" https://example.invalid'
+                  sh "curl -H \\"Authorization: Bearer $SERVICE_TOKEN\\" https://example.invalid"
+                }
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().startsWith("http-request-")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+        assertFalse(result.getFindings().stream().anyMatch(finding -> finding.getSeverity() == Severity.HIGH));
+    }
+
+    @Test
     void doesNotCarryHeaderNameAcrossFollowingLinesWhenHeaderUsesRuntimeVariable() {
         String script = """
                 def response = httpRequest \\

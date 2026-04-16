@@ -164,6 +164,35 @@ class ConfigXmlScannerTest {
                 .anyMatch(finding -> finding.getFieldName().equals("x-safe-token")));
     }
 
+    @Test
+    void doesNotFlagWithCredentialsBindingsFromInlinePipelineScript() {
+        String xml = """
+                <flow-definition>
+                  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition">
+                    <script><![CDATA[
+                withCredentials([
+                  string(credentialsId: 'service-api-token', variable: 'SERVICE_TOKEN'),
+                  usernamePassword(credentialsId: 'service-user-pass', usernameVariable: 'SERVICE_USER', passwordVariable: 'SERVICE_PASS')
+                ]) {
+                  httpRequest(
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [
+                      [name: "Authorization", value: "Bearer ${SERVICE_TOKEN}", maskValue: true],
+                      [name: "x-service-basic", value: "${SERVICE_USER}:${SERVICE_PASS}".bytes.encodeBase64().toString(), maskValue: true]
+                    ]
+                  )
+                }
+                    ]]></script>
+                    <sandbox>true</sandbox>
+                  </definition>
+                </flow-definition>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("WorkflowJob"), xml);
+
+        assertFalse(result.hasFindings());
+    }
+
     private ScanContext context(String targetType) {
         return new ScanContext(
                 "folder/job",

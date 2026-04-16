@@ -140,7 +140,7 @@ When adding a new rule:
 - detects hardcoded secrets embedded in URL query parameters such as `?key=...` and `?token=...`
 - supports mixed single-line and multi-line header layouts, multiple headers in one request, and nested Groovy expressions inside header values
 - passes header names into generic rules only for parsed header `value:` entries, so later non-header lines in the same `httpRequest` block do not inherit the header context
-- treats runtime header references such as `"$TOKEN"`, `"${TOKEN}"`, `env.TOKEN`, `params.TOKEN`, `env['TOKEN']`, and simple GString/concatenation forms as non-plaintext values through shared `NonSecretHeuristics` helpers
+- treats runtime header references such as `"$TOKEN"`, `"${TOKEN}"`, `env.TOKEN`, `params.TOKEN`, `env['TOKEN']`, simple GString/concatenation forms, and common `withCredentials`-bound variable combinations as non-plaintext values through shared `NonSecretHeuristics` helpers
 - passes header names into generic rules so benign tracking headers do not trigger high-entropy false positives
 - keeps implementation text-based so it does not require Pipeline AST integration
 
@@ -371,6 +371,13 @@ Recommended next layer:
 - save/create blocking intentionally does not perform SCM Jenkinsfile reads
 - multibranch-specific indexing integration is not implemented
 - no trend/history view exists
+
+## Current Hardening Backlog
+
+1. Expand `withCredentials` regression coverage for `file`, `sshUserPrivateKey`, `gitUsernamePassword`, and `usernameColonPassword`
+2. Expand runtime-expression regression coverage for forms such as `env.get('X')`, `params['X'] ?: ''`, ternary expressions, safe-navigation calls, and method-chain transforms
+3. Build a realistic Jenkinsfile false-positive corpus so common in-house Pipeline patterns stay covered by regression tests
+4. Continue hardening `httpRequest customHeaders` parsing for more nested map/list layouts and mixed call styles
 
 ## Suggested Next Steps
 

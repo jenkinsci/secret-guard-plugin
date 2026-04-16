@@ -369,14 +369,24 @@ Before each release:
 - verify all new rules include false-positive tests
 - verify user-visible blocking messages are masked
 
+## Current Hardening Backlog
+
+1. `withCredentials` regression coverage for `file`, `sshUserPrivateKey`, `gitUsernamePassword`, and `usernameColonPassword`
+2. runtime-expression regression coverage for `env.get('X')`, `params['X'] ?: ''`, ternary expressions, safe-navigation calls, and method chains
+3. realistic Jenkinsfile false-positive corpus for common internal Pipeline patterns
+4. `httpRequest customHeaders` edge-case parsing for deeper nesting and mixed single-line/multi-line call layouts
+
 ## Recommended Next Sprint
 
 The next sprint should focus only on hardening:
 
-1. JenkinsRule lifecycle tests
-2. save-time blocking reliability
-3. false-positive regression corpus
-4. config validation for exemptions
-5. UI smoke tests
+1. `withCredentials` regression coverage for `file`, `sshUserPrivateKey`, `gitUsernamePassword`, and `usernameColonPassword`
+2. runtime-expression regression coverage for `env.get('X')`, `params['X'] ?: ''`, ternary expressions, safe-navigation calls, and method chains
+3. realistic Jenkinsfile false-positive corpus for common internal Pipeline patterns
+4. `httpRequest customHeaders` edge-case parsing for deeper nesting and mixed single-line/multi-line call layouts
+5. JenkinsRule lifecycle tests
+6. save-time blocking reliability
+7. config validation for exemptions
+8. UI smoke tests
 
-This keeps the MVP stable before expanding coverage to multibranch-specific Jenkinsfile handling or historical reporting.
+This keeps the MVP stable while continuing to reduce false positives before expanding coverage to multibranch-specific Jenkinsfile handling or historical reporting.
