@@ -21,7 +21,7 @@ import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 @Extension
-public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, StaplerProxy {
+public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, ScanTimeDisplaySupport, StaplerProxy {
     private static final int MAX_DISPLAY_TARGET_LENGTH = 72;
     private static final int DISPLAY_TARGET_TAIL_SEGMENTS = 3;
     private static final String ELLIPSIS = "\u2026";

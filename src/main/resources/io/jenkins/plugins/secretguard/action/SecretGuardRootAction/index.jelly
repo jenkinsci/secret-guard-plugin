@@ -211,7 +211,11 @@
                                             ${it.getBlockedBadgeLabel(result.blocked)}
                                         </span>
                                     </td>
-                                    <td>${result.scannedAt}</td>
+                                    <td>
+                                        <span title="${it.getDisplayTimeTitle(result.scannedAt)}">
+                                            ${it.getDisplayTime(result.scannedAt)}
+                                        </span>
+                                    </td>
                                     <td>
                                         <j:choose>
                                             <j:when test="${jobUrl != null}">

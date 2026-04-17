@@ -22,7 +22,10 @@
             </j:choose>
             <j:choose>
                 <j:when test="${it.hasFindings()}">
-                    <p>Last scan: ${it.result.scannedAt}</p>
+                    <p>
+                        Last scan:
+                        <span title="${it.getDisplayTimeTitle(it.result.scannedAt)}">${it.getDisplayTime(it.result.scannedAt)}</span>
+                    </p>
                     <j:forEach var="group" items="${it.severityGroups}">
                         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:16px 0 8px 0;">
                             <span style="${it.getSeverityBadgeStyle(group.severity)}">
@@ -68,7 +71,10 @@
                     </j:forEach>
                 </j:when>
                 <j:when test="${it.hasRecordedResult()}">
-                    <p>Last scan: ${it.result.scannedAt}</p>
+                    <p>
+                        Last scan:
+                        <span title="${it.getDisplayTimeTitle(it.result.scannedAt)}">${it.getDisplayTime(it.result.scannedAt)}</span>
+                    </p>
                     <p>No findings were detected in the latest scan.</p>
                 </j:when>
                 <j:otherwise>
