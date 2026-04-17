@@ -167,6 +167,9 @@
                             <a class="${it.getFilterButtonClass('with-findings')}" href="${it.getFilterUrl('with-findings')}">
                                 ${it.getFilterButtonLabel('with-findings')}
                             </a>
+                            <a class="${it.getFilterButtonClass('with-notes')}" href="${it.getFilterUrl('with-notes')}">
+                                ${it.getFilterButtonLabel('with-notes')}
+                            </a>
                         </div>
                     </div>
                 </j:when>

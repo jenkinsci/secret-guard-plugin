@@ -79,7 +79,9 @@ class SecretGuardRootActionTest {
         SecretScanResult lowResult =
                 new SecretScanResult("low-job", "WorkflowJob", List.of(finding(Severity.LOW)), false);
         SecretScanResult emptyResult = new SecretScanResult("empty-job", "WorkflowJob", List.of(), false);
-        List<SecretScanResult> results = List.of(blockedResult, highResult, lowResult, emptyResult);
+        SecretScanResult notesResult =
+                new SecretScanResult("notes-job", "WorkflowJob", List.of(), false, List.of("manual follow-up"));
+        List<SecretScanResult> results = List.of(blockedResult, highResult, lowResult, emptyResult, notesResult);
 
         assertEquals(
                 List.of(blockedResult, highResult),
@@ -90,6 +92,9 @@ class SecretGuardRootActionTest {
         assertEquals(
                 List.of(blockedResult, highResult, lowResult),
                 SecretGuardRootAction.filterResults(results, SecretGuardRootAction.ResultFilter.WITH_FINDINGS));
+        assertEquals(
+                List.of(notesResult),
+                SecretGuardRootAction.filterResults(results, SecretGuardRootAction.ResultFilter.WITH_NOTES));
     }
 
     @Test
@@ -132,6 +137,7 @@ class SecretGuardRootActionTest {
 
         assertEquals("/secret-guard", action.getFilterUrl("all"));
         assertEquals("/secret-guard?filter=high", action.getFilterUrl("high"));
+        assertEquals("/secret-guard?filter=with-notes", action.getFilterUrl("with-notes"));
     }
 
     @Test

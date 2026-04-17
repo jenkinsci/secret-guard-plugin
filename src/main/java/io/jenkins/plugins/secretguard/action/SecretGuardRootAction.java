@@ -32,7 +32,8 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
         ALL("all", "All"),
         HIGH("high", "High"),
         BLOCKED("blocked", "Blocked"),
-        WITH_FINDINGS("with-findings", "With Findings");
+        WITH_FINDINGS("with-findings", "With Findings"),
+        WITH_NOTES("with-notes", "With Notes");
 
         private final String parameterValue;
         private final String displayName;
@@ -456,6 +457,7 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
             case HIGH -> result.hasActionableFindingsAtOrAbove(Severity.HIGH);
             case BLOCKED -> result.isBlocked();
             case WITH_FINDINGS -> result.hasFindings();
+            case WITH_NOTES -> result.hasNotes();
         };
     }
 }
