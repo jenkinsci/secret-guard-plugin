@@ -280,9 +280,10 @@ Persisted results contain only report data such as rule IDs, severity, source lo
   - runs `Scan All Jobs` asynchronously and shows a status badge, short summary, expandable details, failure list, cancellation controls, and a dismiss action for finished scan status
   - shows summary cards for unexempted high findings, blocked jobs, jobs with findings, total findings, and scanned jobs
   - sorts latest results by risk so blocked and actionable `HIGH` rows stay near the top
-  - provides quick filters for `All`, `High`, `Blocked`, `With Findings`, and `With Notes`
+  - provides quick filters for `All`, `High`, `Blocked`, `With Findings`, `With Exemptions`, and `With Notes`
   - links each listed job to its job-level Secret Guard report
   - adds a `View report` action per row and compacts long target IDs while preserving the full value in the tooltip
+  - shows exempted finding counts as compact badges in the `Findings` column without rendering exemption reasons
   - highlights blocked rows and uses blocked/allowed badges to make enforcement state easier to scan
   - renders severity values as colored badges so `LOW`, `MEDIUM`, and `HIGH` are easier to distinguish
 - `SecretGuardAdministrativeMonitor`

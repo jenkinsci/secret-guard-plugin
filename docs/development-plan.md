@@ -245,7 +245,7 @@ Acceptance criteria:
 
 Priority: `P1`
 
-Status: the system page now shows summary counts, root-to-job links, blocked highlighting, quick filters for severity/findings/notes, relative scan times, and per-row report actions; detailed job reports are grouped by severity.
+Status: the system page now shows summary counts, root-to-job links, blocked highlighting, quick filters for severity/findings/exemptions/notes, compact exempted-count badges, relative scan times, and per-row report actions; detailed job reports are grouped by severity.
 
 Tasks:
 

@@ -160,12 +160,15 @@
                             <span>Showing ${it.filteredResultCount} of ${it.scannedJobCount}</span>
                         </div>
                         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
-                            <span>Severity:</span>
+                            <span>Filters:</span>
                             <a class="${it.getFilterButtonClass('all')}" href="${it.getFilterUrl('all')}">${it.getFilterButtonLabel('all')}</a>
                             <a class="${it.getFilterButtonClass('high')}" href="${it.getFilterUrl('high')}">${it.getFilterButtonLabel('high')}</a>
                             <a class="${it.getFilterButtonClass('blocked')}" href="${it.getFilterUrl('blocked')}">${it.getFilterButtonLabel('blocked')}</a>
                             <a class="${it.getFilterButtonClass('with-findings')}" href="${it.getFilterUrl('with-findings')}">
                                 ${it.getFilterButtonLabel('with-findings')}
+                            </a>
+                            <a class="${it.getFilterButtonClass('with-exemptions')}" href="${it.getFilterUrl('with-exemptions')}">
+                                ${it.getFilterButtonLabel('with-exemptions')}
                             </a>
                             <a class="${it.getFilterButtonClass('with-notes')}" href="${it.getFilterUrl('with-notes')}">
                                 ${it.getFilterButtonLabel('with-notes')}
@@ -209,7 +212,15 @@
                                             ${it.getSeverityBadgeLabel(result.highestSeverity)}
                                         </span>
                                     </td>
-                                    <td>${result.findings.size()}</td>
+                                    <td>
+                                        <span>${result.findings.size()}</span>
+                                        <j:if test="${it.getExemptedFindingsCount(result) > 0}">
+                                            <span
+                                                class="jenkins-alert jenkins-alert-warning"
+                                                style="display:inline-flex;align-items:center;padding:2px 8px;margin:0 0 0 6px;border-radius:999px;line-height:1.5;"
+                                            >${it.getExemptedFindingsCount(result)} exempted</span>
+                                        </j:if>
+                                    </td>
                                     <td style="max-width: 28rem; white-space: normal; overflow-wrap: anywhere;">
                                         <j:choose>
                                             <j:when test="${result.hasNotes()}">

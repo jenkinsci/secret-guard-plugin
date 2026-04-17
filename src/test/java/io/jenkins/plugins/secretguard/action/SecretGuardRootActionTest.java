@@ -81,7 +81,13 @@ class SecretGuardRootActionTest {
         SecretScanResult emptyResult = new SecretScanResult("empty-job", "WorkflowJob", List.of(), false);
         SecretScanResult notesResult =
                 new SecretScanResult("notes-job", "WorkflowJob", List.of(), false, List.of("manual follow-up"));
-        List<SecretScanResult> results = List.of(blockedResult, highResult, lowResult, emptyResult, notesResult);
+        SecretScanResult exemptedResult = new SecretScanResult(
+                "exempted-job",
+                "WorkflowJob",
+                List.of(finding(Severity.HIGH).withExemption("approved test exemption")),
+                false);
+        List<SecretScanResult> results =
+                List.of(blockedResult, highResult, lowResult, emptyResult, notesResult, exemptedResult);
 
         assertEquals(
                 List.of(blockedResult, highResult),
@@ -90,8 +96,11 @@ class SecretGuardRootActionTest {
                 List.of(blockedResult),
                 SecretGuardRootAction.filterResults(results, SecretGuardRootAction.ResultFilter.BLOCKED));
         assertEquals(
-                List.of(blockedResult, highResult, lowResult),
+                List.of(blockedResult, highResult, lowResult, exemptedResult),
                 SecretGuardRootAction.filterResults(results, SecretGuardRootAction.ResultFilter.WITH_FINDINGS));
+        assertEquals(
+                List.of(exemptedResult),
+                SecretGuardRootAction.filterResults(results, SecretGuardRootAction.ResultFilter.WITH_EXEMPTIONS));
         assertEquals(
                 List.of(notesResult),
                 SecretGuardRootAction.filterResults(results, SecretGuardRootAction.ResultFilter.WITH_NOTES));
@@ -137,6 +146,7 @@ class SecretGuardRootActionTest {
 
         assertEquals("/secret-guard", action.getFilterUrl("all"));
         assertEquals("/secret-guard?filter=high", action.getFilterUrl("high"));
+        assertEquals("/secret-guard?filter=with-exemptions", action.getFilterUrl("with-exemptions"));
         assertEquals("/secret-guard?filter=with-notes", action.getFilterUrl("with-notes"));
     }
 
@@ -247,6 +257,32 @@ class SecretGuardRootActionTest {
 
         assertTrue(content.contains(">Yes<"));
         assertFalse(content.contains(note));
+
+        ScanResultStore.get().remove(targetId);
+    }
+
+    @Test
+    @WithJenkins
+    void rootPageShowsExemptedFindingCountWithoutRenderingReason(JenkinsRule jenkinsRule) throws Exception {
+        String targetId = "job-with-exemption";
+        String exemptionReason = "approved test exemption should stay on the detailed job report";
+        ScanResultStore.get()
+                .put(new SecretScanResult(
+                        targetId,
+                        "WorkflowJob",
+                        List.of(finding(Severity.HIGH).withExemption(exemptionReason)),
+                        false,
+                        List.of(),
+                        Instant.now()));
+
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient();
+        Page page = webClient.goTo("secret-guard?filter=with-exemptions");
+        String content = page.getWebResponse().getContentAsString();
+
+        assertTrue(content.contains("With Exemptions (1)"));
+        assertTrue(content.contains(">1 exempted<"));
+        assertTrue(content.contains(targetId));
+        assertFalse(content.contains(exemptionReason));
 
         ScanResultStore.get().remove(targetId);
     }

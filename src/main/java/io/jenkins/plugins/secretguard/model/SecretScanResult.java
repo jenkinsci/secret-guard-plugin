@@ -100,6 +100,14 @@ public class SecretScanResult {
                 .count();
     }
 
+    public long getExemptedFindingsCount() {
+        return findings.stream().filter(SecretFinding::isExempted).count();
+    }
+
+    public boolean hasExemptedFindings() {
+        return getExemptedFindingsCount() > 0;
+    }
+
     private static Severity calculateHighestSeverity(List<SecretFinding> findings) {
         Severity highest = Severity.LOW;
         for (SecretFinding finding : findings) {

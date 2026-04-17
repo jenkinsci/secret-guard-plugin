@@ -33,6 +33,7 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
         HIGH("high", "High"),
         BLOCKED("blocked", "Blocked"),
         WITH_FINDINGS("with-findings", "With Findings"),
+        WITH_EXEMPTIONS("with-exemptions", "With Exemptions"),
         WITH_NOTES("with-notes", "With Notes");
 
         private final String parameterValue;
@@ -224,6 +225,10 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
 
     public long getUnexemptedHighCount() {
         return ScanResultStore.get().getUnexemptedHighCount();
+    }
+
+    public long getExemptedFindingsCount(SecretScanResult result) {
+        return result == null ? 0 : result.getExemptedFindingsCount();
     }
 
     public boolean hasResults() {
@@ -457,6 +462,7 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
             case HIGH -> result.hasActionableFindingsAtOrAbove(Severity.HIGH);
             case BLOCKED -> result.isBlocked();
             case WITH_FINDINGS -> result.hasFindings();
+            case WITH_EXEMPTIONS -> result.hasExemptedFindings();
             case WITH_NOTES -> result.hasNotes();
         };
     }
