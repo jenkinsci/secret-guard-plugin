@@ -37,12 +37,16 @@ This file applies to the entire repository.
 - Preserve the plugin's deterministic scope. Do not add AI-based detection or unrelated governance features unless explicitly requested.
 - Favor high-confidence secret detection over aggressive heuristics that increase false positives.
 - Never persist or expose raw secret values. Use masked snippets only.
+- Do not copy user-provided real-looking variable names, header names, URLs, repository paths, host names, or other internal identifiers directly into source, tests, or docs; always sanitize them to neutral, readable placeholders.
+- When creating examples, fixtures, or regression cases, prefer neutral names such as `example.invalid`, `repo-host`, `build-tools`, `SERVICE_TOKEN`, and similar generic placeholders over internal naming patterns.
 - Keep enforcement policy centralized in `SecretScanService`; scanners should extract candidates and locations, not make block/warn decisions.
 - Keep global runtime behavior in `SecretGuardGlobalConfiguration` rather than scattering policy flags across listeners or views.
 - Put new detection logic in `rules/` or `scan/` based on responsibility:
   - use `rules/` for matching/classification logic
   - use `scan/` for extracting candidate values from XML or Pipeline text
 - Keep UI/reporting code in actions, monitor, and Jelly files presentation-only.
+- Prefer Jenkins-native UI patterns and behaviors for Jelly/admin pages, including warning styles, dismiss actions, button placement, and concise administrator-facing wording.
+- Keep Jelly/HTML structure minimal and avoid unnecessary wrapper elements when existing layout already provides them.
 - Follow existing code style: small focused classes, descriptive names, and minimal inline comments.
 
 ## Testing expectations
@@ -50,6 +54,7 @@ This file applies to the entire repository.
 - After every code change, run `mvn spotless:apply` before finishing the task.
 - Add or update focused unit tests for behavior changes in the corresponding `src/test/java` package.
 - Prefer synthetic sample secrets in tests; never use real credentials or realistic live secrets.
+- Do not reuse internal-looking domains, API paths, repository addresses, or naming conventions in tests; sanitize all fixtures to generic examples.
 - When practical, validate with the smallest relevant command first, for example:
   - `mvn -Dtest=SecretScanServiceTest test`
   - `mvn -Dtest=ConfigXmlScannerTest test`
@@ -60,5 +65,6 @@ This file applies to the entire repository.
 - For new detection rules, document the intended severity, scope, and false-positive tradeoff in code and tests.
 - For new persisted data, ensure restart behavior is safe and stored content remains masked.
 - For Jenkins UI/config changes, keep wording concise and administrator-focused.
+- For false-positive fixes, prefer improving heuristics/rules and adding regression coverage instead of changing examples into unrealistic fake configurations merely to silence detection.
 - When changing `pom.xml` or dependencies, prefer staying aligned with the Jenkins plugin parent and BOM already declared in `pom.xml`.
 - Keep docs in `README.md` or `docs/` in sync when behavior, configuration, or architecture meaningfully changes.
