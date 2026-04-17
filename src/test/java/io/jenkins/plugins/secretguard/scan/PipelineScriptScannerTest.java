@@ -358,6 +358,21 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void doesNotFlagStorageUriPathsAsHighEntropySecrets() {
+        String script = """
+                properties([
+                    parameters([
+                        string(name: 'json_data_path', value: 'hdfs:///example/runtime/sample_dataset/record_01')
+                    ])
+                ])
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
     void doesNotFlagTrackingHeadersAsSecrets() {
         String script = """
                 httpRequest customHeaders: [[maskValue: false, name: 'X-Request-ID',

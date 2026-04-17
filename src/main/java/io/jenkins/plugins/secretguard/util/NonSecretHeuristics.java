@@ -7,6 +7,8 @@ import java.util.regex.Pattern;
 public final class NonSecretHeuristics {
     private static final Pattern FILE_EXTENSION = Pattern.compile(
             "(?i).+\\.(py|sh|bash|groovy|jar|war|zip|tar|tgz|gz|json|yaml|yml|xml|txt|log|md|jenkinsfile)$");
+    private static final Pattern STORAGE_URI_SCHEME =
+            Pattern.compile("(?i)(hdfs|viewfs|file|s3|s3a|gs|gcs|oss|cosn|obs|bos|tos|wasb|wasbs|abfs|abfss|adl)://.+");
     private static final Pattern DOCKER_IMAGE_REFERENCE =
             Pattern.compile("(?i)(?:[a-z0-9.-]+(?::[0-9]+)?/)?[a-z0-9._-]+(?:/[a-z0-9._-]+)+(?::[a-z0-9._-]+)?");
     private static final Pattern UUID =
@@ -129,6 +131,9 @@ public final class NonSecretHeuristics {
         }
         if (looksLikeJenkinsfilePath(originalValue, candidate)) {
             return "Skipped high-entropy candidate because it looks like a Jenkinsfile path.";
+        }
+        if (looksLikeStorageUriPath(originalValue, candidate)) {
+            return "Skipped high-entropy candidate because it looks like a storage URI path.";
         }
         if (isHashOrDigestContext(fieldName, originalValue)) {
             return "Skipped high-entropy candidate because the surrounding context looks like a hash or digest.";
@@ -345,6 +350,66 @@ public final class NonSecretHeuristics {
                 || lower.endsWith(".jenkinsfile")
                 || lower.contains("/jenkinsfile.")
                 || lower.contains(".jenkinsfile/");
+    }
+
+    private static boolean looksLikeStorageUriPath(String originalValue, String candidate) {
+        String token = expandToken(originalValue, candidate).trim();
+        if (!STORAGE_URI_SCHEME.matcher(token).matches() || token.contains("?") || token.contains("#")) {
+            return false;
+        }
+        int schemeSeparator = token.indexOf("://");
+        if (schemeSeparator < 0 || schemeSeparator + 3 >= token.length()) {
+            return false;
+        }
+        String remainder = token.substring(schemeSeparator + 3);
+        int firstSlash = remainder.indexOf('/');
+        String authority = firstSlash >= 0 ? remainder.substring(0, firstSlash) : remainder;
+        String path = firstSlash >= 0 ? remainder.substring(firstSlash) : "";
+        if (path.isBlank() || !path.startsWith("/") || authorityLooksLikeCredentialUserInfo(authority)) {
+            return false;
+        }
+        if (!authority.isBlank() && !looksLikeStorageAuthority(authority)) {
+            return false;
+        }
+        return looksLikeReadableStoragePath(path);
+    }
+
+    private static boolean authorityLooksLikeCredentialUserInfo(String authority) {
+        if (authority == null || authority.isBlank()) {
+            return false;
+        }
+        int atIndex = authority.indexOf('@');
+        if (atIndex < 0) {
+            return false;
+        }
+        int dotIndex = authority.indexOf('.');
+        return dotIndex < 0 || atIndex < dotIndex;
+    }
+
+    private static boolean looksLikeStorageAuthority(String authority) {
+        return looksLikeHostPort(authority) || looksLikeReadableStorageSegment(authority);
+    }
+
+    private static boolean looksLikeReadableStoragePath(String path) {
+        String[] segments = path.split("/+");
+        int readableSegments = 0;
+        for (String segment : segments) {
+            if (segment.isBlank()) {
+                continue;
+            }
+            if (!looksLikeReadableStorageSegment(segment)) {
+                return false;
+            }
+            readableSegments++;
+        }
+        return readableSegments >= 2;
+    }
+
+    private static boolean looksLikeReadableStorageSegment(String segment) {
+        if (segment.isBlank() || segment.length() > 80 || !segment.matches("[A-Za-z0-9._=:-]+")) {
+            return false;
+        }
+        return segment.matches(".*[A-Za-z].*") || segment.matches(".*[0-9].*");
     }
 
     private static boolean looksLikeRepositoryPath(String value) {

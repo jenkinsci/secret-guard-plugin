@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class NonSecretHeuristicsTest {
@@ -56,5 +57,31 @@ class NonSecretHeuristicsTest {
                 "",
                 NonSecretHeuristics.nonSecretHighEntropyReason(
                         "ci/ExamplePipelineScript.Jenkinsfile", "", "ExamplePipelineScript"));
+        assertNotEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "hdfs:///example/runtime/sample_dataset/record_01",
+                        "json_data_path",
+                        "example/runtime/sample_dataset/record_01"));
+        for (String value : List.of(
+                "s3://example-bucket/runtime/sample_dataset/record_01",
+                "s3a://example-bucket/runtime/sample_dataset/record_01",
+                "gs://example-bucket/runtime/sample_dataset/record_01",
+                "gcs://example-bucket/runtime/sample_dataset/record_01",
+                "oss://example-bucket/runtime/sample_dataset/record_01",
+                "cosn://example-bucket/runtime/sample_dataset/record_01",
+                "obs://example-bucket/runtime/sample_dataset/record_01",
+                "bos://example-bucket/runtime/sample_dataset/record_01",
+                "tos://example-bucket/runtime/sample_dataset/record_01",
+                "wasb://example-bucket/runtime/sample_dataset/record_01",
+                "wasbs://example-bucket/runtime/sample_dataset/record_01",
+                "abfs://example-bucket/runtime/sample_dataset/record_01",
+                "abfss://example-bucket/runtime/sample_dataset/record_01",
+                "adl://example-bucket/runtime/sample_dataset/record_01")) {
+            assertNotEquals(
+                    "",
+                    NonSecretHeuristics.nonSecretHighEntropyReason(
+                            value, "json_data_path", "example-bucket/runtime/sample_dataset/record_01"));
+        }
     }
 }
