@@ -3,38 +3,55 @@
     <l:layout title="Secret Guard">
         <l:main-panel>
             <h1>Secret Guard Build Report</h1>
-            <table class="jenkins-table sortable">
-                <thead>
-                    <tr>
-                        <th>Severity</th>
-                        <th>Rule</th>
-                        <th>Location</th>
-                        <th>Line</th>
-                        <th>Masked snippet</th>
-                        <th>Recommendation</th>
-                        <th>Analysis</th>
-                        <th>Exempted</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <j:forEach var="finding" items="${it.findings}">
-                        <tr>
-                            <td>
-                                <span style="${it.getSeverityBadgeStyle(finding.severity)}">
-                                    ${it.getSeverityBadgeLabel(finding.severity)}
-                                </span>
-                            </td>
-                            <td>${finding.ruleId}</td>
-                            <td>${finding.sourceName}</td>
-                            <td>${finding.lineNumber}</td>
-                            <td>${finding.maskedSnippet}</td>
-                            <td>${finding.recommendation}</td>
-                            <td>${finding.analysisNote}</td>
-                            <td>${finding.exempted}</td>
-                        </tr>
-                    </j:forEach>
-                </tbody>
-            </table>
+            <j:if test="${it.hasNotes()}">
+                <div class="jenkins-alert jenkins-alert-info" role="status" style="margin:16px 0;">
+                    <strong>Scan notes</strong>
+                    <ul style="margin:8px 0 0 18px;">
+                        <j:forEach var="note" items="${it.notes}">
+                            <li>${note}</li>
+                        </j:forEach>
+                    </ul>
+                </div>
+            </j:if>
+            <j:choose>
+                <j:when test="${!it.findings.isEmpty()}">
+                    <table class="jenkins-table sortable">
+                        <thead>
+                            <tr>
+                                <th>Severity</th>
+                                <th>Rule</th>
+                                <th>Location</th>
+                                <th>Line</th>
+                                <th>Masked snippet</th>
+                                <th>Recommendation</th>
+                                <th>Analysis</th>
+                                <th>Exempted</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <j:forEach var="finding" items="${it.findings}">
+                                <tr>
+                                    <td>
+                                        <span style="${it.getSeverityBadgeStyle(finding.severity)}">
+                                            ${it.getSeverityBadgeLabel(finding.severity)}
+                                        </span>
+                                    </td>
+                                    <td>${finding.ruleId}</td>
+                                    <td>${finding.sourceName}</td>
+                                    <td>${finding.lineNumber}</td>
+                                    <td>${finding.maskedSnippet}</td>
+                                    <td>${finding.recommendation}</td>
+                                    <td>${finding.analysisNote}</td>
+                                    <td>${finding.exempted}</td>
+                                </tr>
+                            </j:forEach>
+                        </tbody>
+                    </table>
+                </j:when>
+                <j:otherwise>
+                    <p>No findings were detected in this build scan.</p>
+                </j:otherwise>
+            </j:choose>
         </l:main-panel>
     </l:layout>
 </j:jelly>

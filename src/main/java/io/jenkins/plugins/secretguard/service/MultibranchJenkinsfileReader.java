@@ -2,7 +2,6 @@ package io.jenkins.plugins.secretguard.service;
 
 import io.jenkins.plugins.secretguard.model.FindingLocationType;
 import java.io.IOException;
-import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.scm.api.SCMFile;
@@ -13,9 +12,9 @@ public class MultibranchJenkinsfileReader {
     private static final String LOG_PREFIX = "[Secret Guard][SCM Read][Multibranch] ";
     private static final String DEFAULT_SCRIPT_PATH = "Jenkinsfile";
 
-    public Optional<PipelineScriptSource> read(MultibranchContext context) {
+    public PipelineSourceResolution read(MultibranchContext context) {
         if (context == null || context.getSource() == null || context.getHead() == null) {
-            return Optional.empty();
+            return PipelineSourceResolution.none();
         }
         String normalizedPath = normalizeScriptPath(context.getScriptPath());
         try (SCMFileSystem fileSystem = context.getRevision() == null
@@ -25,23 +24,23 @@ public class MultibranchJenkinsfileReader {
                 LOGGER.log(
                         Level.FINE,
                         LOG_PREFIX + "SCM source does not support lightweight multibranch Jenkinsfile access");
-                return Optional.empty();
+                return unavailable(normalizedPath, "lightweight SCM access is unavailable");
             }
             SCMFile jenkinsfile = fileSystem.getRoot().child(normalizedPath);
             if (!jenkinsfile.isFile()) {
                 LOGGER.log(Level.FINE, LOG_PREFIX + "Multibranch Jenkinsfile {0} was not found", normalizedPath);
-                return Optional.empty();
+                return unavailable(normalizedPath, "the Jenkinsfile was not found");
             }
             String content = jenkinsfile.contentAsString();
             if (content == null || content.isBlank()) {
                 LOGGER.log(Level.FINE, LOG_PREFIX + "Multibranch Jenkinsfile {0} is empty", normalizedPath);
-                return Optional.empty();
+                return unavailable(normalizedPath, "the Jenkinsfile is empty");
             }
             LOGGER.log(
                     Level.FINE,
                     LOG_PREFIX + "Read multibranch Jenkinsfile {0} via lightweight access; revisionPresent={1}",
                     new Object[] {normalizedPath, context.getRevision() != null});
-            return Optional.of(new PipelineScriptSource(
+            return PipelineSourceResolution.found(new PipelineScriptSource(
                     "Jenkinsfile from Multibranch SCM: " + normalizedPath, content, FindingLocationType.JENKINSFILE));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -49,7 +48,7 @@ public class MultibranchJenkinsfileReader {
         } catch (IOException | RuntimeException e) {
             LOGGER.log(Level.FINE, LOG_PREFIX + "Unable to read multibranch Jenkinsfile", e);
         }
-        return Optional.empty();
+        return unavailable(normalizedPath, "the lightweight SCM read failed");
     }
 
     private String normalizeScriptPath(String scriptPath) {
@@ -61,5 +60,10 @@ public class MultibranchJenkinsfileReader {
             normalized = normalized.substring(1);
         }
         return normalized.isBlank() ? DEFAULT_SCRIPT_PATH : normalized;
+    }
+
+    private PipelineSourceResolution unavailable(String normalizedPath, String reason) {
+        return PipelineSourceResolution.unavailable("Secret Guard could not read multibranch Jenkinsfile `"
+                + normalizedPath + "` via lightweight access (" + reason + "), so that source was skipped.");
     }
 }

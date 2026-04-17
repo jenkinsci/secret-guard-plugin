@@ -68,7 +68,7 @@ The model layer standardizes scanning and reporting:
 - `ScanPhase`: `SAVE`, `BUILD`, `MANUAL`
 - `ScanContext`: immutable scan metadata
 - `SecretFinding`: one rule hit with masked snippet and remediation text
-- `SecretScanResult`: scan summary with highest severity and blocked flag
+- `SecretScanResult`: scan summary with findings, scan notes, highest severity, and blocked flag
 
 This model keeps scanners, listeners, and UI layers loosely coupled.
 
@@ -120,7 +120,7 @@ Pipeline definitions are extracted through `PipelineDefinitionExtractor`:
 - Pipeline-from-SCM definitions are read from the configured `scriptPath`, defaulting to `Jenkinsfile`
 - multibranch branch jobs are resolved from branch metadata, `SCMSourceOwner`, and `scriptPath`
 - SCM Jenkinsfile content is retrieved through Jenkins `SCMFileSystem` lightweight access
-- unsupported SCMs or unreadable Jenkinsfiles are skipped without failing saves or builds
+- unsupported SCMs or unreadable Jenkinsfiles are skipped without failing saves or builds, and the skipped read is surfaced as a scan note
 
 The scanner layer is responsible for extracting candidate values and location metadata, not for enforcement.
 
@@ -177,6 +177,7 @@ Results are exposed through:
 Job-level reports are available on each Job page so users can run `Scan Now` even before a previous scan result exists.
 
 `ScanResultStore` keeps the latest result in memory and persists one masked latest-result XML file per target under `$JENKINS_HOME/secret-guard/results/`. Reports can be restored lazily after a controller restart without storing raw secret values.
+Persisted latest results include scan notes, so Job and system reports keep SCM-read diagnostics after a controller restart.
 
 ## Current Boundaries
 

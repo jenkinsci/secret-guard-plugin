@@ -31,49 +31,59 @@ public class PipelineDefinitionExtractor {
         this.multibranchJenkinsfileReader = multibranchJenkinsfileReader;
     }
 
-    public Optional<PipelineScriptSource> extractScript(Job<?, ?> job) {
+    public PipelineSourceResolution extractScript(Job<?, ?> job) {
         return extractScript(job, null);
     }
 
-    public Optional<PipelineScriptSource> extractScript(Job<?, ?> job, Run<?, ?> run) {
+    public PipelineSourceResolution extractScript(Job<?, ?> job, Run<?, ?> run) {
         if (job == null) {
             LOGGER.fine(LOG_PREFIX + "Skipping Pipeline definition extraction because job is null");
-            return Optional.empty();
+            return PipelineSourceResolution.none();
         }
         Optional<Object> definition = definition(job);
         if (definition.isPresent()) {
             Optional<PipelineScriptSource> inlineScript = extractInlineScript(definition.get());
             if (inlineScript.isPresent()) {
                 LOGGER.log(Level.FINE, LOG_PREFIX + "Using inline Pipeline script for {0}", job.getFullName());
-                return inlineScript;
+                return PipelineSourceResolution.found(inlineScript.get());
             }
-            Optional<PipelineScriptSource> scmScript = extractScmScript(job, definition.get());
-            if (scmScript.isPresent()) {
+            PipelineSourceResolution scmScript = extractScmScript(job, definition.get());
+            if (scmScript.hasSource()) {
                 LOGGER.log(Level.FINE, LOG_PREFIX + "Using SCM-backed Jenkinsfile source {0} for {1}", new Object[] {
-                    scmScript.get().getSourceName(), job.getFullName()
+                    scmScript.getSource().orElseThrow().getSourceName(), job.getFullName()
                 });
                 return scmScript;
             }
+            if (scmScript.hasNotes()) {
+                return scmScript;
+            }
         }
-        Optional<PipelineScriptSource> multibranchScript = extractMultibranchScript(job, run);
-        if (multibranchScript.isPresent()) {
+        PipelineSourceResolution multibranchScript = extractMultibranchScript(job, run);
+        if (multibranchScript.hasSource()) {
             LOGGER.log(Level.FINE, LOG_PREFIX + "Using multibranch Jenkinsfile source {0} for {1}", new Object[] {
-                multibranchScript.get().getSourceName(), job.getFullName()
+                multibranchScript.getSource().orElseThrow().getSourceName(), job.getFullName()
             });
-        } else {
+            return multibranchScript;
+        }
+        if (!multibranchScript.hasNotes()) {
             LOGGER.log(Level.FINE, LOG_PREFIX + "No Pipeline script source resolved for {0}", job.getFullName());
         }
         return multibranchScript;
     }
 
-    public Optional<PipelineScriptSource> extractScmScript(Job<?, ?> job) {
+    public PipelineSourceResolution extractScmScript(Job<?, ?> job) {
         return extractScmScript(job, null);
     }
 
-    public Optional<PipelineScriptSource> extractScmScript(Job<?, ?> job, Run<?, ?> run) {
+    public PipelineSourceResolution extractScmScript(Job<?, ?> job, Run<?, ?> run) {
         Optional<Object> definition = definition(job);
-        Optional<PipelineScriptSource> scmScript = definition.flatMap(value -> extractScmScript(job, value));
-        return scmScript.or(() -> extractMultibranchScript(job, run));
+        if (definition.isPresent()) {
+            PipelineSourceResolution scmScript = extractScmScript(job, definition.get());
+            if (scmScript.hasSource() || scmScript.hasNotes()) {
+                return scmScript;
+            }
+        }
+        return extractMultibranchScript(job, run);
     }
 
     private Optional<Object> definition(Job<?, ?> job) {
@@ -103,7 +113,7 @@ public class PipelineDefinitionExtractor {
         return Optional.empty();
     }
 
-    private Optional<PipelineScriptSource> extractScmScript(Job<?, ?> job, Object definition) {
+    private PipelineSourceResolution extractScmScript(Job<?, ?> job, Object definition) {
         try {
             Method getScm = definition.getClass().getMethod("getScm");
             Object scm = getScm.invoke(definition);
@@ -112,7 +122,7 @@ public class PipelineDefinitionExtractor {
                         Level.FINEST,
                         LOG_PREFIX + "Pipeline definition for {0} does not expose SCM content",
                         job.getFullName());
-                return Optional.empty();
+                return PipelineSourceResolution.none();
             }
             String scriptPath = extractScriptPath(definition);
             LOGGER.log(
@@ -121,12 +131,15 @@ public class PipelineDefinitionExtractor {
                     new Object[] {job.getFullName(), scriptPath});
             return scmJenkinsfileReader.read(job, jenkinsScm, scriptPath);
         } catch (ReflectiveOperationException | SecurityException ignored) {
-            return Optional.empty();
+            return PipelineSourceResolution.none();
         }
     }
 
-    private Optional<PipelineScriptSource> extractMultibranchScript(Job<?, ?> job, Run<?, ?> run) {
-        return multibranchContextResolver.resolve(job, run).flatMap(multibranchJenkinsfileReader::read);
+    private PipelineSourceResolution extractMultibranchScript(Job<?, ?> job, Run<?, ?> run) {
+        return multibranchContextResolver
+                .resolve(job, run)
+                .map(multibranchJenkinsfileReader::read)
+                .orElseGet(PipelineSourceResolution::none);
     }
 
     private String extractScriptPath(Object definition) {

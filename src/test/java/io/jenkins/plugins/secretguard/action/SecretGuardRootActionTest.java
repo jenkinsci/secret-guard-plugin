@@ -226,6 +226,25 @@ class SecretGuardRootActionTest {
         assertFalse(rootAction.canDismissScanAllStatus());
     }
 
+    @Test
+    @WithJenkins
+    void rootPageShowsNotePresenceWithoutRenderingFullNoteText(JenkinsRule jenkinsRule) throws Exception {
+        String targetId = "job-with-note";
+        String note =
+                "Secret Guard could not read the SCM-backed Jenkinsfile because lightweight access was unavailable.";
+        ScanResultStore.get()
+                .put(new SecretScanResult(targetId, "WorkflowJob", List.of(), false, List.of(note), Instant.now()));
+
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient();
+        Page page = webClient.goTo("secret-guard");
+        String content = page.getWebResponse().getContentAsString();
+
+        assertTrue(content.contains(">Yes<"));
+        assertFalse(content.contains(note));
+
+        ScanResultStore.get().remove(targetId);
+    }
+
     private String withRiskyParameter(String xml) {
         String property = """
                 <properties>

@@ -180,6 +180,7 @@
                                 <th>Target type</th>
                                 <th>Highest severity</th>
                                 <th>Findings</th>
+                                <th>Notes</th>
                                 <th>Blocked</th>
                                 <th>Scanned at</th>
                                 <th>Action</th>
@@ -206,6 +207,17 @@
                                         </span>
                                     </td>
                                     <td>${result.findings.size()}</td>
+                                    <td style="max-width: 28rem; white-space: normal; overflow-wrap: anywhere;">
+                                        <j:choose>
+                                            <j:when test="${result.hasNotes()}">
+                                                <span
+                                                    class="jenkins-alert jenkins-alert-warning"
+                                                    style="display:inline-flex;align-items:center;padding:2px 8px;margin:0;border-radius:999px;line-height:1.5;"
+                                                >Yes</span>
+                                            </j:when>
+                                            <j:otherwise>-</j:otherwise>
+                                        </j:choose>
+                                    </td>
                                     <td>
                                         <span style="${it.getBlockedBadgeStyle(result.blocked)}">
                                             ${it.getBlockedBadgeLabel(result.blocked)}

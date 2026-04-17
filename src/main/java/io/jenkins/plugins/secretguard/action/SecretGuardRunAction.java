@@ -14,17 +14,17 @@ public class SecretGuardRunAction implements Action, SeverityBadgeSupport {
 
     @Override
     public String getIconFileName() {
-        return result.hasFindings() ? "symbol-warning-outline plugin-ionicons-api" : null;
+        return isVisible() ? "symbol-warning-outline plugin-ionicons-api" : null;
     }
 
     @Override
     public String getDisplayName() {
-        return result.hasFindings() ? "Secret Guard" : null;
+        return isVisible() ? "Secret Guard" : null;
     }
 
     @Override
     public String getUrlName() {
-        return result.hasFindings() ? "secret-guard" : null;
+        return isVisible() ? "secret-guard" : null;
     }
 
     public SecretScanResult getResult() {
@@ -33,5 +33,17 @@ public class SecretGuardRunAction implements Action, SeverityBadgeSupport {
 
     public List<SecretFinding> getFindings() {
         return result.getFindings();
+    }
+
+    public List<String> getNotes() {
+        return result.getNotes();
+    }
+
+    public boolean hasNotes() {
+        return result.hasNotes();
+    }
+
+    private boolean isVisible() {
+        return result.hasFindings() || result.hasNotes();
     }
 }

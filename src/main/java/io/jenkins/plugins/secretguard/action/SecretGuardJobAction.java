@@ -78,6 +78,14 @@ public class SecretGuardJobAction implements Action, SeverityBadgeSupport, ScanT
         return !getFindings().isEmpty();
     }
 
+    public List<String> getNotes() {
+        return getResult().getNotes();
+    }
+
+    public boolean hasNotes() {
+        return getResult().hasNotes();
+    }
+
     public List<SecretScanResult> getResults() {
         return Collections.singletonList(getResult());
     }

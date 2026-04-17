@@ -187,6 +187,7 @@ public class ScanResultStore {
         public boolean blocked;
         public long scannedAtEpochMillis;
         public List<PersistedFinding> findings = new ArrayList<>();
+        public List<String> notes = new ArrayList<>();
 
         public static PersistedScanResult from(SecretScanResult result) {
             PersistedScanResult persisted = new PersistedScanResult();
@@ -194,6 +195,7 @@ public class ScanResultStore {
             persisted.targetType = result.getTargetType();
             persisted.blocked = result.isBlocked();
             persisted.scannedAtEpochMillis = result.getScannedAt().toEpochMilli();
+            persisted.notes = new ArrayList<>(result.getNotes());
             for (SecretFinding finding : result.getFindings()) {
                 persisted.findings.add(PersistedFinding.from(finding));
             }
@@ -212,6 +214,7 @@ public class ScanResultStore {
                     targetType,
                     restoredFindings,
                     blocked,
+                    notes,
                     scannedAtEpochMillis <= 0 ? Instant.now() : Instant.ofEpochMilli(scannedAtEpochMillis));
         }
     }

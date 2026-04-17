@@ -16,8 +16,8 @@ import io.jenkins.plugins.secretguard.model.Severity;
 import io.jenkins.plugins.secretguard.scan.PipelineScriptScanner;
 import io.jenkins.plugins.secretguard.service.PipelineDefinitionExtractor;
 import io.jenkins.plugins.secretguard.service.PipelineScriptSource;
+import io.jenkins.plugins.secretguard.service.PipelineSourceResolution;
 import io.jenkins.plugins.secretguard.service.SecretScanService;
-import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -32,15 +32,25 @@ public class SecretGuardRunListener extends RunListener<Run<?, ?>> {
 
     @Override
     public void onStarted(Run<?, ?> run, TaskListener listener) {
-        Optional<PipelineScriptSource> script = pipelineDefinitionExtractor.extractScript(run.getParent(), run);
-        if (script.isEmpty()) {
+        PipelineSourceResolution resolution = pipelineDefinitionExtractor.extractScript(run.getParent(), run);
+        if (!resolution.hasSource()) {
+            if (resolution.hasNotes()) {
+                SecretScanResult result = SecretScanResult.empty(
+                        run.getParent().getFullName(),
+                        run.getParent().getClass().getSimpleName(),
+                        resolution.getNotes());
+                run.addAction(new SecretGuardRunAction(result));
+                for (String note : result.getNotes()) {
+                    listener.getLogger().println("[Secret Guard] " + note);
+                }
+            }
             LOGGER.log(
                     Level.FINE,
                     LOG_PREFIX + "No Pipeline script source was resolved at build start for {0}",
                     run.getParent().getFullName());
             return;
         }
-        PipelineScriptSource source = script.get();
+        PipelineScriptSource source = resolution.getSource().orElseThrow();
         LOGGER.log(Level.FINE, LOG_PREFIX + "Starting Secret Guard build scan for {0} from source {1}", new Object[] {
             run.getParent().getFullName(), source.getSourceName()
         });

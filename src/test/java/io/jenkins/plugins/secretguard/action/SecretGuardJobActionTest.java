@@ -101,6 +101,7 @@ class SecretGuardJobActionTest {
         assertTrue(content.contains("HIGH"));
         assertTrue(content.contains("MEDIUM"));
         assertTrue(content.contains("LOW"));
+        assertFalse(content.contains("Scan notes"));
         assertTrue(content.contains("1 finding(s)"));
         assertTrue(content.indexOf("high-source") < content.indexOf("medium-source"));
         assertTrue(content.indexOf("medium-source") < content.indexOf("low-source"));

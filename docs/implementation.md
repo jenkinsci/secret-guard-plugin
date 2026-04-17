@@ -52,7 +52,7 @@ The Java sources are organized under `io.jenkins.plugins.secretguard`:
    - `WARN`: mark build `UNSTABLE`
    - `BLOCK`: interrupt build with `FAILURE`
 
-If SCM Jenkinsfile content cannot be read through lightweight access, the build-time scan is skipped for that Jenkinsfile and the build is not failed by the read failure.
+If SCM Jenkinsfile content cannot be read through lightweight access, the build-time scan is skipped for that Jenkinsfile and the build is not failed by the read failure. Secret Guard records a scan note so the build report explains why the Jenkinsfile was skipped.
 
 ### Manual Job scan flow
 
@@ -63,10 +63,11 @@ If SCM Jenkinsfile content cannot be read through lightweight access, the build-
 5. `ConfigXmlScanner` scans XML content and inline Pipeline script content
 6. `PipelineDefinitionExtractor` tries to read Pipeline-from-SCM or multibranch Jenkinsfile content through `SCMFileSystem`
 7. `PipelineScriptScanner` scans the SCM Jenkinsfile as `JENKINSFILE` when it is available
-8. `SecretScanService` applies whitelist, exemptions, deduplication, and latest-result persistence
+8. `SecretScanService` applies whitelist, exemptions, deduplication, scan notes, and latest-result persistence
 9. User is redirected back to the Job report page with the refreshed latest result
 
 Manual scan always runs in report-only mode for MVP. It refreshes findings but does not block save operations and does not change build results.
+If a Pipeline-from-SCM or multibranch Jenkinsfile cannot be read through lightweight access, the Job report and system report show a scan note instead of silently skipping that Jenkinsfile.
 
 ### Save-time flow for Pipeline-from-SCM
 
@@ -91,7 +92,7 @@ Pipeline-from-SCM Jenkinsfiles are scanned during manual scans and build-time sc
   - supports `withExemption(reason)` to preserve original finding content while marking policy state
   - can carry an optional analysis note that explains why a finding was downgraded or why generic sibling findings were suppressed
 - `SecretScanResult`
-  - holds findings, highest severity, blocked flag, and scan timestamp
+  - holds findings, scan notes, highest severity, blocked flag, and scan timestamp
 - `ScanContext`
   - carries source metadata and enforcement inputs into scanners and rules
 
@@ -153,14 +154,14 @@ When adding a new rule:
 - detects ordinary Pipeline-from-SCM definitions through `getDefinition().getScm()` and `getDefinition().getScriptPath()`
 - resolves multibranch branch jobs through `BranchJobProperty`, `SCMSourceOwner`, branch head metadata, and lightweight SCM reads
 - keeps production code decoupled from concrete workflow classes by using reflection
-- returns a `PipelineScriptSource` with source name, content, and location type
+- returns a `PipelineSourceResolution` with either a `PipelineScriptSource` or scan notes explaining unavailable SCM reads
 
 #### `ScmJenkinsfileReader`
 
 - reads configured Jenkinsfile paths with Jenkins `SCMFileSystem`
 - defaults blank script paths to `Jenkinsfile`
 - reports SCM Jenkinsfile findings with `FindingLocationType.JENKINSFILE`
-- returns empty when lightweight access is unsupported, the file is missing, or reading fails
+- returns an unavailable-read scan note when lightweight access is unsupported, the file is missing, empty, or reading fails
 - never performs a workspace checkout fallback in MVP
 
 #### `MultibranchContextResolver`
@@ -175,6 +176,7 @@ When adding a new rule:
 - reads branch-specific Jenkinsfiles with `SCMFileSystem.of(SCMSource, SCMHead, SCMRevision)`
 - uses the run revision when available so build-time scans align with the exact branch revision Jenkins is building
 - reports multibranch findings as `JENKINSFILE` with source names like `Jenkinsfile from Multibranch SCM: ci/Jenkinsfile`
+- returns an unavailable-read scan note when the branch Jenkinsfile cannot be read through lightweight access
 
 #### Operational logging
 

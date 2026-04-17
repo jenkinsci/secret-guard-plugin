@@ -22,8 +22,13 @@ class ScanResultStoreTest {
     void persistsAndReloadsLatestScanResult() {
         ScanResultStore writer = ScanResultStore.inDirectory(temporaryDirectory);
         Instant scannedAt = Instant.parse("2026-04-15T12:00:00Z");
-        SecretScanResult result =
-                new SecretScanResult("folder/job", "WorkflowJob", List.of(finding(false)), true, scannedAt);
+        SecretScanResult result = new SecretScanResult(
+                "folder/job",
+                "WorkflowJob",
+                List.of(finding(false)),
+                true,
+                List.of("Secret Guard skipped one SCM-backed Jenkinsfile because lightweight access was unavailable."),
+                scannedAt);
 
         writer.put(result);
 
@@ -34,6 +39,10 @@ class ScanResultStoreTest {
         assertEquals(scannedAt.toEpochMilli(), loaded.getScannedAt().toEpochMilli());
         assertTrue(loaded.isBlocked());
         assertEquals(1, loaded.getFindings().size());
+        assertEquals(1, loaded.getNotes().size());
+        assertEquals(
+                "Secret Guard skipped one SCM-backed Jenkinsfile because lightweight access was unavailable.",
+                loaded.getNotes().get(0));
         assertEquals("Exa…DEF", loaded.getFindings().get(0).getMaskedSnippet());
         assertEquals(
                 "Suppressed generic finding(s) for the same value: high-entropy-string.",

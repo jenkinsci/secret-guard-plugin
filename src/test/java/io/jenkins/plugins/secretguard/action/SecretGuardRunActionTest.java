@@ -13,6 +13,22 @@ import org.junit.jupiter.api.Test;
 
 class SecretGuardRunActionTest {
     @Test
+    void showsRunActionWhenScanHasNotesWithoutFindings() {
+        SecretGuardRunAction action = new SecretGuardRunAction(new SecretScanResult(
+                "folder/job",
+                "WorkflowJob",
+                List.of(),
+                false,
+                List.of("Secret Guard skipped an SCM Jenkinsfile because lightweight access was unavailable.")));
+
+        assertTrue(action.hasNotes());
+        assertTrue(action.getFindings().isEmpty());
+        assertTrue(action.getIconFileName() != null);
+        assertTrue(action.getDisplayName() != null);
+        assertTrue(action.getUrlName() != null);
+    }
+
+    @Test
     void canMarshalRunActionWithoutJavaTimeBlacklistFailure() {
         SecretGuardRunAction action = new SecretGuardRunAction(new SecretScanResult(
                 "folder/job",

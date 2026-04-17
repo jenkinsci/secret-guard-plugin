@@ -26,6 +26,16 @@
                         Last scan:
                         <span title="${it.getDisplayTimeTitle(it.result.scannedAt)}">${it.getDisplayTime(it.result.scannedAt)}</span>
                     </p>
+                    <j:if test="${it.hasNotes()}">
+                        <div class="jenkins-alert jenkins-alert-info" role="status" style="margin:16px 0;">
+                            <strong>Scan notes</strong>
+                            <ul style="margin:8px 0 0 18px;">
+                                <j:forEach var="note" items="${it.notes}">
+                                    <li>${note}</li>
+                                </j:forEach>
+                            </ul>
+                        </div>
+                    </j:if>
                     <j:forEach var="group" items="${it.severityGroups}">
                         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:16px 0 8px 0;">
                             <span style="${it.getSeverityBadgeStyle(group.severity)}">
@@ -75,6 +85,16 @@
                         Last scan:
                         <span title="${it.getDisplayTimeTitle(it.result.scannedAt)}">${it.getDisplayTime(it.result.scannedAt)}</span>
                     </p>
+                    <j:if test="${it.hasNotes()}">
+                        <div class="jenkins-alert jenkins-alert-info" role="status" style="margin:16px 0;">
+                            <strong>Scan notes</strong>
+                            <ul style="margin:8px 0 0 18px;">
+                                <j:forEach var="note" items="${it.notes}">
+                                    <li>${note}</li>
+                                </j:forEach>
+                            </ul>
+                        </div>
+                    </j:if>
                     <p>No findings were detected in the latest scan.</p>
                 </j:when>
                 <j:otherwise>

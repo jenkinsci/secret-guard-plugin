@@ -14,7 +14,6 @@ import io.jenkins.plugins.secretguard.scan.PipelineScriptScanner;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -62,9 +61,9 @@ public class ManualJobScanService {
         LOGGER.log(Level.FINE, LOG_PREFIX + "Config XML scan for {0} produced {1} finding(s)", new Object[] {
             job.getFullName(), findings.size()
         });
-        Optional<PipelineScriptSource> scmScript = pipelineDefinitionExtractor.extractScmScript(job);
-        if (scmScript.isPresent()) {
-            PipelineScriptSource source = scmScript.get();
+        PipelineSourceResolution scmScript = pipelineDefinitionExtractor.extractScmScript(job);
+        if (scmScript.hasSource()) {
+            PipelineScriptSource source = scmScript.getSource().orElseThrow();
             LOGGER.log(
                     Level.FINE,
                     LOG_PREFIX + "Manual scan for {0} will also inspect external Pipeline source {1}",
@@ -85,7 +84,7 @@ public class ManualJobScanService {
                     LOG_PREFIX + "No external Pipeline source was available for manual scan of {0}",
                     job.getFullName());
         }
-        SecretScanResult result = scanService.process(context, findings);
+        SecretScanResult result = scanService.process(context, findings, scmScript.getNotes());
         LOGGER.log(
                 Level.FINE,
                 LOG_PREFIX + "Finished manual Secret Guard scan for {0}: findings={1}, highestSeverity={2}",

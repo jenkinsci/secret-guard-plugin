@@ -23,6 +23,7 @@ import io.jenkins.plugins.secretguard.action.SecretGuardRunAction;
 import io.jenkins.plugins.secretguard.config.SecretGuardGlobalConfiguration;
 import io.jenkins.plugins.secretguard.model.EnforcementMode;
 import io.jenkins.plugins.secretguard.model.FindingLocationType;
+import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import io.jenkins.plugins.secretguard.model.Severity;
 import io.jenkins.plugins.secretguard.service.ScanResultStore;
 import java.io.ByteArrayInputStream;
@@ -355,6 +356,36 @@ class SecretGuardEnforcementIntegrationTest {
 
     @Test
     @WithJenkins
+    void manualScanReportsUnavailableScmJenkinsfileOnJobAndRootPages(JenkinsRule jenkinsRule) throws Exception {
+        configure(EnforcementMode.AUDIT);
+        WorkflowJob job = jenkinsRule.createProject(WorkflowJob.class, "manual-scm-unavailable");
+        job.setDefinition(new CpsScmFlowDefinition(
+                new MemoryScm(Map.of("ci/OtherPipelineScript", "echo 'ok'")), "ci/Jenkinsfile"));
+
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient().withThrowExceptionOnFailingStatusCode(false);
+        WebRequest request =
+                new WebRequest(webClient.createCrumbedUrl(job.getUrl() + "secret-guard/scanNow"), HttpMethod.POST);
+
+        Page jobPage = webClient.getPage(request);
+        SecretScanResult storedResult =
+                ScanResultStore.get().get(job.getFullName()).orElseThrow();
+
+        assertEquals(200, jobPage.getWebResponse().getStatusCode());
+        assertFalse(storedResult.hasFindings());
+        assertTrue(storedResult.hasNotes());
+        assertTrue(storedResult.getNotes().get(0).contains("could not read SCM Jenkinsfile"));
+        assertTrue(storedResult.getNotes().get(0).contains("ci/Jenkinsfile"));
+        assertTrue(jobPage.getWebResponse().getContentAsString().contains("Scan notes"));
+        assertTrue(jobPage.getWebResponse().getContentAsString().contains("ci/Jenkinsfile"));
+
+        Page rootPage = webClient.goTo("secret-guard");
+
+        assertTrue(rootPage.getWebResponse().getContentAsString().contains("manual-scm-unavailable"));
+        assertTrue(rootPage.getWebResponse().getContentAsString().contains("could not read SCM Jenkinsfile"));
+    }
+
+    @Test
+    @WithJenkins
     void warnModeScansPipelineFromScmJenkinsfileAtBuildStart(JenkinsRule jenkinsRule) throws Exception {
         configure(EnforcementMode.WARN);
         WorkflowJob job = jenkinsRule.createProject(WorkflowJob.class, "build-scm-scan");
@@ -373,6 +404,24 @@ class SecretGuardEnforcementIntegrationTest {
                 .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")
                         && finding.getLocationType() == FindingLocationType.JENKINSFILE
                         && finding.getSourceName().equals("Jenkinsfile from SCM: Jenkinsfile")));
+    }
+
+    @Test
+    @WithJenkins
+    void buildReportShowsScanNotesWhenScmJenkinsfileReadIsUnavailable(JenkinsRule jenkinsRule) throws Exception {
+        configure(EnforcementMode.WARN);
+        WorkflowJob job = jenkinsRule.createProject(WorkflowJob.class, "build-scan-notes-present");
+        job.setDefinition(new CpsScmFlowDefinition(
+                new MemoryScm(Map.of("ci/OtherPipelineScript", "echo 'ok'")), "ci/Jenkinsfile"));
+
+        WorkflowRun run = jenkinsRule.buildAndAssertStatus(Result.FAILURE, job);
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient().withThrowExceptionOnFailingStatusCode(false);
+
+        Page page = webClient.goTo(run.getUrl() + "secret-guard");
+
+        assertTrue(page.getWebResponse().getContentAsString().contains("Scan notes"));
+        assertTrue(page.getWebResponse().getContentAsString().contains("could not read SCM Jenkinsfile"));
+        assertTrue(page.getWebResponse().getContentAsString().contains("ci/Jenkinsfile"));
     }
 
     @Test
