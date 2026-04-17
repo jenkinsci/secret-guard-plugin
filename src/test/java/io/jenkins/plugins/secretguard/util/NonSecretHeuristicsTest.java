@@ -38,6 +38,14 @@ class NonSecretHeuristicsTest {
     }
 
     @Test
+    void detectsSensitiveFileReferencesWithoutHidingPlaintextSecrets() {
+        assertTrue(NonSecretHeuristics.looksLikeSensitiveFileReference("PASSWORD_FILE", "PASSWORD_FILE = 'pwd.txt'"));
+        assertTrue(NonSecretHeuristics.looksLikeSensitiveFileReference(
+                "SERVICE_TOKEN_PATH", "SERVICE_TOKEN_PATH = '/run/secrets/service_token'"));
+        assertFalse(NonSecretHeuristics.looksLikeSensitiveFileReference("PASSWORD_FILE", "PASSWORD_FILE = 'hunter2'"));
+    }
+
+    @Test
     void reportsWhyHighEntropyCandidatesAreIgnored() {
         assertNotEquals(
                 "",

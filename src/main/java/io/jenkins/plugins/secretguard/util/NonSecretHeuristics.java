@@ -73,6 +73,17 @@ public final class NonSecretHeuristics {
                 || normalized.equals("placeholder");
     }
 
+    public static boolean looksLikeSensitiveFileReference(String fieldName, String value) {
+        if (!isSensitiveFileReferenceField(fieldName) || value == null || value.isBlank()) {
+            return false;
+        }
+        String candidate = extractLikelyLiteralValue(value.trim());
+        if (candidate.isEmpty() || isRuntimeSecretReference(candidate) || looksLikePlaceholderValue(candidate)) {
+            return false;
+        }
+        return looksLikeLocalFileReference(candidate);
+    }
+
     public static boolean isCredentialIdField(String fieldName) {
         String normalized = normalize(fieldName);
         return normalized.contains("credentialid") || normalized.contains("credentialsid");
@@ -189,6 +200,21 @@ public final class NonSecretHeuristics {
     private static boolean isScriptPathField(String fieldName) {
         String normalized = normalize(fieldName);
         return normalized.equals("scriptpath") || normalized.equals("jenkinsfilepath");
+    }
+
+    private static boolean isSensitiveFileReferenceField(String fieldName) {
+        String normalized = normalize(fieldName);
+        boolean containsSensitiveTerm = normalized.contains("password")
+                || normalized.contains("token")
+                || normalized.contains("secret")
+                || normalized.contains("apikey")
+                || normalized.contains("accesskey")
+                || normalized.contains("clientsecret");
+        boolean containsFileIndicator = normalized.contains("file")
+                || normalized.contains("path")
+                || normalized.contains("filename")
+                || normalized.contains("filepath");
+        return containsSensitiveTerm && containsFileIndicator;
     }
 
     private static boolean isRandomNameField(String fieldName) {
@@ -360,6 +386,20 @@ public final class NonSecretHeuristics {
             return false;
         }
         return normalized.matches("[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z][A-Za-z0-9]*)+-\\d{6,}");
+    }
+
+    private static boolean looksLikeLocalFileReference(String value) {
+        String trimmed = nullToEmpty(value).trim();
+        if (trimmed.isEmpty() || trimmed.contains("://")) {
+            return false;
+        }
+        if (trimmed.matches("[A-Za-z]:\\\\[^\\s]+") || trimmed.matches("(?:/|\\./|\\.\\./|~/)[^\\s]+")) {
+            return true;
+        }
+        if ((trimmed.contains("/") || trimmed.contains("\\")) && trimmed.matches("[A-Za-z0-9._/\\\\@%+=:-]+")) {
+            return true;
+        }
+        return trimmed.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,120}\\.[A-Za-z0-9]{1,10}");
     }
 
     private static boolean looksLikeEncodedHighEntropyToken(String value) {

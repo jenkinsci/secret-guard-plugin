@@ -150,6 +150,37 @@ class ConfigXmlScannerTest {
     }
 
     @Test
+    void doesNotFlagSensitiveEnvironmentFileReferencesFromInlinePipelineScript() {
+        String xml = """
+                <flow-definition>
+                  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition">
+                    <script><![CDATA[
+                pipeline {
+                  agent any
+                  environment {
+                    PASSWORD_FILE = 'pwd.txt'
+                  }
+                  stages {
+                    stage('noop') {
+                      steps {
+                        echo 'using file-backed secret reference'
+                      }
+                    }
+                  }
+                }
+                    ]]></script>
+                    <sandbox>true</sandbox>
+                  </definition>
+                </flow-definition>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("WorkflowJob"), xml);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
     void parsesMixedCustomHeadersFromInlinePipelineScript() {
         String xml = """
                 <flow-definition>

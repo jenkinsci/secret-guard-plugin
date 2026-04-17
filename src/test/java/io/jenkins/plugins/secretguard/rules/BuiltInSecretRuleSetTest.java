@@ -101,6 +101,20 @@ class BuiltInSecretRuleSetTest {
     }
 
     @Test
+    void doesNotTreatSensitiveFileReferencesAsSecrets() {
+        assertTrue(scan("PASSWORD_FILE", "PASSWORD_FILE = 'pwd.txt'").isEmpty());
+        assertTrue(scan("SERVICE_TOKEN_PATH", "SERVICE_TOKEN_PATH = '/run/secrets/service_token'")
+                .isEmpty());
+    }
+
+    @Test
+    void stillFlagsPlaintextValuesOnSensitiveFileFields() {
+        List<SecretFinding> findings = scan("PASSWORD_FILE", "PASSWORD_FILE = 'hunter2'");
+
+        assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
     void doesNotTreatHashesOrDigestsAsHighEntropySecrets() {
         assertTrue(scan("checksum", "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
                 .isEmpty());

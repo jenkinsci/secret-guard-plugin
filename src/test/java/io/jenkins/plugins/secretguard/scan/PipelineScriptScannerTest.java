@@ -85,6 +85,30 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void doesNotFlagSensitiveEnvironmentFileReferences() {
+        String script = """
+                pipeline {
+                  agent any
+                  environment {
+                    PASSWORD_FILE = 'pwd.txt'
+                    SERVICE_TOKEN_PATH = '/run/secrets/service_token'
+                  }
+                  stages {
+                    stage('noop') {
+                      steps {
+                        echo 'using file-backed secrets'
+                      }
+                    }
+                  }
+                }
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
     void detectsHardcodedHttpRequestCustomHeaderSecret() {
         String script = """
                 def sonarServer = "http://security.example.invalid/qa_auth"

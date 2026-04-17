@@ -136,6 +136,9 @@ public class BuiltInSecretRuleSet {
             if (!isSensitiveField(fieldName) || NonSecretHeuristics.isCredentialIdField(fieldName)) {
                 return Collections.emptyList();
             }
+            if (NonSecretHeuristics.looksLikeSensitiveFileReference(fieldName, value)) {
+                return Collections.emptyList();
+            }
             if (NonSecretHeuristics.looksLikePlaceholderValue(value)) {
                 return List.of(finding(
                         getId(),
