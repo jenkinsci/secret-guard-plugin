@@ -181,6 +181,28 @@ class ConfigXmlScannerTest {
     }
 
     @Test
+    void doesNotFlagGeneratedParameterSeparatorNamesAsHighEntropySecrets() {
+        String xml = """
+                <flow-definition>
+                  <properties>
+                    <hudson.model.ParametersDefinitionProperty>
+                      <parameterDefinitions>
+                        <jenkins.plugins.parameter__separator.ParameterSeparatorDefinition plugin="parameter-separator@1.3">
+                          <name>separator-d45a9f41-b001-4c08-80ab-a23bdc5ccb96</name>
+                        </jenkins.plugins.parameter__separator.ParameterSeparatorDefinition>
+                      </parameterDefinitions>
+                    </hudson.model.ParametersDefinitionProperty>
+                  </properties>
+                </flow-definition>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("WorkflowJob"), xml);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
     void parsesMixedCustomHeadersFromInlinePipelineScript() {
         String xml = """
                 <flow-definition>

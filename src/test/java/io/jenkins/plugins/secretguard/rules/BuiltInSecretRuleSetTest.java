@@ -76,6 +76,15 @@ class BuiltInSecretRuleSetTest {
     }
 
     @Test
+    void doesNotTreatParameterSeparatorNamesAsHighEntropySecrets() {
+        assertTrue(scan(
+                        "/flow-definition/properties/hudson.model.ParametersDefinitionProperty/parameterDefinitions/jenkins.plugins.parameter__separator.ParameterSeparatorDefinition/name",
+                        "name",
+                        "separator-d45a9f41-b001-4c08-80ab-a23bdc5ccb96")
+                .isEmpty());
+    }
+
+    @Test
     void stillDetectsSensitiveJdbcParametersAsHighEntropySecrets() {
         List<SecretFinding> findings = scan(
                 "defaultValue",
@@ -144,6 +153,10 @@ class BuiltInSecretRuleSetTest {
     }
 
     private List<SecretFinding> scan(String fieldName, String value) {
+        return scan("Pipeline script", fieldName, value);
+    }
+
+    private List<SecretFinding> scan(String sourceName, String fieldName, String value) {
         ScanContext context = new ScanContext(
                 "folder/job",
                 "Pipeline script",
@@ -154,7 +167,7 @@ class BuiltInSecretRuleSetTest {
                 Severity.HIGH);
         List<SecretFinding> findings = new ArrayList<>();
         for (SecretRule rule : ruleSet.getRules()) {
-            findings.addAll(rule.scan(context, context.getSourceName(), 1, fieldName, value));
+            findings.addAll(rule.scan(context, sourceName, 1, fieldName, value));
         }
         return findings;
     }

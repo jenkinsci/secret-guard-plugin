@@ -81,6 +81,13 @@ class NonSecretHeuristicsTest {
                 "",
                 NonSecretHeuristics.nonSecretHighEntropyReason(
                         "choice-parameter-108997464504044", "randomName", "choice-parameter-108997464504044"));
+        assertNotEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "/flow-definition/properties/hudson.model.ParametersDefinitionProperty/parameterDefinitions/jenkins.plugins.parameter__separator.ParameterSeparatorDefinition/name",
+                        "separator-d45a9f41-b001-4c08-80ab-a23bdc5ccb96",
+                        "name",
+                        "separator-d45a9f41-b001-4c08-80ab-a23bdc5ccb96"));
         for (String value : List.of(
                 "s3://example-bucket/runtime/sample_dataset/record_01",
                 "s3a://example-bucket/runtime/sample_dataset/record_01",

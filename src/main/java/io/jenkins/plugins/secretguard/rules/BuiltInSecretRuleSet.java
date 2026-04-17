@@ -237,7 +237,8 @@ public class BuiltInSecretRuleSet {
             List<SecretFinding> findings = new ArrayList<>();
             while (matcher.find()) {
                 String candidate = matcher.group();
-                String suppressionReason = NonSecretHeuristics.nonSecretHighEntropyReason(value, fieldName, candidate);
+                String suppressionReason =
+                        NonSecretHeuristics.nonSecretHighEntropyReason(sourceName, value, fieldName, candidate);
                 if (!suppressionReason.isEmpty() || NonSecretHeuristics.entropy(candidate) < 4.0) {
                     if (!suppressionReason.isEmpty() && LOGGER.isLoggable(Level.FINE)) {
                         LOGGER.fine("[Secret Guard][Heuristics] " + suppressionReason + " Source=" + sourceName

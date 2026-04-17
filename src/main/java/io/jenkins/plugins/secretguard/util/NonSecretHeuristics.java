@@ -132,11 +132,18 @@ public final class NonSecretHeuristics {
         return matcher.find() && isBenignTrackingHeaderName(matcher.group(1));
     }
 
-    public static boolean looksLikeNonSecretHighEntropyToken(String originalValue, String fieldName, String candidate) {
-        return !nonSecretHighEntropyReason(originalValue, fieldName, candidate).isEmpty();
+    public static boolean looksLikeNonSecretHighEntropyToken(
+            String sourceName, String originalValue, String fieldName, String candidate) {
+        return !nonSecretHighEntropyReason(sourceName, originalValue, fieldName, candidate)
+                .isEmpty();
     }
 
-    public static String nonSecretHighEntropyReason(String originalValue, String fieldName, String candidate) {
+    public static boolean looksLikeNonSecretHighEntropyToken(String originalValue, String fieldName, String candidate) {
+        return looksLikeNonSecretHighEntropyToken("", originalValue, fieldName, candidate);
+    }
+
+    public static String nonSecretHighEntropyReason(
+            String sourceName, String originalValue, String fieldName, String candidate) {
         if (isScriptPathField(fieldName)) {
             return "Skipped high-entropy candidate because the field is a Pipeline script path.";
         }
@@ -158,6 +165,9 @@ public final class NonSecretHeuristics {
         if (isBenignTrackingHeaderContext(fieldName, originalValue)) {
             return "Skipped high-entropy candidate because the header looks like a trace or request identifier.";
         }
+        if (looksLikeGeneratedParameterSeparatorName(sourceName, fieldName, candidate)) {
+            return "Skipped high-entropy candidate because it looks like a generated separator parameter name.";
+        }
         if (looksLikeGeneratedRandomName(fieldName, candidate)) {
             return "Skipped high-entropy candidate because it looks like a generated parameter identifier.";
         }
@@ -174,6 +184,10 @@ public final class NonSecretHeuristics {
             return "Skipped high-entropy candidate because it looks like a human-readable identifier.";
         }
         return "";
+    }
+
+    public static String nonSecretHighEntropyReason(String originalValue, String fieldName, String candidate) {
+        return nonSecretHighEntropyReason("", originalValue, fieldName, candidate);
     }
 
     public static double entropy(String value) {
@@ -219,6 +233,10 @@ public final class NonSecretHeuristics {
 
     private static boolean isRandomNameField(String fieldName) {
         return normalize(fieldName).equals("randomname");
+    }
+
+    private static boolean isNameField(String fieldName) {
+        return normalize(fieldName).equals("name");
     }
 
     private static boolean looksLikeIdentifier(String value) {
@@ -386,6 +404,19 @@ public final class NonSecretHeuristics {
             return false;
         }
         return normalized.matches("[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z][A-Za-z0-9]*)+-\\d{6,}");
+    }
+
+    private static boolean looksLikeGeneratedParameterSeparatorName(String sourceName, String fieldName, String value) {
+        if (!isNameField(fieldName)) {
+            return false;
+        }
+        String normalizedSource = nullToEmpty(sourceName).replace('\\', '/');
+        if (!normalizedSource.contains("/jenkins.plugins.parameter__separator.ParameterSeparatorDefinition/name")) {
+            return false;
+        }
+        String normalizedValue = nullToEmpty(value).trim();
+        return normalizedValue.matches(
+                "[A-Za-z][A-Za-z0-9]*(?:-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})");
     }
 
     private static boolean looksLikeLocalFileReference(String value) {
