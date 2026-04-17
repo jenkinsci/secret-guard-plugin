@@ -346,6 +346,18 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void doesNotFlagJenkinsfilePathLiteralsAsHighEntropySecrets() {
+        String script = """
+                def pipelineScript = load 'ci/ExamplePipelineScript.Jenkinsfile'
+                pipelineScript.run()
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
     void doesNotFlagTrackingHeadersAsSecrets() {
         String script = """
                 httpRequest customHeaders: [[maskValue: false, name: 'X-Request-ID',

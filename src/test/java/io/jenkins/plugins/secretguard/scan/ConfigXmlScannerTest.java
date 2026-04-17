@@ -213,6 +213,22 @@ class ConfigXmlScannerTest {
         assertFalse(result.hasFindings());
     }
 
+    @Test
+    void doesNotFlagScriptPathJenkinsfileNamesAsHighEntropySecrets() {
+        String xml = """
+                <flow-definition>
+                  <definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition">
+                    <scriptPath>ExamplePipelineScript.Jenkinsfile</scriptPath>
+                  </definition>
+                </flow-definition>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("WorkflowJob"), xml);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
     private ScanContext context(String targetType) {
         return new ScanContext(
                 "folder/job",

@@ -5,8 +5,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class NonSecretHeuristics {
-    private static final Pattern FILE_EXTENSION =
-            Pattern.compile("(?i).+\\.(py|sh|bash|groovy|jar|war|zip|tar|tgz|gz|json|yaml|yml|xml|txt|log|md)$");
+    private static final Pattern FILE_EXTENSION = Pattern.compile(
+            "(?i).+\\.(py|sh|bash|groovy|jar|war|zip|tar|tgz|gz|json|yaml|yml|xml|txt|log|md|jenkinsfile)$");
     private static final Pattern DOCKER_IMAGE_REFERENCE =
             Pattern.compile("(?i)(?:[a-z0-9.-]+(?::[0-9]+)?/)?[a-z0-9._-]+(?:/[a-z0-9._-]+)+(?::[a-z0-9._-]+)?");
     private static final Pattern UUID =
@@ -121,8 +121,14 @@ public final class NonSecretHeuristics {
     }
 
     public static String nonSecretHighEntropyReason(String originalValue, String fieldName, String candidate) {
+        if (isScriptPathField(fieldName)) {
+            return "Skipped high-entropy candidate because the field is a Pipeline script path.";
+        }
         if (isCredentialIdField(fieldName)) {
             return "Skipped high-entropy candidate because the field looks like a credentials ID.";
+        }
+        if (looksLikeJenkinsfilePath(originalValue, candidate)) {
+            return "Skipped high-entropy candidate because it looks like a Jenkinsfile path.";
         }
         if (isHashOrDigestContext(fieldName, originalValue)) {
             return "Skipped high-entropy candidate because the surrounding context looks like a hash or digest.";
@@ -164,6 +170,11 @@ public final class NonSecretHeuristics {
             entropy -= probability * (Math.log(probability) / Math.log(2));
         }
         return entropy;
+    }
+
+    private static boolean isScriptPathField(String fieldName) {
+        String normalized = normalize(fieldName);
+        return normalized.equals("scriptpath") || normalized.equals("jenkinsfilepath");
     }
 
     private static boolean looksLikeIdentifier(String value) {
@@ -305,7 +316,7 @@ public final class NonSecretHeuristics {
         String lower = normalized.toLowerCase(Locale.ENGLISH);
         if (lower.contains("_") || lower.contains("-")) {
             parts = lower.split("[_-]+");
-        } else if (looksLikeCamelCaseIdentifier(normalized)) {
+        } else if (looksLikeCamelOrPascalIdentifier(normalized)) {
             parts = normalized.split("(?<=[a-z0-9])(?=[A-Z])");
         } else {
             return false;
@@ -319,8 +330,21 @@ public final class NonSecretHeuristics {
         return wordLikeParts >= 3;
     }
 
-    private static boolean looksLikeCamelCaseIdentifier(String value) {
-        return value.matches("[a-z][A-Za-z0-9]*") && value.matches(".*[A-Z].*") && value.matches(".*[a-z][A-Z].*");
+    private static boolean looksLikeCamelOrPascalIdentifier(String value) {
+        return value.matches("[A-Za-z][A-Za-z0-9]*") && value.matches(".*[A-Z].*") && value.matches(".*[a-z][A-Z].*");
+    }
+
+    private static boolean looksLikeJenkinsfilePath(String originalValue, String candidate) {
+        String token = expandToken(originalValue, candidate).trim();
+        if (token.isEmpty()) {
+            return false;
+        }
+        String lower = token.toLowerCase(Locale.ENGLISH);
+        return lower.equals("jenkinsfile")
+                || lower.endsWith("/jenkinsfile")
+                || lower.endsWith(".jenkinsfile")
+                || lower.contains("/jenkinsfile.")
+                || lower.contains(".jenkinsfile/");
     }
 
     private static boolean looksLikeRepositoryPath(String value) {

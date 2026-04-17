@@ -48,5 +48,13 @@ class NonSecretHeuristicsTest {
                 "",
                 NonSecretHeuristics.nonSecretHighEntropyReason(
                         "jfrog-cred-default", "registryCredentialsId", "jfrog-cred-default"));
+        assertNotEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "ExamplePipelineScript.Jenkinsfile", "scriptPath", "ExamplePipelineScript"));
+        assertNotEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "ci/ExamplePipelineScript.Jenkinsfile", "", "ExamplePipelineScript"));
     }
 }
