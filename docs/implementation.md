@@ -347,6 +347,7 @@ Current test coverage is intentionally focused on the deterministic core:
   - exemption state restoration
   - persisted result cleanup
   - persisted XML safety checks for raw scanned content and raw secret values
+  - malformed and legacy persisted file tolerance
 - `SecretMaskerTest`
   - JWT, URL credential, and PEM masking
 

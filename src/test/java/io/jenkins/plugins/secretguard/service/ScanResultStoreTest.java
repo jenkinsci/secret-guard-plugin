@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import hudson.XmlFile;
+import hudson.util.XStream2;
 import io.jenkins.plugins.secretguard.model.EnforcementMode;
 import io.jenkins.plugins.secretguard.model.FindingLocationType;
 import io.jenkins.plugins.secretguard.model.ScanContext;
@@ -15,6 +17,7 @@ import io.jenkins.plugins.secretguard.scan.ConfigXmlScanner;
 import java.io.File;
 import java.nio.file.Files;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -102,6 +105,59 @@ class ScanResultStoreTest {
         assertFalse(persistedXml.contains(rawSecretValue));
         assertFalse(persistedXml.contains(rawPipelineContent));
         assertFalse(persistedXml.contains("shipping release"));
+    }
+
+    @Test
+    void ignoresMalformedPersistedFilesWhileLoadingHealthyResults() throws Exception {
+        ScanResultStore writer = ScanResultStore.inDirectory(temporaryDirectory);
+        writer.put(new SecretScanResult(
+                "healthy/job", "WorkflowJob", List.of(finding(false)), false, Instant.parse("2026-04-15T12:00:00Z")));
+        Files.writeString(new File(temporaryDirectory, "broken.xml").toPath(), "<broken");
+
+        ScanResultStore reader = ScanResultStore.inDirectory(temporaryDirectory);
+        List<SecretScanResult> loaded = reader.getAll();
+
+        assertEquals(1, loaded.size());
+        assertEquals("healthy/job", loaded.get(0).getTargetId());
+    }
+
+    @Test
+    void toleratesLegacyPersistedFilesWithMissingOrInvalidOptionalFields() throws Exception {
+        ScanResultStore.PersistedScanResult legacy = new ScanResultStore.PersistedScanResult();
+        legacy.targetId = "legacy/job";
+        legacy.targetType = null;
+        legacy.blocked = false;
+        legacy.scannedAtEpochMillis = 0L;
+        legacy.notes = null;
+
+        ScanResultStore.PersistedFinding legacyFinding = new ScanResultStore.PersistedFinding();
+        legacyFinding.ruleId = null;
+        legacyFinding.title = null;
+        legacyFinding.severity = "NOT_A_REAL_SEVERITY";
+        legacyFinding.locationType = "NOT_A_REAL_LOCATION";
+        legacyFinding.jobFullName = "legacy/job";
+        legacyFinding.sourceName = "config.xml";
+        legacyFinding.lineNumber = 7;
+        legacyFinding.fieldName = "field";
+        legacyFinding.maskedSnippet = "abc…xyz";
+        legacyFinding.recommendation = "Rotate the secret.";
+        legacyFinding.analysisNote = null;
+        legacyFinding.exempted = false;
+        legacyFinding.exemptionReason = null;
+        legacy.findings = new ArrayList<>(List.of(legacyFinding));
+
+        new XmlFile(new XStream2(), new File(temporaryDirectory, "legacy%2Fjob.xml")).write(legacy);
+
+        ScanResultStore reader = ScanResultStore.inDirectory(temporaryDirectory);
+        SecretScanResult loaded = reader.get("legacy/job").orElseThrow();
+
+        assertEquals("legacy/job", loaded.getTargetId());
+        assertEquals("", loaded.getTargetType());
+        assertEquals(1, loaded.getFindings().size());
+        assertEquals("unknown", loaded.getFindings().get(0).getRuleId());
+        assertEquals(Severity.LOW, loaded.getFindings().get(0).getSeverity());
+        assertEquals(FindingLocationType.CONFIG_XML, loaded.getFindings().get(0).getLocationType());
+        assertFalse(loaded.hasNotes());
     }
 
     private SecretFinding finding(boolean exempted) {

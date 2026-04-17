@@ -224,7 +224,7 @@ Acceptance criteria:
 
 Priority: `P1`
 
-Status: storage location and masked-only persistence behavior are now documented in `README.md`; deleted and renamed Job cleanup behavior is now verified; restart coverage and persisted-file safety checks are now in place.
+Status: storage location and masked-only persistence behavior are now documented in `README.md`; deleted and renamed Job cleanup behavior is now verified; restart coverage, persisted-file safety checks, and malformed/legacy file tolerance checks are now in place.
 
 Tasks:
 
