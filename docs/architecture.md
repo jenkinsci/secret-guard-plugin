@@ -178,7 +178,7 @@ Results are exposed through:
 
 Job-level reports are available on each Job page so users can run `Scan Now` even before a previous scan result exists.
 
-`ScanResultStore` keeps the latest result in memory and persists one masked latest-result XML file per target under `$JENKINS_HOME/secret-guard/results/`. Reports can be restored lazily after a controller restart without storing raw secret values.
+`ScanResultStore` keeps the latest result in memory and persists one masked latest-result XML file per target under `$JENKINS_HOME/secret-guard/results/`. Reports can be restored lazily after a controller restart without storing raw secret values, and restart coverage verifies Job and root report recovery.
 Persisted latest results include scan notes, so Job and system reports keep SCM-read diagnostics after a controller restart.
 
 ## Current Boundaries

@@ -309,7 +309,7 @@ Jelly resources live under:
 - raw scanned content
 - raw secret values
 
-This means the current UI can restore the latest report after restart, but it does not provide trends or historical snapshots.
+This means the current UI can restore the latest report after restart, and restart coverage now verifies both Job and system report recovery, but it does not provide trends or historical snapshots.
 
 ## Testing Strategy
 
