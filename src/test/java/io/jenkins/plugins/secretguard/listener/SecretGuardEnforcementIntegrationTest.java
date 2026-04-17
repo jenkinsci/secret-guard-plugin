@@ -381,7 +381,8 @@ class SecretGuardEnforcementIntegrationTest {
         Page rootPage = webClient.goTo("secret-guard");
 
         assertTrue(rootPage.getWebResponse().getContentAsString().contains("manual-scm-unavailable"));
-        assertTrue(rootPage.getWebResponse().getContentAsString().contains("could not read SCM Jenkinsfile"));
+        assertTrue(rootPage.getWebResponse().getContentAsString().contains(">Yes<"));
+        assertFalse(rootPage.getWebResponse().getContentAsString().contains("could not read SCM Jenkinsfile"));
     }
 
     @Test
