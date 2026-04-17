@@ -37,7 +37,7 @@ The Java sources are organized under `io.jenkins.plugins.secretguard`:
 4. `BuiltInSecretRuleSet` emits findings
 5. `SecretScanService` applies whitelist and exemption policy
 6. If mode is `BLOCK` and threshold is hit, the filter restores the previous `config.xml` or deletes the newly created Job, then returns an error response
-7. `SecretGuardSaveableListener` and `SecretGuardItemListener` refresh the persisted latest result for reporting
+7. `SecretGuardSaveableListener` and `SecretGuardItemListener` refresh the persisted latest result for reporting, remove stale entries for deleted Jobs, and refresh persisted keys when Jobs are renamed or moved
 
 ### Build-time flow
 

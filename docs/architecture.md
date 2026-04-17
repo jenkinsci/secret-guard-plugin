@@ -154,6 +154,8 @@ The plugin integrates at three levels:
 - `SecretGuardItemListener`
   - refreshes scan results for created or updated items
   - blocks copying a risky Job before the copy is created in `BLOCK` mode
+  - removes persisted latest results for deleted Jobs
+  - removes the old persisted key and re-scans when a Job location changes
   - complements save-time reporting
 - `SecretGuardRunListener`
   - scans inline Pipeline scripts and lightweight Pipeline-from-SCM Jenkinsfiles at build start

@@ -224,13 +224,13 @@ Acceptance criteria:
 
 Priority: `P1`
 
-Status: storage location and masked-only persistence behavior are now documented in `README.md`; restart coverage and cleanup verification remain active hardening work.
+Status: storage location and masked-only persistence behavior are now documented in `README.md`; deleted and renamed Job cleanup behavior is now verified; restart coverage remains active hardening work.
 
 Tasks:
 
 - add JenkinsRule restart coverage for latest-result reload
 - verify persisted files never include raw scanned content or raw secret values
-- validate cleanup behavior for deleted and renamed Jobs
+- [x] validate cleanup behavior for deleted and renamed Jobs
 - [x] document storage location and retention behavior in README
 
 Acceptance criteria:
