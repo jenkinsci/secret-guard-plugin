@@ -75,14 +75,16 @@ Expected outcome:
 
 Priority: `P0`
 
+Status: save-time blocking, manual scan, Pipeline-from-SCM, multibranch, and `WARN` build-result flows are covered with JenkinsRule tests; explicit `AUDIT` save-flow coverage and a dedicated `BLOCK` build-failure regression remain outstanding.
+
 Tasks:
 
 - add a save-time integration test for a Job containing plaintext `password` in config
 - verify `AUDIT` does not block
 - verify `WARN` does not block
-- verify `BLOCK` blocks unexempted `HIGH`
+- [x] verify `BLOCK` blocks unexempted `HIGH`
 - add a Pipeline build test for inline script with bearer token
-- verify `WARN` marks the build `UNSTABLE`
+- [x] verify `WARN` marks the build `UNSTABLE`
 - verify `BLOCK` interrupts/fails the build
 
 Acceptance criteria:
@@ -101,12 +103,15 @@ Implementation notes:
 
 Priority: `P0`
 
+Status: a dedicated `SecretGuardJobConfigFilter` now wraps Job create and update HTTP requests, restores the previous `config.xml` for blocked updates, deletes blocked newly created jobs, and returns a user-visible masked error response. `SecretGuardSaveableListener` remains in place for reporting-oriented scanning rather than primary save rejection.
+
 Tasks:
 
-- verify whether `SaveableListener.onChange` exception propagation reliably rejects Job save in Jenkins UI and API flows
-- if unreliable, introduce a safer interception point for Job config submissions
-- ensure error message is user-visible and includes a short summary
-- avoid printing raw secret values in errors
+- [x] verify whether `SaveableListener.onChange` exception propagation reliably rejects Job save in Jenkins UI and API flows
+- [x] if unreliable, introduce a safer interception point for Job config submissions
+- [x] ensure error message is user-visible and includes a short summary
+- [x] avoid printing raw secret values in errors
+- [ ] add broader regression coverage for additional config submission paths if new Jenkins UI/API entry points are introduced
 
 Acceptance criteria:
 
@@ -117,16 +122,18 @@ Acceptance criteria:
 Implementation notes:
 
 - this is the most important production-hardening item
-- keep `SaveableListener` for reporting if another interception point becomes primary
+- keep `SaveableListener` for reporting once a safer interception point becomes primary
 
 ### 3. Expand false-positive regression corpus
 
 Priority: `P1`
 
+Status: regression coverage now includes placeholders and public-certificate false positives, but the broader curated corpus is still incomplete.
+
 Tasks:
 
 - add anonymized fixtures for common Jenkinsfiles and Job XML shapes
-- add regression cases for placeholder/mock/test values
+- [x] add regression cases for placeholder/mock/test values
 - add regression cases for public certificates and artifact metadata
 - add regression cases for common request/trace/correlation headers
 
@@ -145,7 +152,7 @@ Tasks:
 - add form validation for exemption lines
 - reject exemption entries without `jobFullName|ruleId|reason`
 - warn on empty reason
-- document accepted whitelist separators
+- [x] document accepted whitelist separators
 
 Acceptance criteria:
 
@@ -156,11 +163,13 @@ Acceptance criteria:
 
 Priority: `P2`
 
+Status: action registration and administrative monitor activation are covered, but exempted-monitor suppression still needs a dedicated smoke test.
+
 Tasks:
 
-- verify Job action is available
-- verify root action is available
-- verify administrative monitor activates when unexempted `HIGH` exists
+- [x] verify Job action is available
+- [x] verify root action is available
+- [x] verify administrative monitor activates when unexempted `HIGH` exists
 - verify exempted findings do not activate the monitor
 
 Acceptance criteria:
@@ -173,13 +182,15 @@ Acceptance criteria:
 
 Priority: `P0`
 
+Status: Job-level manual re-scan, latest-result refresh, and admin-only global re-scan are implemented.
+
 Tasks:
 
-- add a Job-level “Scan now” action
-- scan current `config.xml`
-- store and display latest result
+- [x] add a Job-level “Scan now” action
+- [x] scan current `config.xml`
+- [x] store and display latest result
 - [x] add global “scan all jobs” administrative action for admins
-- protect actions with appropriate Jenkins permissions
+- [x] protect actions with appropriate Jenkins permissions
 
 Acceptance criteria:
 
@@ -232,11 +243,11 @@ Acceptance criteria:
 
 Priority: `P1`
 
-Status: the system page now shows summary counts, root-to-job links, blocked highlighting, quick severity filters, and per-row report actions; grouping findings by severity within detailed reports remains future work.
+Status: the system page now shows summary counts, root-to-job links, blocked highlighting, quick severity filters, relative scan times, and per-row report actions; detailed job reports are grouped by severity.
 
 Tasks:
 
-- group findings by severity
+- [x] group findings by severity
 - [x] show summary counts
 - [x] link root report entries to Job report pages
 - [x] highlight blocked findings separately
@@ -251,6 +262,8 @@ Acceptance criteria:
 
 Priority: `P2`
 
+Status: not started.
+
 Tasks:
 
 - add structured exemption entries instead of plain text only
@@ -264,6 +277,8 @@ Acceptance criteria:
 - existing text format is migrated or still accepted
 
 ## V2 Backlog
+
+Status: not started; current implementation remains focused on MVP hardening and V1 usability.
 
 ### 1. Plugin-specific configuration adapters
 
@@ -291,6 +306,8 @@ Acceptance criteria:
 
 Priority: `P1`
 
+Status: not started.
+
 Tasks:
 
 - store scan history with bounded retention
@@ -306,6 +323,8 @@ Acceptance criteria:
 ### 3. Policy granularity
 
 Priority: `P1`
+
+Status: not started.
 
 Tasks:
 
@@ -323,6 +342,8 @@ Acceptance criteria:
 
 Priority: `P2`
 
+Status: not started.
+
 Tasks:
 
 - add a `secretGuard` Pipeline step
@@ -337,6 +358,8 @@ Acceptance criteria:
 ### 5. AI-assisted explanations
 
 Priority: `P2`
+
+Status: not started.
 
 Tasks:
 
