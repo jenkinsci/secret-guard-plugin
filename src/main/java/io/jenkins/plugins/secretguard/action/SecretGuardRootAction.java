@@ -4,11 +4,13 @@ import hudson.Extension;
 import hudson.Util;
 import hudson.model.RootAction;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
+import io.jenkins.plugins.secretguard.model.Severity;
 import io.jenkins.plugins.secretguard.service.GlobalJobScanService;
 import io.jenkins.plugins.secretguard.service.GlobalJobScanStatus;
 import io.jenkins.plugins.secretguard.service.ScanResultStore;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import jenkins.model.Jenkins;
 import org.kohsuke.stapler.HttpResponse;
@@ -20,7 +22,46 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 
 @Extension
 public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, StaplerProxy {
+    private static final int MAX_DISPLAY_TARGET_LENGTH = 72;
+    private static final int DISPLAY_TARGET_TAIL_SEGMENTS = 3;
+    private static final String ELLIPSIS = "\u2026";
+
     private final GlobalJobScanService globalJobScanService;
+
+    enum ResultFilter {
+        ALL("all", "All"),
+        HIGH("high", "High"),
+        BLOCKED("blocked", "Blocked"),
+        WITH_FINDINGS("with-findings", "With Findings");
+
+        private final String parameterValue;
+        private final String displayName;
+
+        ResultFilter(String parameterValue, String displayName) {
+            this.parameterValue = parameterValue;
+            this.displayName = displayName;
+        }
+
+        String getParameterValue() {
+            return parameterValue;
+        }
+
+        String getDisplayName() {
+            return displayName;
+        }
+
+        static ResultFilter fromParameter(String value) {
+            if (value == null || value.isBlank()) {
+                return ALL;
+            }
+            for (ResultFilter filter : values()) {
+                if (filter.parameterValue.equalsIgnoreCase(value.trim())) {
+                    return filter;
+                }
+            }
+            return ALL;
+        }
+    }
 
     public SecretGuardRootAction() {
         this(new GlobalJobScanService());
@@ -149,11 +190,120 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
     }
 
     public List<SecretScanResult> getResults() {
-        return ScanResultStore.get().getAll();
+        return sortResults(ScanResultStore.get().getAll());
+    }
+
+    public List<SecretScanResult> getFilteredResults() {
+        return filterResults(getResults(), getActiveResultFilter());
+    }
+
+    public int getScannedJobCount() {
+        return getResults().size();
+    }
+
+    public long getJobsWithFindingsCount() {
+        return getResults().stream().filter(SecretScanResult::hasFindings).count();
+    }
+
+    public long getBlockedJobCount() {
+        return getResults().stream().filter(SecretScanResult::isBlocked).count();
+    }
+
+    public long getHighRiskJobCount() {
+        return getResults().stream()
+                .filter(result -> result.hasActionableFindingsAtOrAbove(Severity.HIGH))
+                .count();
+    }
+
+    public long getTotalFindingsCount() {
+        return getResults().stream()
+                .mapToLong(result -> result.getFindings().size())
+                .sum();
     }
 
     public long getUnexemptedHighCount() {
         return ScanResultStore.get().getUnexemptedHighCount();
+    }
+
+    public boolean hasResults() {
+        return !getResults().isEmpty();
+    }
+
+    public boolean hasFilteredResults() {
+        return !getFilteredResults().isEmpty();
+    }
+
+    public String getEmptyResultsMessage() {
+        return hasResults()
+                ? "No Secret Guard scan results match the selected filter."
+                : "No Secret Guard scan results have been recorded yet.";
+    }
+
+    public String getFilterUrl(String filterValue) {
+        ResultFilter filter = ResultFilter.fromParameter(filterValue);
+        return buildResultsUrl(filter);
+    }
+
+    public boolean isActiveFilter(String filterValue) {
+        return getActiveResultFilter() == ResultFilter.fromParameter(filterValue);
+    }
+
+    public String getFilterButtonClass(String filterValue) {
+        return isActiveFilter(filterValue)
+                ? "jenkins-button jenkins-submit-button jenkins-button--primary"
+                : "jenkins-button jenkins-button--secondary";
+    }
+
+    public String getFilterButtonLabel(String filterValue) {
+        ResultFilter filter = ResultFilter.fromParameter(filterValue);
+        return filter.getDisplayName() + " (" + getFilterCount(filter) + ")";
+    }
+
+    public int getFilteredResultCount() {
+        return getFilteredResults().size();
+    }
+
+    public String getHighFindingsCardClass() {
+        return getUnexemptedHighCount() > 0
+                ? "jenkins-alert jenkins-alert-warning"
+                : "jenkins-alert jenkins-alert-info";
+    }
+
+    public String getBlockedJobsCardClass() {
+        return getBlockedJobCount() > 0 ? "jenkins-alert jenkins-alert-danger" : "jenkins-alert jenkins-alert-info";
+    }
+
+    public String getBlockedBadgeStyle(boolean blocked) {
+        if (blocked) {
+            return "display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;"
+                    + "line-height:1.5;border:1px solid #f5c2c0;background:#fff1f0;color:#b42318;";
+        }
+        return "display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;"
+                + "line-height:1.5;border:1px solid #d5d7da;background:#f5f5f5;color:#344054;";
+    }
+
+    public String getBlockedBadgeLabel(boolean blocked) {
+        return blocked ? "Blocked" : "Allowed";
+    }
+
+    public String getDisplayTargetId(SecretScanResult result) {
+        if (result == null) {
+            return "";
+        }
+        return compactTargetId(result.getTargetId());
+    }
+
+    public String getResultRowStyle(SecretScanResult result) {
+        if (result == null) {
+            return "";
+        }
+        if (result.isBlocked()) {
+            return "background:#fff1f0;";
+        }
+        if (result.hasActionableFindingsAtOrAbove(Severity.HIGH)) {
+            return "background:#fff8e5;";
+        }
+        return "";
     }
 
     @RequirePOST
@@ -194,6 +344,16 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
         return currentRequest.getContextPath() + "/" + relativePath;
     }
 
+    private String getRootActionUrl() {
+        StaplerRequest2 currentRequest = Stapler.getCurrentRequest2();
+        if (currentRequest == null
+                || currentRequest.getContextPath() == null
+                || currentRequest.getContextPath().isBlank()) {
+            return "/secret-guard";
+        }
+        return currentRequest.getContextPath() + "/secret-guard";
+    }
+
     static String toJobSecretGuardPath(String targetId) {
         if (targetId == null || targetId.isBlank()) {
             return null;
@@ -213,5 +373,89 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
         }
         path.append("/secret-guard");
         return path.toString();
+    }
+
+    static String compactTargetId(String targetId) {
+        if (targetId == null || targetId.length() <= MAX_DISPLAY_TARGET_LENGTH) {
+            return targetId == null ? "" : targetId;
+        }
+        String pathTail = compactPathTail(targetId);
+        if (!pathTail.equals(targetId)) {
+            return middleEllipsize(pathTail);
+        }
+        return middleEllipsize(targetId);
+    }
+
+    private static String compactPathTail(String targetId) {
+        String[] segments = targetId.split("/");
+        List<String> visibleSegments = new java.util.ArrayList<>();
+        for (String segment : segments) {
+            if (!segment.isBlank()) {
+                visibleSegments.add(segment);
+            }
+        }
+        if (visibleSegments.size() <= DISPLAY_TARGET_TAIL_SEGMENTS) {
+            return targetId;
+        }
+        int start = visibleSegments.size() - DISPLAY_TARGET_TAIL_SEGMENTS;
+        return ELLIPSIS + "/" + String.join("/", visibleSegments.subList(start, visibleSegments.size()));
+    }
+
+    private static String middleEllipsize(String value) {
+        if (value.length() <= MAX_DISPLAY_TARGET_LENGTH) {
+            return value;
+        }
+        int remainingLength = MAX_DISPLAY_TARGET_LENGTH - ELLIPSIS.length();
+        int prefixLength = remainingLength / 2;
+        int suffixLength = remainingLength - prefixLength;
+        return value.substring(0, prefixLength) + ELLIPSIS + value.substring(value.length() - suffixLength);
+    }
+
+    private ResultFilter getActiveResultFilter() {
+        StaplerRequest2 currentRequest = Stapler.getCurrentRequest2();
+        return currentRequest == null
+                ? ResultFilter.ALL
+                : ResultFilter.fromParameter(currentRequest.getParameter("filter"));
+    }
+
+    static List<SecretScanResult> filterResults(List<SecretScanResult> results, ResultFilter filter) {
+        return results.stream().filter(result -> matchesFilter(result, filter)).toList();
+    }
+
+    static List<SecretScanResult> sortResults(List<SecretScanResult> results) {
+        return results.stream()
+                .sorted(Comparator.comparing(SecretScanResult::isBlocked)
+                        .reversed()
+                        .thenComparing(
+                                result -> result.hasActionableFindingsAtOrAbove(Severity.HIGH),
+                                Comparator.reverseOrder())
+                        .thenComparing(result -> result.getFindings().size(), Comparator.reverseOrder())
+                        .thenComparing(SecretScanResult::getScannedAt, Comparator.reverseOrder())
+                        .thenComparing(SecretScanResult::getTargetId))
+                .toList();
+    }
+
+    private long getFilterCount(ResultFilter filter) {
+        return filterResults(getResults(), filter).size();
+    }
+
+    private String buildResultsUrl(ResultFilter filter) {
+        StringBuilder url = new StringBuilder(getRootActionUrl());
+        if (filter != ResultFilter.ALL) {
+            url.append("?filter=").append(Util.rawEncode(filter.getParameterValue()));
+        }
+        return url.toString();
+    }
+
+    private static boolean matchesFilter(SecretScanResult result, ResultFilter filter) {
+        if (result == null) {
+            return false;
+        }
+        return switch (filter) {
+            case ALL -> true;
+            case HIGH -> result.hasActionableFindingsAtOrAbove(Severity.HIGH);
+            case BLOCKED -> result.isBlocked();
+            case WITH_FINDINGS -> result.hasFindings();
+        };
     }
 }

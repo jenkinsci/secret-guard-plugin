@@ -8,10 +8,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import hudson.model.FreeStyleProject;
 import io.jenkins.plugins.secretguard.config.SecretGuardGlobalConfiguration;
 import io.jenkins.plugins.secretguard.model.EnforcementMode;
+import io.jenkins.plugins.secretguard.model.FindingLocationType;
+import io.jenkins.plugins.secretguard.model.SecretFinding;
+import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import io.jenkins.plugins.secretguard.model.Severity;
 import io.jenkins.plugins.secretguard.service.ScanResultStore;
 import java.io.StringReader;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
 import javax.xml.transform.stream.StreamSource;
 import jenkins.model.Jenkins;
 import org.htmlunit.HttpMethod;
@@ -40,6 +45,93 @@ class SecretGuardRootActionTest {
     void returnsNullWhenTargetIdIsBlank() {
         assertNull(SecretGuardRootAction.toJobSecretGuardPath(" "));
         assertNull(SecretGuardRootAction.toJobSecretGuardPath(null));
+    }
+
+    @Test
+    void compactsLongTargetIdToUsefulTailSegments() {
+        assertEquals(
+                "\u2026/service-group/sub-folder/release-build",
+                SecretGuardRootAction.compactTargetId(
+                        "root-folder/platform-team/application-suite/service-group/sub-folder/release-build"));
+    }
+
+    @Test
+    void highlightsBlockedAndActionableHighRows() {
+        SecretGuardRootAction action = new SecretGuardRootAction(null);
+        SecretScanResult blockedResult =
+                new SecretScanResult("blocked-job", "WorkflowJob", List.of(finding(Severity.HIGH)), true);
+        SecretScanResult highResult =
+                new SecretScanResult("high-job", "WorkflowJob", List.of(finding(Severity.HIGH)), false);
+        SecretScanResult lowResult =
+                new SecretScanResult("low-job", "WorkflowJob", List.of(finding(Severity.LOW)), false);
+
+        assertEquals("background:#fff1f0;", action.getResultRowStyle(blockedResult));
+        assertEquals("background:#fff8e5;", action.getResultRowStyle(highResult));
+        assertEquals("", action.getResultRowStyle(lowResult));
+    }
+
+    @Test
+    void filtersResultsByQuickFilter() {
+        SecretScanResult blockedResult =
+                new SecretScanResult("blocked-job", "WorkflowJob", List.of(finding(Severity.HIGH)), true);
+        SecretScanResult highResult =
+                new SecretScanResult("high-job", "WorkflowJob", List.of(finding(Severity.HIGH)), false);
+        SecretScanResult lowResult =
+                new SecretScanResult("low-job", "WorkflowJob", List.of(finding(Severity.LOW)), false);
+        SecretScanResult emptyResult = new SecretScanResult("empty-job", "WorkflowJob", List.of(), false);
+        List<SecretScanResult> results = List.of(blockedResult, highResult, lowResult, emptyResult);
+
+        assertEquals(
+                List.of(blockedResult, highResult),
+                SecretGuardRootAction.filterResults(results, SecretGuardRootAction.ResultFilter.HIGH));
+        assertEquals(
+                List.of(blockedResult),
+                SecretGuardRootAction.filterResults(results, SecretGuardRootAction.ResultFilter.BLOCKED));
+        assertEquals(
+                List.of(blockedResult, highResult, lowResult),
+                SecretGuardRootAction.filterResults(results, SecretGuardRootAction.ResultFilter.WITH_FINDINGS));
+    }
+
+    @Test
+    void sortsResultsByRiskThenFindingCountThenScanTime() {
+        SecretScanResult allowedLowResult = new SecretScanResult(
+                "allowed-low-job",
+                "WorkflowJob",
+                List.of(finding(Severity.LOW), finding(Severity.LOW)),
+                false,
+                Instant.parse("2026-01-01T00:00:00Z"));
+        SecretScanResult blockedResult = new SecretScanResult(
+                "blocked-job",
+                "WorkflowJob",
+                List.of(finding(Severity.LOW)),
+                true,
+                Instant.parse("2026-01-02T00:00:00Z"));
+        SecretScanResult highResult = new SecretScanResult(
+                "high-job",
+                "WorkflowJob",
+                List.of(finding(Severity.HIGH)),
+                false,
+                Instant.parse("2026-01-03T00:00:00Z"));
+        SecretScanResult emptyResult = new SecretScanResult(
+                "empty-job", "WorkflowJob", List.of(), false, Instant.parse("2026-01-04T00:00:00Z"));
+
+        assertEquals(
+                List.of(blockedResult, highResult, allowedLowResult, emptyResult),
+                SecretGuardRootAction.sortResults(List.of(emptyResult, allowedLowResult, highResult, blockedResult)));
+    }
+
+    @Test
+    void defaultsUnknownFilterToAll() {
+        assertEquals(
+                SecretGuardRootAction.ResultFilter.ALL, SecretGuardRootAction.ResultFilter.fromParameter("unexpected"));
+    }
+
+    @Test
+    void buildsAbsoluteFilterUrlWithoutRequestContext() {
+        SecretGuardRootAction action = new SecretGuardRootAction(null);
+
+        assertEquals("/secret-guard", action.getFilterUrl("all"));
+        assertEquals("/secret-guard?filter=high", action.getFilterUrl("high"));
     }
 
     @Test
@@ -118,7 +210,7 @@ class SecretGuardRootActionTest {
                 .getContentAsString()
                 .contains(
                         "Scanned 1 of 1 jobs, jobs with findings: 1, jobs with high severity findings: 1, failed: 0."));
-        assertTrue(completedPage.getWebResponse().getContentAsString().contains("Hide Scan Status"));
+        assertTrue(completedPage.getWebResponse().getContentAsString().contains("Hide Status"));
         assertFalse(rootAction.canCancelScanAll());
         assertTrue(rootAction.canDismissScanAllStatus());
         assertTrue(ScanResultStore.get().get(project.getFullName()).isPresent());
@@ -130,7 +222,7 @@ class SecretGuardRootActionTest {
         Page dismissedPage = webClient.getPage(dismissRequest);
 
         assertEquals(200, dismissedPage.getWebResponse().getStatusCode());
-        assertFalse(dismissedPage.getWebResponse().getContentAsString().contains("Hide Scan Status"));
+        assertFalse(dismissedPage.getWebResponse().getContentAsString().contains("Hide Status"));
         assertFalse(rootAction.canDismissScanAllStatus());
     }
 
@@ -152,6 +244,20 @@ class SecretGuardRootActionTest {
             return xml.replace("<properties/>", property);
         }
         return xml.replace("<properties></properties>", property);
+    }
+
+    private static SecretFinding finding(Severity severity) {
+        return new SecretFinding(
+                "synthetic-rule",
+                "Synthetic finding",
+                severity,
+                FindingLocationType.CONFIG_XML,
+                "example-job",
+                "config.xml",
+                1,
+                "field",
+                "****",
+                "Review the value.");
     }
 
     private void waitForGlobalScanToFinish(SecretGuardRootAction rootAction) throws InterruptedException {

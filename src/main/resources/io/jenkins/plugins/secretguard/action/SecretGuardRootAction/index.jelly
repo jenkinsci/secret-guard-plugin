@@ -3,6 +3,7 @@
     <l:layout title="Secret Guard">
         <l:main-panel>
             <h1>Jenkins Secret Guard</h1>
+            <p>Review latest Jenkins job secret scan results and run on-demand global scans.</p>
             <j:set var="scanStatus" value="${it.scanAllStatus}" />
             <j:if test="${it.scanAllRunning}">
                 <script>
@@ -11,16 +12,52 @@
                     }, 3000);
                 </script>
             </j:if>
-            <h2>Global Scan</h2>
-            <j:if test="${it.hasScanAllStatus()}">
-                <div class="jenkins-alert" role="status">
-                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
-                        <span style="${it.getScanAllStateBadgeStyle(scanStatus.state)}">${scanStatus.state}</span>
-                        <strong>${it.scanAllSummaryText}</strong>
-                        <j:if test="${it.scanAllDurationText != null}">
-                            <span>Duration: ${it.scanAllDurationText}</span>
+            <div class="jenkins-alert" role="status" style="margin:16px 0;">
+                <div style="display:flex;gap:16px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;">
+                    <div>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                            <j:choose>
+                                <j:when test="${it.hasScanAllStatus()}">
+                                    <span style="${it.getScanAllStateBadgeStyle(scanStatus.state)}">${scanStatus.state}</span>
+                                    <span>${it.scanAllSummaryText}</span>
+                                    <j:if test="${it.scanAllDurationText != null}">
+                                        <span>Duration: ${it.scanAllDurationText}</span>
+                                    </j:if>
+                                </j:when>
+                                <j:otherwise>
+                                    <span>Global scan has not run yet.</span>
+                                </j:otherwise>
+                            </j:choose>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <f:form method="post" action="scanAll" style="margin:0;">
+                            <j:choose>
+                                <j:when test="${it.canScanAllNow()}">
+                                    <button class="jenkins-button jenkins-submit-button jenkins-button--primary" type="submit">
+                                        ${it.scanAllPrimaryButtonLabel}
+                                    </button>
+                                </j:when>
+                                <j:otherwise>
+                                    <button class="jenkins-button jenkins-submit-button jenkins-button--primary" type="submit" disabled="disabled">
+                                        ${it.scanAllPrimaryButtonLabel}
+                                    </button>
+                                </j:otherwise>
+                            </j:choose>
+                        </f:form>
+                        <j:if test="${it.canCancelScanAll()}">
+                            <f:form method="post" action="cancelScanAll" style="margin:0;">
+                                <button class="jenkins-button jenkins-button--secondary" type="submit">Cancel</button>
+                            </f:form>
+                        </j:if>
+                        <j:if test="${it.canDismissScanAllStatus()}">
+                            <f:form method="post" action="dismissScanAllStatus" style="margin:0;">
+                                <button class="jenkins-button jenkins-button--secondary" type="submit">Hide Status</button>
+                            </f:form>
                         </j:if>
                     </div>
+                </div>
+                <j:if test="${it.hasScanAllStatus()}">
                     <j:choose>
                         <j:when test="${it.scanAllDetailsOpen()}">
                             <details open="open">
@@ -91,71 +128,112 @@
                             </details>
                         </j:otherwise>
                     </j:choose>
-                </div>
-            </j:if>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <f:form method="post" action="scanAll" style="margin:0;">
-                    <j:choose>
-                        <j:when test="${it.canScanAllNow()}">
-                            <button class="jenkins-button jenkins-submit-button jenkins-button--primary" type="submit">
-                                ${it.scanAllPrimaryButtonLabel}
-                            </button>
-                        </j:when>
-                        <j:otherwise>
-                            <button class="jenkins-button jenkins-submit-button jenkins-button--primary" type="submit" disabled="disabled">
-                                ${it.scanAllPrimaryButtonLabel}
-                            </button>
-                        </j:otherwise>
-                    </j:choose>
-                </f:form>
-                <j:if test="${it.canCancelScanAll()}">
-                    <f:form method="post" action="cancelScanAll" style="margin:0;">
-                        <button class="jenkins-button jenkins-button--secondary" type="submit">Cancel Current Scan</button>
-                    </f:form>
-                </j:if>
-                <j:if test="${it.canDismissScanAllStatus()}">
-                    <f:form method="post" action="dismissScanAllStatus" style="margin:0;">
-                        <button class="jenkins-button jenkins-button--secondary" type="submit">Hide Scan Status</button>
-                    </f:form>
                 </j:if>
             </div>
-            <p>Unexempted high severity findings: ${it.unexemptedHighCount}</p>
-            <table class="jenkins-table sortable">
-                <thead>
-                    <tr>
-                        <th>Job</th>
-                        <th>Target type</th>
-                        <th>Highest severity</th>
-                        <th>Findings</th>
-                        <th>Blocked</th>
-                        <th>Scanned at</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <j:forEach var="result" items="${it.results}">
-                        <tr>
-                            <j:set var="jobUrl" value="${it.getJobSecretGuardUrl(result)}" />
-                            <td>
-                                <j:choose>
-                                    <j:when test="${jobUrl != null}">
-                                        <a href="${jobUrl}">${result.targetId}</a>
-                                    </j:when>
-                                    <j:otherwise>${result.targetId}</j:otherwise>
-                                </j:choose>
-                            </td>
-                            <td>${result.targetType}</td>
-                            <td>
-                                <span style="${it.getSeverityBadgeStyle(result.highestSeverity)}">
-                                    ${it.getSeverityBadgeLabel(result.highestSeverity)}
-                                </span>
-                            </td>
-                            <td>${result.findings.size()}</td>
-                            <td>${result.blocked}</td>
-                            <td>${result.scannedAt}</td>
-                        </tr>
-                    </j:forEach>
-                </tbody>
-            </table>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:12px;margin:16px 0;">
+                <div class="${it.highFindingsCardClass}">
+                    <strong style="display:block;font-size:1.6rem;">${it.unexemptedHighCount}</strong>
+                    <span>Unexempted high findings</span>
+                </div>
+                <div class="${it.blockedJobsCardClass}">
+                    <strong style="display:block;font-size:1.6rem;">${it.blockedJobCount}</strong>
+                    <span>Blocked jobs</span>
+                </div>
+                <div class="jenkins-alert jenkins-alert-info">
+                    <strong style="display:block;font-size:1.6rem;">${it.jobsWithFindingsCount}</strong>
+                    <span>Jobs with findings</span>
+                </div>
+                <div class="jenkins-alert jenkins-alert-info">
+                    <strong style="display:block;font-size:1.6rem;">${it.totalFindingsCount}</strong>
+                    <span>Total findings</span>
+                </div>
+                <div class="jenkins-alert jenkins-alert-info">
+                    <strong style="display:block;font-size:1.6rem;">${it.scannedJobCount}</strong>
+                    <span>Scanned jobs</span>
+                </div>
+            </div>
+            <j:choose>
+                <j:when test="${it.hasResults()}">
+                    <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:0 0 12px 0;">
+                        <div>
+                            <strong>Results</strong>
+                            <span>Showing ${it.filteredResultCount} of ${it.scannedJobCount}</span>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+                            <span>Severity:</span>
+                            <a class="${it.getFilterButtonClass('all')}" href="${it.getFilterUrl('all')}">${it.getFilterButtonLabel('all')}</a>
+                            <a class="${it.getFilterButtonClass('high')}" href="${it.getFilterUrl('high')}">${it.getFilterButtonLabel('high')}</a>
+                            <a class="${it.getFilterButtonClass('blocked')}" href="${it.getFilterUrl('blocked')}">${it.getFilterButtonLabel('blocked')}</a>
+                            <a class="${it.getFilterButtonClass('with-findings')}" href="${it.getFilterUrl('with-findings')}">
+                                ${it.getFilterButtonLabel('with-findings')}
+                            </a>
+                        </div>
+                    </div>
+                </j:when>
+            </j:choose>
+            <j:choose>
+                <j:when test="${it.hasFilteredResults()}">
+                    <table class="jenkins-table sortable">
+                        <thead>
+                            <tr>
+                                <th>Job</th>
+                                <th>Target type</th>
+                                <th>Highest severity</th>
+                                <th>Findings</th>
+                                <th>Blocked</th>
+                                <th>Scanned at</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <j:forEach var="result" items="${it.filteredResults}">
+                                <tr style="${it.getResultRowStyle(result)}">
+                                    <j:set var="jobUrl" value="${it.getJobSecretGuardUrl(result)}" />
+                                    <td style="max-width: 24rem; white-space: normal; overflow-wrap: anywhere;">
+                                        <j:choose>
+                                            <j:when test="${jobUrl != null}">
+                                                <a href="${jobUrl}" title="${result.targetId}">${it.getDisplayTargetId(result)}</a>
+                                            </j:when>
+                                            <j:otherwise>
+                                                <span title="${result.targetId}">${it.getDisplayTargetId(result)}</span>
+                                            </j:otherwise>
+                                        </j:choose>
+                                    </td>
+                                    <td>${result.targetType}</td>
+                                    <td>
+                                        <span style="${it.getSeverityBadgeStyle(result.highestSeverity)}">
+                                            ${it.getSeverityBadgeLabel(result.highestSeverity)}
+                                        </span>
+                                    </td>
+                                    <td>${result.findings.size()}</td>
+                                    <td>
+                                        <span style="${it.getBlockedBadgeStyle(result.blocked)}">
+                                            ${it.getBlockedBadgeLabel(result.blocked)}
+                                        </span>
+                                    </td>
+                                    <td>${result.scannedAt}</td>
+                                    <td>
+                                        <j:choose>
+                                            <j:when test="${jobUrl != null}">
+                                                <a class="jenkins-button jenkins-button--secondary" href="${jobUrl}">View report</a>
+                                            </j:when>
+                                            <j:otherwise>-</j:otherwise>
+                                        </j:choose>
+                                    </td>
+                                </tr>
+                            </j:forEach>
+                        </tbody>
+                    </table>
+                </j:when>
+                <j:otherwise>
+                    <p>
+                        ${it.emptyResultsMessage}
+                        <j:if test="${it.hasResults()}">
+                            <a href="${it.getFilterUrl('all')}">Show all</a>
+                        </j:if>
+                    </p>
+                </j:otherwise>
+            </j:choose>
         </l:main-panel>
     </l:layout>
 </j:jelly>
