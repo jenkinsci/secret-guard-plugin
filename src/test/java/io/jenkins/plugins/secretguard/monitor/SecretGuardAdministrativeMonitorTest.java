@@ -22,6 +22,50 @@ import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 class SecretGuardAdministrativeMonitorTest {
     @Test
     @WithJenkins
+    void exemptedHighFindingsDoNotActivateMonitor(JenkinsRule jenkinsRule) throws Exception {
+        String targetId = "monitor-exempted/job";
+        ScanResultStore.get()
+                .put(new SecretScanResult(
+                        targetId,
+                        "FreeStyleProject",
+                        List.of(new SecretFinding(
+                                        "test-rule",
+                                        "Plain secret",
+                                        Severity.HIGH,
+                                        FindingLocationType.CONFIG_XML,
+                                        targetId,
+                                        "config.xml",
+                                        12,
+                                        "password",
+                                        "sup…ord",
+                                        "Move the plaintext secret to Jenkins Credentials.")
+                                .withExemption("approved test exception")),
+                        false));
+
+        jenkinsRule.jenkins.setSecurityRealm(jenkinsRule.createDummySecurityRealm());
+        jenkinsRule.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy()
+                .grant(Jenkins.ADMINISTER)
+                .everywhere()
+                .to("admin"));
+
+        SecretGuardAdministrativeMonitor monitor = jenkinsRule
+                .jenkins
+                .getExtensionList(SecretGuardAdministrativeMonitor.class)
+                .get(0);
+        assertFalse(monitor.isActivated());
+        assertEquals(0, monitor.getUnexemptedHighCount());
+
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient().withThrowExceptionOnFailingStatusCode(false);
+        webClient.login("admin");
+
+        Page managePage = webClient.goTo("manage");
+        assertFalse(managePage.getWebResponse().getContentAsString().contains("Jenkins Secret Guard"));
+
+        ScanResultStore.get().remove(targetId);
+    }
+
+    @Test
+    @WithJenkins
     void managePageShowsDismissAndCanDisableMonitor(JenkinsRule jenkinsRule) throws Exception {
         String targetId = "monitor-test/job";
         ScanResultStore.get()

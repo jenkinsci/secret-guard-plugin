@@ -165,14 +165,14 @@ Acceptance criteria:
 
 Priority: `P2`
 
-Status: action registration and administrative monitor activation are covered, but exempted-monitor suppression still needs a dedicated smoke test.
+Status: action registration, administrative monitor activation, and exempted-monitor suppression are covered with JenkinsRule smoke tests.
 
 Tasks:
 
 - [x] verify Job action is available
 - [x] verify root action is available
 - [x] verify administrative monitor activates when unexempted `HIGH` exists
-- verify exempted findings do not activate the monitor
+- [x] verify exempted findings do not activate the monitor
 
 Acceptance criteria:
 
