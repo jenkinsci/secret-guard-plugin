@@ -44,6 +44,18 @@ class BuiltInSecretRuleSetTest {
         assertTrue(scan("", "/opt/example-tools/run-task-reporter.py").isEmpty());
         assertTrue(scan("", "https://artifacts.example.invalid:443/repository/build-tools/bootstrap_bundle/")
                 .isEmpty());
+        assertTrue(scan("", "ftp://artifacts.example.invalid:21/repository/build-tools/bootstrap_bundle/")
+                .isEmpty());
+        assertTrue(scan("", "sftp://10.1.2.3:22/repository/build-tools/bootstrap_bundle/")
+                .isEmpty());
+        assertTrue(scan("", "http://artifactory:8081/repository/build-tools/bootstrap_bundle/")
+                .isEmpty());
+        assertTrue(scan("", "10.1.2.3:8081/repository/build-tools/bootstrap_bundle/")
+                .isEmpty());
+        assertTrue(scan("", "git@repo-host:platform/build-tools/bootstrap_bundle_release.git")
+                .isEmpty());
+        assertTrue(scan("", "//repo-host/shared/build-tools/bootstrap_bundle_release")
+                .isEmpty());
         assertTrue(scan("", "/var/run/docker.sock:/var/run/docker.sock").isEmpty());
         assertTrue(scan("", "publishAllPublicationsToMavenRepository").isEmpty());
         assertTrue(

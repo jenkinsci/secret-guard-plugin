@@ -301,6 +301,22 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void doesNotFlagAdditionalRepositoryAddressFamiliesAsHighEntropySecrets() {
+        String script = """
+                sh 'curl ftp://artifacts.example.invalid:21/repository/build-tools/bootstrap_bundle/'
+                sh 'curl sftp://10.1.2.3:22/repository/build-tools/bootstrap_bundle/'
+                sh 'wget http://artifactory:8081/repository/build-tools/bootstrap_bundle/'
+                sh 'wget 10.1.2.3:8081/repository/build-tools/bootstrap_bundle/'
+                sh 'git clone git@repo-host:platform/build-tools/bootstrap_bundle_release.git'
+                sh 'cp //repo-host/shared/build-tools/bootstrap_bundle_release /tmp/bootstrap_bundle_release'
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
     void doesNotFlagDockerImageOrScriptPathAsHighEntropySecret() {
         String script = """
                 pipeline {

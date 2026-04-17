@@ -9,8 +9,6 @@ public final class NonSecretHeuristics {
             Pattern.compile("(?i).+\\.(py|sh|bash|groovy|jar|war|zip|tar|tgz|gz|json|yaml|yml|xml|txt|log|md)$");
     private static final Pattern DOCKER_IMAGE_REFERENCE =
             Pattern.compile("(?i)(?:[a-z0-9.-]+(?::[0-9]+)?/)?[a-z0-9._-]+(?:/[a-z0-9._-]+)+(?::[a-z0-9._-]+)?");
-    private static final Pattern URL_LIKE_PATH =
-            Pattern.compile("(?i)(?:[a-z][a-z0-9+.-]*://)?[a-z0-9.-]+\\.[a-z]{2,}(?::[0-9]{2,5})?/[a-z0-9._/-]+/?");
     private static final Pattern UUID =
             Pattern.compile("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
     private static final Pattern HEADER_NAME_IN_LINE = Pattern.compile("\\bname\\s*:\\s*['\"]([^'\"]+)['\"]");
@@ -233,7 +231,7 @@ public final class NonSecretHeuristics {
         return lowerToken.startsWith("/")
                 || lowerToken.startsWith("./")
                 || lowerToken.startsWith("../")
-                || URL_LIKE_PATH.matcher(lowerToken).matches()
+                || looksLikeRepositoryAddress(lowerToken)
                 || lowerToken.contains("/opt/")
                 || lowerToken.contains("/usr/")
                 || lowerToken.contains("/var/")
@@ -268,7 +266,15 @@ public final class NonSecretHeuristics {
     }
 
     private static boolean isPathLikeChar(char c) {
-        return Character.isLetterOrDigit(c) || c == '/' || c == '.' || c == '_' || c == '-' || c == ':';
+        return Character.isLetterOrDigit(c)
+                || c == '/'
+                || c == '.'
+                || c == '_'
+                || c == '-'
+                || c == ':'
+                || c == '@'
+                || c == '%'
+                || c == '~';
     }
 
     private static boolean looksLikeHumanReadableIdentifier(String value) {
@@ -324,6 +330,86 @@ public final class NonSecretHeuristics {
                 || segment.matches("[a-z0-9]+")
                 || segment.contains("_")
                 || segment.contains("-");
+    }
+
+    private static boolean looksLikeRepositoryAddress(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String normalized = value;
+        int schemeIndex = normalized.indexOf("://");
+        if (schemeIndex >= 0) {
+            normalized = normalized.substring(schemeIndex + 3);
+        } else if (normalized.startsWith("//")) {
+            normalized = normalized.substring(2);
+        }
+
+        int scpSeparator = findScpSeparator(normalized);
+        if (scpSeparator > 0) {
+            String host = normalized.substring(0, scpSeparator);
+            String path = normalized.substring(scpSeparator + 1);
+            int userSeparator = host.lastIndexOf('@');
+            if (userSeparator >= 0) {
+                host = host.substring(userSeparator + 1);
+            }
+            return looksLikeHost(host) && looksLikeRepositoryPath(path);
+        }
+
+        int slashIndex = normalized.indexOf('/');
+        if (slashIndex <= 0) {
+            return false;
+        }
+        String hostPort = normalized.substring(0, slashIndex);
+        String path = normalized.substring(slashIndex + 1);
+        return looksLikeHostPort(hostPort) && looksLikeRepositoryPath(path);
+    }
+
+    private static int findScpSeparator(String value) {
+        int colonIndex = value.indexOf(':');
+        int slashIndex = value.indexOf('/');
+        if (colonIndex <= 0 || slashIndex < 0 || colonIndex > slashIndex) {
+            return -1;
+        }
+        String colonValue = value.substring(colonIndex + 1, slashIndex);
+        if (colonValue.matches("\\d{2,5}")) {
+            return -1;
+        }
+        if (value.substring(0, colonIndex).contains("/")) {
+            return -1;
+        }
+        return colonIndex;
+    }
+
+    private static boolean looksLikeHostPort(String value) {
+        int colonIndex = value.lastIndexOf(':');
+        if (colonIndex > 0
+                && value.indexOf(':') == colonIndex
+                && value.substring(colonIndex + 1).matches("\\d{2,5}")) {
+            return looksLikeHost(value.substring(0, colonIndex));
+        }
+        return looksLikeHost(value);
+    }
+
+    private static boolean looksLikeHost(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String host = value.toLowerCase(Locale.ENGLISH);
+        if (host.equals("localhost")) {
+            return true;
+        }
+        if (host.matches("\\d{1,3}(?:\\.\\d{1,3}){3}")) {
+            return true;
+        }
+        if (!host.matches("[a-z0-9.-]+") || host.startsWith(".") || host.endsWith(".")) {
+            return false;
+        }
+        for (String label : host.split("\\.")) {
+            if (label.isBlank() || label.length() > 63 || label.startsWith("-") || label.endsWith("-")) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static String normalize(String value) {
