@@ -94,6 +94,58 @@ class SecretGuardEnforcementIntegrationTest {
 
     @Test
     @WithJenkins
+    void auditModeAllowsConfigXmlModificationWithoutBlocking(JenkinsRule jenkinsRule) throws Exception {
+        configure(EnforcementMode.AUDIT);
+        FreeStyleProject project = jenkinsRule.createFreeStyleProject("audit-allowed");
+        String riskyXml = withRiskyParameter(project.getConfigFile().asString());
+
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient().withThrowExceptionOnFailingStatusCode(false);
+        WebRequest request =
+                new WebRequest(webClient.createCrumbedUrl(project.getUrl() + "config.xml"), HttpMethod.POST);
+        request.setAdditionalHeader("Content-Type", "application/xml");
+        request.setRequestBody(riskyXml);
+
+        Page page = webClient.getPage(request);
+
+        assertTrue(page.getWebResponse().getStatusCode() < 400);
+        assertFalse(page.getWebResponse().getContentAsString().contains("Secret Guard blocked saving"));
+        String persistedXml = jenkinsRule
+                .jenkins
+                .getItemByFullName(project.getFullName(), FreeStyleProject.class)
+                .getConfigFile()
+                .asString();
+        assertTrue(persistedXml.contains("API_TOKEN"));
+        assertTrue(persistedXml.contains("ghp_012345678901234567890123456789012345"));
+    }
+
+    @Test
+    @WithJenkins
+    void warnModeAllowsConfigXmlModificationWithoutBlocking(JenkinsRule jenkinsRule) throws Exception {
+        configure(EnforcementMode.WARN);
+        FreeStyleProject project = jenkinsRule.createFreeStyleProject("warn-allowed");
+        String riskyXml = withRiskyParameter(project.getConfigFile().asString());
+
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient().withThrowExceptionOnFailingStatusCode(false);
+        WebRequest request =
+                new WebRequest(webClient.createCrumbedUrl(project.getUrl() + "config.xml"), HttpMethod.POST);
+        request.setAdditionalHeader("Content-Type", "application/xml");
+        request.setRequestBody(riskyXml);
+
+        Page page = webClient.getPage(request);
+
+        assertTrue(page.getWebResponse().getStatusCode() < 400);
+        assertFalse(page.getWebResponse().getContentAsString().contains("Secret Guard blocked saving"));
+        String persistedXml = jenkinsRule
+                .jenkins
+                .getItemByFullName(project.getFullName(), FreeStyleProject.class)
+                .getConfigFile()
+                .asString();
+        assertTrue(persistedXml.contains("API_TOKEN"));
+        assertTrue(persistedXml.contains("ghp_012345678901234567890123456789012345"));
+    }
+
+    @Test
+    @WithJenkins
     void blocksCreatingJobFromXmlInBlockMode(JenkinsRule jenkinsRule) throws Exception {
         configure(EnforcementMode.BLOCK);
         FreeStyleProject template = jenkinsRule.createFreeStyleProject("template");
@@ -220,6 +272,34 @@ class SecretGuardEnforcementIntegrationTest {
         SecretGuardRunAction action = run.getAction(SecretGuardRunAction.class);
         assertNotNull(action);
         assertTrue(action.getFindings().isEmpty());
+    }
+
+    @Test
+    @WithJenkins
+    void blockModeFailsBuildForHighSeverityPipelineFinding(JenkinsRule jenkinsRule) throws Exception {
+        configure(EnforcementMode.BLOCK);
+        WorkflowJob job = jenkinsRule.createProject(WorkflowJob.class, "block-build-failure");
+        job.setDefinition(new CpsFlowDefinition("""
+                def webhookUrl = 'https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999'
+                pipeline {
+                  agent any
+                  stages {
+                    stage('should-not-pass') {
+                      steps {
+                        echo 'running'
+                      }
+                    }
+                  }
+                }
+                """, true));
+
+        WorkflowRun run = jenkinsRule.buildAndAssertStatus(Result.FAILURE, job);
+
+        SecretGuardRunAction action = run.getAction(SecretGuardRunAction.class);
+        assertNotNull(action);
+        assertTrue(action.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")));
+        assertEquals(Result.FAILURE, run.getResult());
     }
 
     @Test

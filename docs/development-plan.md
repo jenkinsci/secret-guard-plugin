@@ -75,17 +75,17 @@ Expected outcome:
 
 Priority: `P0`
 
-Status: save-time blocking, manual scan, Pipeline-from-SCM, multibranch, and `WARN` build-result flows are covered with JenkinsRule tests; explicit `AUDIT` save-flow coverage and a dedicated `BLOCK` build-failure regression remain outstanding.
+Status: save-time blocking, manual scan, Pipeline-from-SCM, multibranch, `AUDIT`/`WARN` save-flow, `WARN` build-result, and dedicated `BLOCK` build-failure flows are covered with JenkinsRule tests.
 
 Tasks:
 
 - add a save-time integration test for a Job containing plaintext `password` in config
-- verify `AUDIT` does not block
-- verify `WARN` does not block
+- [x] verify `AUDIT` does not block
+- [x] verify `WARN` does not block
 - [x] verify `BLOCK` blocks unexempted `HIGH`
 - add a Pipeline build test for inline script with bearer token
 - [x] verify `WARN` marks the build `UNSTABLE`
-- verify `BLOCK` interrupts/fails the build
+- [x] verify `BLOCK` interrupts/fails the build
 
 Acceptance criteria:
 
