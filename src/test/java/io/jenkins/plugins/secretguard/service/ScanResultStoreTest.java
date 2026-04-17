@@ -4,11 +4,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.jenkins.plugins.secretguard.model.EnforcementMode;
 import io.jenkins.plugins.secretguard.model.FindingLocationType;
+import io.jenkins.plugins.secretguard.model.ScanContext;
+import io.jenkins.plugins.secretguard.model.ScanPhase;
 import io.jenkins.plugins.secretguard.model.SecretFinding;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import io.jenkins.plugins.secretguard.model.Severity;
+import io.jenkins.plugins.secretguard.scan.ConfigXmlScanner;
 import java.io.File;
+import java.nio.file.Files;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -67,6 +72,38 @@ class ScanResultStoreTest {
         assertEquals(0, reader.getAll().size());
     }
 
+    @Test
+    void persistedXmlNeverIncludesRawScannedContentOrRawSecretValues() throws Exception {
+        String rawSecretValue = "ghp_012345678901234567890123456789012345";
+        String rawPipelineContent =
+                "pipeline { agent any stages { stage('ship') { steps { echo 'shipping release' } } } }";
+        String xml = """
+                <flow-definition>
+                  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition">
+                    <script><![CDATA[%s
+                    def token = '%s'
+                    ]]></script>
+                  </definition>
+                </flow-definition>
+                """.formatted(rawPipelineContent, rawSecretValue);
+
+        ScanResultStore store = ScanResultStore.inDirectory(temporaryDirectory);
+        SecretScanResult scanned = new ConfigXmlScanner().scan(context(), xml);
+        assertFalse(scanned.getFindings().isEmpty());
+
+        store.put(scanned);
+
+        File[] persistedFiles = temporaryDirectory.listFiles((dir, name) -> name.endsWith(".xml"));
+        assertEquals(1, persistedFiles == null ? 0 : persistedFiles.length);
+        String persistedXml = Files.readString(persistedFiles[0].toPath());
+
+        assertTrue(persistedXml.contains("folder/job"));
+        assertTrue(persistedXml.contains("WorkflowJob"));
+        assertFalse(persistedXml.contains(rawSecretValue));
+        assertFalse(persistedXml.contains(rawPipelineContent));
+        assertFalse(persistedXml.contains("shipping release"));
+    }
+
     private SecretFinding finding(boolean exempted) {
         SecretFinding finding = new SecretFinding(
                 "url-query-secret",
@@ -81,5 +118,16 @@ class ScanResultStoreTest {
                 "Move URL query secrets such as webhook keys to Jenkins Credentials and inject them at runtime.",
                 "Suppressed generic finding(s) for the same value: high-entropy-string.");
         return exempted ? finding.withExemption("approved test exemption") : finding;
+    }
+
+    private ScanContext context() {
+        return new ScanContext(
+                "folder/job",
+                "config.xml",
+                "WorkflowJob",
+                FindingLocationType.CONFIG_XML,
+                ScanPhase.SAVE,
+                EnforcementMode.AUDIT,
+                Severity.HIGH);
     }
 }
