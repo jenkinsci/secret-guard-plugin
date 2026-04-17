@@ -10,7 +10,9 @@
                 <j:when test="${it.canScanNow()}">
                     <f:form method="post" action="scanNow">
                         <f:block>
-                            <button class="jenkins-button" type="submit">Scan Now</button>
+                            <button class="jenkins-button jenkins-submit-button jenkins-button--primary" type="submit">
+                                Scan Now
+                            </button>
                         </f:block>
                     </f:form>
                 </j:when>
@@ -44,7 +46,9 @@
                                         </span>
                                     </td>
                                     <td>${finding.ruleId}</td>
-                                    <td>${finding.sourceName}</td>
+                                    <td style="max-width: 24rem; white-space: normal; overflow-wrap: anywhere;">
+                                        <span title="${finding.sourceName}">${it.getDisplayLocation(finding)}</span>
+                                    </td>
                                     <td>${finding.fieldName}</td>
                                     <td>${finding.lineNumber}</td>
                                     <td>${finding.maskedSnippet}</td>

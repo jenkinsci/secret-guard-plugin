@@ -27,6 +27,9 @@ public class SecretGuardJobAction implements Action, SeverityBadgeSupport {
     private static final String LOG_PREFIX = "[Secret Guard][Manual Scan] ";
     private static final String BRANCH_JOB_PROPERTY_CLASS =
             "org.jenkinsci.plugins.workflow.multibranch.BranchJobProperty";
+    private static final int MAX_DISPLAY_LOCATION_LENGTH = 96;
+    private static final int DISPLAY_LOCATION_TAIL_SEGMENTS = 3;
+    private static final String ELLIPSIS = "\u2026";
 
     private final Job<?, ?> job;
     private final ManualJobScanService manualJobScanService;
@@ -94,6 +97,13 @@ public class SecretGuardJobAction implements Action, SeverityBadgeSupport {
         return request != null && "success".equals(request.getParameter("manualScan"));
     }
 
+    public String getDisplayLocation(SecretFinding finding) {
+        if (finding == null) {
+            return "";
+        }
+        return compactLocation(finding.getSourceName());
+    }
+
     @RequirePOST
     public HttpResponse doScanNow() throws Exception {
         LOGGER.log(Level.FINE, LOG_PREFIX + "Manual Secret Guard scan requested for {0}", job.getFullName());
@@ -114,6 +124,42 @@ public class SecretGuardJobAction implements Action, SeverityBadgeSupport {
 
     private Optional<SecretScanResult> result() {
         return ScanResultStore.get().get(job.getFullName());
+    }
+
+    private static String compactLocation(String location) {
+        if (location == null || location.length() <= MAX_DISPLAY_LOCATION_LENGTH) {
+            return location == null ? "" : location;
+        }
+        String pathTail = compactPathTail(location);
+        if (!pathTail.equals(location)) {
+            return middleEllipsize(pathTail);
+        }
+        return middleEllipsize(location);
+    }
+
+    private static String compactPathTail(String location) {
+        String[] segments = location.split("/");
+        List<String> visibleSegments = new java.util.ArrayList<>();
+        for (String segment : segments) {
+            if (!segment.isBlank()) {
+                visibleSegments.add(segment);
+            }
+        }
+        if (visibleSegments.size() <= DISPLAY_LOCATION_TAIL_SEGMENTS) {
+            return location;
+        }
+        int start = visibleSegments.size() - DISPLAY_LOCATION_TAIL_SEGMENTS;
+        return ELLIPSIS + "/" + String.join("/", visibleSegments.subList(start, visibleSegments.size()));
+    }
+
+    private static String middleEllipsize(String value) {
+        if (value.length() <= MAX_DISPLAY_LOCATION_LENGTH) {
+            return value;
+        }
+        int remainingLength = MAX_DISPLAY_LOCATION_LENGTH - ELLIPSIS.length();
+        int prefixLength = remainingLength / 2;
+        int suffixLength = remainingLength - prefixLength;
+        return value.substring(0, prefixLength) + ELLIPSIS + value.substring(value.length() - suffixLength);
     }
 
     private boolean hasManualScanPermission() {
