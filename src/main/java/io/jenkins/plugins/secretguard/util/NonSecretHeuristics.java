@@ -26,6 +26,9 @@ public final class NonSecretHeuristics {
     private static final Pattern JDBC_URL = Pattern.compile("(?i)\\bjdbc:[a-z0-9][a-z0-9:._-]*://[^\\s'\"<>]+");
     private static final Pattern SENSITIVE_PARAMETER_NAME = Pattern.compile(
             "(?i).*(password|passwd|pwd|token|secret|api[_-]?key|apikey|access[_-]?key|accesskey|client[_-]?secret|credential|auth|webhook).*");
+    private static final Pattern HTTP_URL = Pattern.compile("(?i)\\bhttps?://[^\\s'\"<>]+");
+    private static final Pattern SENSITIVE_URL_NAME = Pattern.compile(
+            "(?i).*(password|passwd|pwd|token|secret|api[_-]?key|apikey|access[_-]?key|accesskey|client[_-]?secret|credential|auth|webhook|signature|sig).*");
 
     private NonSecretHeuristics() {}
 
@@ -82,6 +85,18 @@ public final class NonSecretHeuristics {
             return false;
         }
         return looksLikeLocalFileReference(candidate);
+    }
+
+    public static boolean looksLikeNonSecretUrl(String originalValue, String candidate) {
+        String url = findContainingHttpUrl(originalValue, candidate);
+        if (url.isEmpty() || candidate == null || !candidate.contains("/")) {
+            return false;
+        }
+        if (urlAuthorityLooksCredentialed(url) || urlContainsSensitiveQueryOrFragment(url)) {
+            return false;
+        }
+        String path = urlPath(url);
+        return looksLikeReadableUrlPath(path) && !urlPathLooksSensitive(path);
     }
 
     public static boolean isCredentialIdField(String fieldName) {
@@ -173,6 +188,9 @@ public final class NonSecretHeuristics {
         }
         if (looksLikeBenignDatabaseConnectionParameter(originalValue, candidate)) {
             return "Skipped high-entropy candidate because it looks like a database connection option.";
+        }
+        if (looksLikeNonSecretUrl(originalValue, candidate)) {
+            return "Skipped high-entropy candidate because it looks like a non-secret URL.";
         }
         if (looksLikeIdentifier(candidate)) {
             return "Skipped high-entropy candidate because it looks like a readable identifier.";
@@ -431,6 +449,134 @@ public final class NonSecretHeuristics {
             return true;
         }
         return trimmed.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,120}\\.[A-Za-z0-9]{1,10}");
+    }
+
+    private static String findContainingHttpUrl(String originalValue, String candidate) {
+        if (originalValue == null || candidate == null || candidate.isBlank()) {
+            return "";
+        }
+        Matcher matcher = HTTP_URL.matcher(originalValue);
+        while (matcher.find()) {
+            String url = stripTrailingUrlPunctuation(matcher.group());
+            if (url.contains(candidate)) {
+                return url;
+            }
+        }
+        return "";
+    }
+
+    private static String stripTrailingUrlPunctuation(String value) {
+        String trimmed = nullToEmpty(value).trim();
+        while (!trimmed.isEmpty()) {
+            char last = trimmed.charAt(trimmed.length() - 1);
+            if (".,;!?)]}）】，。；！？".indexOf(last) < 0) {
+                break;
+            }
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed;
+    }
+
+    private static boolean urlAuthorityLooksCredentialed(String url) {
+        int authorityStart = url.indexOf("://");
+        if (authorityStart < 0) {
+            return false;
+        }
+        authorityStart += 3;
+        int authorityEnd = url.length();
+        for (char delimiter : new char[] {'/', '?', '#'}) {
+            int delimiterIndex = url.indexOf(delimiter, authorityStart);
+            if (delimiterIndex >= 0) {
+                authorityEnd = Math.min(authorityEnd, delimiterIndex);
+            }
+        }
+        String authority = url.substring(authorityStart, authorityEnd);
+        int userInfoEnd = authority.lastIndexOf('@');
+        return userInfoEnd > 0 && authority.substring(0, userInfoEnd).contains(":");
+    }
+
+    private static boolean urlContainsSensitiveQueryOrFragment(String url) {
+        String query = urlQuery(url);
+        if (!query.isBlank()) {
+            for (String parameter : query.split("[&;]")) {
+                int separator = parameter.indexOf('=');
+                String name = separator >= 0 ? parameter.substring(0, separator) : parameter;
+                String value = separator >= 0 ? parameter.substring(separator + 1) : "";
+                if (SENSITIVE_URL_NAME.matcher(name).matches()
+                        || (!value.isBlank() && value.length() >= 16 && entropy(value) >= 4.0)) {
+                    return true;
+                }
+            }
+        }
+        String fragment = urlFragment(url);
+        return !fragment.isBlank()
+                && (SENSITIVE_URL_NAME.matcher(fragment).matches()
+                        || (fragment.length() >= 16 && entropy(fragment) >= 4.0));
+    }
+
+    private static String urlPath(String url) {
+        int authorityStart = url.indexOf("://");
+        if (authorityStart < 0) {
+            return "";
+        }
+        authorityStart += 3;
+        int pathStart = url.indexOf('/', authorityStart);
+        if (pathStart < 0) {
+            return "";
+        }
+        int pathEnd = url.length();
+        for (char delimiter : new char[] {'?', '#'}) {
+            int delimiterIndex = url.indexOf(delimiter, pathStart);
+            if (delimiterIndex >= 0) {
+                pathEnd = Math.min(pathEnd, delimiterIndex);
+            }
+        }
+        return url.substring(pathStart, pathEnd);
+    }
+
+    private static String urlQuery(String url) {
+        int queryStart = url.indexOf('?');
+        if (queryStart < 0) {
+            return "";
+        }
+        int fragmentStart = url.indexOf('#', queryStart + 1);
+        return fragmentStart >= 0 ? url.substring(queryStart + 1, fragmentStart) : url.substring(queryStart + 1);
+    }
+
+    private static String urlFragment(String url) {
+        int fragmentStart = url.indexOf('#');
+        return fragmentStart >= 0 && fragmentStart + 1 < url.length() ? url.substring(fragmentStart + 1) : "";
+    }
+
+    private static boolean looksLikeReadableUrlPath(String path) {
+        String[] segments = nullToEmpty(path).split("/+");
+        int readableSegments = 0;
+        for (String segment : segments) {
+            if (segment.isBlank()) {
+                continue;
+            }
+            if (segment.length() > 80 || !segment.matches("[A-Za-z0-9._~%+=:-]+")) {
+                return false;
+            }
+            if (segment.length() >= 24
+                    && entropy(segment) >= 4.0
+                    && !UUID.matcher(segment).matches()) {
+                return false;
+            }
+            if (segment.matches(".*[A-Za-z].*")) {
+                readableSegments++;
+            }
+        }
+        return readableSegments >= 2;
+    }
+
+    private static boolean urlPathLooksSensitive(String path) {
+        for (String segment : nullToEmpty(path).split("/+")) {
+            if (SENSITIVE_URL_NAME.matcher(segment).matches()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean looksLikeEncodedHighEntropyToken(String value) {

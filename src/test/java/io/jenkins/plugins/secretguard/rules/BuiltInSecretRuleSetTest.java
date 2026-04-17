@@ -85,6 +85,14 @@ class BuiltInSecretRuleSetTest {
     }
 
     @Test
+    void doesNotTreatNonSecretUrlsAsHighEntropySecrets() {
+        assertTrue(scan(
+                        "description",
+                        "Example: http://jenkins.example.invalid:8080/job/example-service/job/build-test/80")
+                .isEmpty());
+    }
+
+    @Test
     void stillDetectsSensitiveJdbcParametersAsHighEntropySecrets() {
         List<SecretFinding> findings = scan(
                 "defaultValue",

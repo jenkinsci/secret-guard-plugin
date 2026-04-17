@@ -46,6 +46,19 @@ class NonSecretHeuristicsTest {
     }
 
     @Test
+    void detectsNonSecretUrlsWithoutHidingUrlSecrets() {
+        assertTrue(NonSecretHeuristics.looksLikeNonSecretUrl(
+                "Example: http://jenkins.example.invalid:8080/job/example-service/job/build-test/80",
+                "8080/job/example-service/job/build-test/80"));
+        assertFalse(NonSecretHeuristics.looksLikeNonSecretUrl(
+                "https://user:password@example.invalid/job/example-service/job/build-test/80",
+                "example.invalid/job/example-service/job/build-test/80"));
+        assertFalse(NonSecretHeuristics.looksLikeNonSecretUrl(
+                "https://example.invalid/webhook?token=QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l",
+                "QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l"));
+    }
+
+    @Test
     void reportsWhyHighEntropyCandidatesAreIgnored() {
         assertNotEquals(
                 "",
@@ -88,6 +101,12 @@ class NonSecretHeuristicsTest {
                         "separator-d45a9f41-b001-4c08-80ab-a23bdc5ccb96",
                         "name",
                         "separator-d45a9f41-b001-4c08-80ab-a23bdc5ccb96"));
+        assertNotEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "Example: http://jenkins.example.invalid:8080/job/example-service/job/build-test/80",
+                        "description",
+                        "8080/job/example-service/job/build-test/80"));
         for (String value : List.of(
                 "s3://example-bucket/runtime/sample_dataset/record_01",
                 "s3a://example-bucket/runtime/sample_dataset/record_01",

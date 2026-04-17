@@ -203,6 +203,29 @@ class ConfigXmlScannerTest {
     }
 
     @Test
+    void doesNotFlagNonSecretUrlDescriptionsAsHighEntropySecrets() {
+        String xml = """
+                <flow-definition>
+                  <properties>
+                    <hudson.model.ParametersDefinitionProperty>
+                      <parameterDefinitions>
+                        <hudson.model.StringParameterDefinition>
+                          <name>EXAMPLE_BUILD_URL</name>
+                          <description>Example: http://jenkins.example.invalid:8080/job/example-service/job/build-test/80</description>
+                        </hudson.model.StringParameterDefinition>
+                      </parameterDefinitions>
+                    </hudson.model.ParametersDefinitionProperty>
+                  </properties>
+                </flow-definition>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("WorkflowJob"), xml);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
     void parsesMixedCustomHeadersFromInlinePipelineScript() {
         String xml = """
                 <flow-definition>
