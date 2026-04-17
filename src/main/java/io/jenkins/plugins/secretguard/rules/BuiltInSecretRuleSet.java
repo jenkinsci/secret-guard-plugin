@@ -8,10 +8,13 @@ import io.jenkins.plugins.secretguard.util.SecretMasker;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class BuiltInSecretRuleSet {
+    private static final Logger LOGGER = Logger.getLogger(BuiltInSecretRuleSet.class.getName());
     private static final Pattern SENSITIVE_FIELD =
             Pattern.compile("(?i)(token|password|secret|api[_-]?key|apikey|access[_-]?key|accessKey|clientSecret)");
 
@@ -92,6 +95,21 @@ public class BuiltInSecretRuleSet {
             String fieldName,
             String matchedValue,
             String recommendation) {
+        return finding(
+                ruleId, title, severity, context, sourceName, lineNumber, fieldName, matchedValue, recommendation, "");
+    }
+
+    private static SecretFinding finding(
+            String ruleId,
+            String title,
+            Severity severity,
+            ScanContext context,
+            String sourceName,
+            int lineNumber,
+            String fieldName,
+            String matchedValue,
+            String recommendation,
+            String analysisNote) {
         return new SecretFinding(
                 ruleId,
                 title,
@@ -102,7 +120,8 @@ public class BuiltInSecretRuleSet {
                 lineNumber,
                 fieldName,
                 SecretMasker.mask(matchedValue),
-                recommendation);
+                recommendation,
+                analysisNote);
     }
 
     private static final class SensitiveFieldRule implements SecretRule {
@@ -127,7 +146,8 @@ public class BuiltInSecretRuleSet {
                         lineNumber,
                         fieldName,
                         value,
-                        Recommendations.PLACEHOLDER));
+                        Recommendations.PLACEHOLDER,
+                        "Downgraded because the value looks like a redaction placeholder instead of a real secret."));
             }
             if (looksLikeSafeReference(value)) {
                 return Collections.emptyList();
@@ -214,8 +234,12 @@ public class BuiltInSecretRuleSet {
             List<SecretFinding> findings = new ArrayList<>();
             while (matcher.find()) {
                 String candidate = matcher.group();
-                if (NonSecretHeuristics.looksLikeNonSecretHighEntropyToken(value, fieldName, candidate)
-                        || NonSecretHeuristics.entropy(candidate) < 4.0) {
+                String suppressionReason = NonSecretHeuristics.nonSecretHighEntropyReason(value, fieldName, candidate);
+                if (!suppressionReason.isEmpty() || NonSecretHeuristics.entropy(candidate) < 4.0) {
+                    if (!suppressionReason.isEmpty() && LOGGER.isLoggable(Level.FINE)) {
+                        LOGGER.fine("[Secret Guard][Heuristics] " + suppressionReason + " Source=" + sourceName
+                                + ", field=" + fieldName + ", line=" + lineNumber + ".");
+                    }
                     continue;
                 }
                 findings.add(finding(

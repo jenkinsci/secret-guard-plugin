@@ -80,9 +80,14 @@ public class SecretScanService {
     private List<SecretFinding> dedupeByRulePriority(List<SecretFinding> findings) {
         List<SecretFinding> deduped = new ArrayList<>();
         for (SecretFinding candidate : findings) {
-            if (!isSuppressed(candidate, findings)) {
-                deduped.add(candidate);
+            if (isSuppressed(candidate, findings)) {
+                continue;
             }
+            List<SecretFinding> suppressedFindings = suppressedByCandidate(candidate, findings);
+            deduped.add(
+                    suppressedFindings.isEmpty()
+                            ? candidate
+                            : candidate.withAnalysisNote(buildSuppressionNote(suppressedFindings)));
         }
         return deduped;
     }
@@ -99,6 +104,19 @@ public class SecretScanService {
         return false;
     }
 
+    private List<SecretFinding> suppressedByCandidate(SecretFinding candidate, List<SecretFinding> findings) {
+        List<SecretFinding> suppressed = new ArrayList<>();
+        for (SecretFinding other : findings) {
+            if (candidate == other || !sameFindingScope(candidate, other)) {
+                continue;
+            }
+            if (suppresses(candidate.getRuleId(), other.getRuleId())) {
+                suppressed.add(other);
+            }
+        }
+        return suppressed;
+    }
+
     private boolean sameFindingScope(SecretFinding left, SecretFinding right) {
         return left.getLineNumber() == right.getLineNumber()
                 && left.getFieldName().equals(right.getFieldName())
@@ -111,5 +129,15 @@ public class SecretScanService {
             return true;
         }
         return SPECIFIC_SECRET_RULES.contains(strongerRuleId) && SENSITIVE_FIELD_RULE.equals(weakerRuleId);
+    }
+
+    private String buildSuppressionNote(List<SecretFinding> suppressedFindings) {
+        if (suppressedFindings.isEmpty()) {
+            return "";
+        }
+        Set<String> suppressedRuleIds = suppressedFindings.stream()
+                .map(SecretFinding::getRuleId)
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+        return "Suppressed generic finding(s) for the same value: " + String.join(", ", suppressedRuleIds) + ".";
     }
 }

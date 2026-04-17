@@ -89,6 +89,7 @@ Pipeline-from-SCM Jenkinsfiles are scanned during manual scans and build-time sc
 - `SecretFinding`
   - immutable finding payload
   - supports `withExemption(reason)` to preserve original finding content while marking policy state
+  - can carry an optional analysis note that explains why a finding was downgraded or why generic sibling findings were suppressed
 - `SecretScanResult`
   - holds findings, highest severity, blocked flag, and scan timestamp
 - `ScanContext`
@@ -188,6 +189,7 @@ When adding a new rule:
 - `[Secret Guard][Item Sync]` covers item create/update/copy synchronization failures
 - `[Secret Guard][ClassLoader]` covers optional plugin class resolution
 - `[Secret Guard][Persistence]` covers latest-result disk persistence and restore failures
+- `[Secret Guard][Heuristics]` at debug/FINE level explains why high-entropy candidates were treated as non-secret values
 
 #### `NonSecretHeuristics`
 
@@ -196,6 +198,7 @@ When adding a new rule:
 - exposes shared runtime-reference detection for values such as `$TOKEN`, `${TOKEN}`, `env.TOKEN`, `params.TOKEN`, `env['TOKEN']`, and `credentials(...)`
 - recognizes strongly placeholder-like literals such as redacted/masked/hidden markers and repeated mask characters, including simple assignments and XML text nodes
 - skips paths, repository addresses such as `http(s)://`, `ftp://`, `sftp://`, short-host/IP `host:port/path`, scp-style `user@host:path`, network-share paths, Docker image references, hash/checksum/digest/commit contexts, public certificates, and trace/request ID headers
+- exposes structured reason text for ignored high-entropy candidates so UI notes and debug logs can explain the suppression
 - exposes a shared entropy helper for rules and Pipeline header analysis
 
 ### Services

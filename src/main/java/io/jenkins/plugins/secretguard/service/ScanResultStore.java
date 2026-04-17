@@ -227,6 +227,7 @@ public class ScanResultStore {
         public String fieldName;
         public String maskedSnippet;
         public String recommendation;
+        public String analysisNote;
         public boolean exempted;
         public String exemptionReason;
 
@@ -242,6 +243,7 @@ public class ScanResultStore {
             persisted.fieldName = finding.getFieldName();
             persisted.maskedSnippet = finding.getMaskedSnippet();
             persisted.recommendation = finding.getRecommendation();
+            persisted.analysisNote = finding.getAnalysisNote();
             persisted.exempted = finding.isExempted();
             persisted.exemptionReason = finding.getExemptionReason();
             return persisted;
@@ -258,7 +260,8 @@ public class ScanResultStore {
                     lineNumber,
                     fieldName,
                     maskedSnippet,
-                    recommendation);
+                    recommendation,
+                    analysisNote);
             return exempted ? finding.withExemption(exemptionReason) : finding;
         }
 

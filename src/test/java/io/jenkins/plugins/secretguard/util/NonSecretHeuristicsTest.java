@@ -1,6 +1,7 @@
 package io.jenkins.plugins.secretguard.util;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -33,5 +34,19 @@ class NonSecretHeuristicsTest {
         assertTrue(NonSecretHeuristics.looksLikePlaceholderValue("Bearer __HIDDEN__"));
         assertFalse(NonSecretHeuristics.looksLikePlaceholderValue("ExamplePlaintextSecret12345"));
         assertFalse(NonSecretHeuristics.looksLikePlaceholderValue("change-me-later"));
+    }
+
+    @Test
+    void reportsWhyHighEntropyCandidatesAreIgnored() {
+        assertNotEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "https://artifacts.example.invalid:443/repository/build-tools/bootstrap_bundle/",
+                        "",
+                        "artifacts.example.invalid:443/repository/build-tools/bootstrap_bundle/"));
+        assertNotEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "jfrog-cred-default", "registryCredentialsId", "jfrog-cred-default"));
     }
 }

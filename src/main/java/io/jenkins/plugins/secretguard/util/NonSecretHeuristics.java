@@ -117,13 +117,32 @@ public final class NonSecretHeuristics {
     }
 
     public static boolean looksLikeNonSecretHighEntropyToken(String originalValue, String fieldName, String candidate) {
-        return isCredentialIdField(fieldName)
-                || isHashOrDigestContext(fieldName, originalValue)
-                || isPublicCertificateContext(originalValue)
-                || isBenignTrackingHeaderContext(fieldName, originalValue)
-                || looksLikeIdentifier(candidate)
-                || looksLikePathOrImage(originalValue, candidate)
-                || looksLikeHumanReadableIdentifier(candidate);
+        return !nonSecretHighEntropyReason(originalValue, fieldName, candidate).isEmpty();
+    }
+
+    public static String nonSecretHighEntropyReason(String originalValue, String fieldName, String candidate) {
+        if (isCredentialIdField(fieldName)) {
+            return "Skipped high-entropy candidate because the field looks like a credentials ID.";
+        }
+        if (isHashOrDigestContext(fieldName, originalValue)) {
+            return "Skipped high-entropy candidate because the surrounding context looks like a hash or digest.";
+        }
+        if (isPublicCertificateContext(originalValue)) {
+            return "Skipped high-entropy candidate because the value looks like a public certificate.";
+        }
+        if (isBenignTrackingHeaderContext(fieldName, originalValue)) {
+            return "Skipped high-entropy candidate because the header looks like a trace or request identifier.";
+        }
+        if (looksLikeIdentifier(candidate)) {
+            return "Skipped high-entropy candidate because it looks like a readable identifier.";
+        }
+        if (looksLikePathOrImage(originalValue, candidate)) {
+            return "Skipped high-entropy candidate because it looks like a repository address, path, or image reference.";
+        }
+        if (looksLikeHumanReadableIdentifier(candidate)) {
+            return "Skipped high-entropy candidate because it looks like a human-readable identifier.";
+        }
+        return "";
     }
 
     public static double entropy(String value) {

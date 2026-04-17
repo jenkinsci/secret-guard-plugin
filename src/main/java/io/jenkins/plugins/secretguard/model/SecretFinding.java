@@ -13,6 +13,7 @@ public class SecretFinding {
     private final String fieldName;
     private final String maskedSnippet;
     private final String recommendation;
+    private final String analysisNote;
     private final boolean exempted;
     private final String exemptionReason;
 
@@ -38,6 +39,35 @@ public class SecretFinding {
                 fieldName,
                 maskedSnippet,
                 recommendation,
+                "",
+                false,
+                "");
+    }
+
+    public SecretFinding(
+            String ruleId,
+            String title,
+            Severity severity,
+            FindingLocationType locationType,
+            String jobFullName,
+            String sourceName,
+            int lineNumber,
+            String fieldName,
+            String maskedSnippet,
+            String recommendation,
+            String analysisNote) {
+        this(
+                ruleId,
+                title,
+                severity,
+                locationType,
+                jobFullName,
+                sourceName,
+                lineNumber,
+                fieldName,
+                maskedSnippet,
+                recommendation,
+                analysisNote,
                 false,
                 "");
     }
@@ -53,6 +83,7 @@ public class SecretFinding {
             String fieldName,
             String maskedSnippet,
             String recommendation,
+            String analysisNote,
             boolean exempted,
             String exemptionReason) {
         this.ruleId = Objects.requireNonNull(ruleId);
@@ -65,6 +96,7 @@ public class SecretFinding {
         this.fieldName = nullToEmpty(fieldName);
         this.maskedSnippet = nullToEmpty(maskedSnippet);
         this.recommendation = nullToEmpty(recommendation);
+        this.analysisNote = nullToEmpty(analysisNote);
         this.exempted = exempted;
         this.exemptionReason = nullToEmpty(exemptionReason);
     }
@@ -81,8 +113,26 @@ public class SecretFinding {
                 fieldName,
                 maskedSnippet,
                 recommendation,
+                analysisNote,
                 true,
                 reason);
+    }
+
+    public SecretFinding withAnalysisNote(String note) {
+        return new SecretFinding(
+                ruleId,
+                title,
+                severity,
+                locationType,
+                jobFullName,
+                sourceName,
+                lineNumber,
+                fieldName,
+                maskedSnippet,
+                recommendation,
+                appendNote(analysisNote, note),
+                exempted,
+                exemptionReason);
     }
 
     public String getRuleId() {
@@ -125,6 +175,10 @@ public class SecretFinding {
         return recommendation;
     }
 
+    public String getAnalysisNote() {
+        return analysisNote;
+    }
+
     public boolean isExempted() {
         return exempted;
     }
@@ -139,5 +193,20 @@ public class SecretFinding {
 
     private static String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private static String appendNote(String existing, String additional) {
+        String normalizedExisting = nullToEmpty(existing).trim();
+        String normalizedAdditional = nullToEmpty(additional).trim();
+        if (normalizedAdditional.isEmpty()) {
+            return normalizedExisting;
+        }
+        if (normalizedExisting.isEmpty()) {
+            return normalizedAdditional;
+        }
+        if (normalizedExisting.contains(normalizedAdditional)) {
+            return normalizedExisting;
+        }
+        return normalizedExisting + " " + normalizedAdditional;
     }
 }

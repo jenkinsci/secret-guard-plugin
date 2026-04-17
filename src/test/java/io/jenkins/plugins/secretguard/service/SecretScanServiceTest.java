@@ -70,6 +70,10 @@ class SecretScanServiceTest {
                 .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
         assertTrue(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("http-request-unmasked-header-secret")));
+        assertTrue(result.getFindings().stream()
+                .filter(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret"))
+                .map(SecretFinding::getAnalysisNote)
+                .anyMatch(note -> note.contains("Suppressed generic finding(s)")));
     }
 
     @Test

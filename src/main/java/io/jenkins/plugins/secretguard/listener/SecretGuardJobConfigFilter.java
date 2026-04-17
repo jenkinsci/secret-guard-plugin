@@ -142,6 +142,7 @@ public class SecretGuardJobConfigFilter implements Filter {
         String severity = "HIGH";
         String maskedSnippet = "n/a";
         String recommendation = "Move plaintext secrets to Jenkins Credentials and inject them at runtime.";
+        String analysisNote = "";
         if (result != null && !result.getFindings().isEmpty()) {
             ruleId = Util.xmlEscape(defaultValue(result.getFindings().get(0).getRuleId(), "n/a"));
             severity = Util.xmlEscape(
@@ -153,6 +154,8 @@ public class SecretGuardJobConfigFilter implements Filter {
             recommendation = Util.xmlEscape(defaultValue(
                     result.getFindings().get(0).getRecommendation(),
                     "Move plaintext secrets to Jenkins Credentials and inject them at runtime."));
+            analysisNote =
+                    Util.xmlEscape(defaultValue(result.getFindings().get(0).getAnalysisNote(), ""));
         }
         return "<!DOCTYPE html><html><body style=\"margin:0;padding:24px;font-family:inherit;\">"
                 + "<div id=\"error-description\" role=\"alert\" aria-live=\"assertive\" "
@@ -169,6 +172,9 @@ public class SecretGuardJobConfigFilter implements Filter {
                 + "<div style=\"font-weight:700;\">Rule</div><div><code>" + ruleId + "</code></div>"
                 + "<div style=\"font-weight:700;\">Severity</div><div>" + severity + "</div>"
                 + "<div style=\"font-weight:700;\">Masked snippet</div><div><code>" + maskedSnippet + "</code></div>"
+                + (analysisNote.isBlank()
+                        ? ""
+                        : "<div style=\"font-weight:700;\">Analysis</div><div>" + analysisNote + "</div>")
                 + "</div>"
                 + "<div style=\"font-size:13px;line-height:1.6;padding-top:12px;border-top:1px solid #f2c1bf;\">"
                 + "<div style=\"font-weight:700;margin-bottom:4px;\">Recommended fix</div>"

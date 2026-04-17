@@ -31,6 +31,7 @@
                                 <th>Line</th>
                                 <th>Masked snippet</th>
                                 <th>Recommendation</th>
+                                <th>Analysis</th>
                                 <th>Exempted</th>
                             </tr>
                         </thead>
@@ -48,6 +49,7 @@
                                     <td>${finding.lineNumber}</td>
                                     <td>${finding.maskedSnippet}</td>
                                     <td>${finding.recommendation}</td>
+                                    <td>${finding.analysisNote}</td>
                                     <td>
                                         <j:choose>
                                             <j:when test="${finding.exempted}">Yes: ${finding.exemptionReason}</j:when>

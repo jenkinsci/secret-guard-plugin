@@ -35,6 +35,9 @@ class ScanResultStoreTest {
         assertTrue(loaded.isBlocked());
         assertEquals(1, loaded.getFindings().size());
         assertEquals("Exa…DEF", loaded.getFindings().get(0).getMaskedSnippet());
+        assertEquals(
+                "Suppressed generic finding(s) for the same value: high-entropy-string.",
+                loaded.getFindings().get(0).getAnalysisNote());
         assertEquals(1, reader.getAll().size());
     }
 
@@ -66,7 +69,8 @@ class ScanResultStoreTest {
                 12,
                 "key",
                 "Exa…DEF",
-                "Move URL query secrets such as webhook keys to Jenkins Credentials and inject them at runtime.");
+                "Move URL query secrets such as webhook keys to Jenkins Credentials and inject them at runtime.",
+                "Suppressed generic finding(s) for the same value: high-entropy-string.");
         return exempted ? finding.withExemption("approved test exemption") : finding;
     }
 }
