@@ -63,6 +63,23 @@ class BuiltInSecretRuleSetTest {
     }
 
     @Test
+    void doesNotTreatReadableJdbcOptionsAsHighEntropySecrets() {
+        assertTrue(scan(
+                        "defaultValue",
+                        "jdbc:mysql://db.example.invalid:3306/example_metadata?sessionVariables=sql_mode=STRICT_TRANS_TABLES&useMysqlMetadata=true")
+                .isEmpty());
+    }
+
+    @Test
+    void stillDetectsSensitiveJdbcParametersAsHighEntropySecrets() {
+        List<SecretFinding> findings = scan(
+                "defaultValue",
+                "jdbc:mysql://db.example.invalid:3306/example_metadata?password=QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l");
+
+        assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
     void doesNotTreatCredentialIdsAsSecrets() {
         assertTrue(scan("registryCredentialsId", "jfrog-cred-default").isEmpty());
         assertTrue(scan("tokenCredentialId", "ghp_012345678901234567890123456789012345")

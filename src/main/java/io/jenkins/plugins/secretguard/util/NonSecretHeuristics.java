@@ -23,6 +23,9 @@ public final class NonSecretHeuristics {
     private static final Pattern XML_TEXT_LITERAL = Pattern.compile("(?s)\\s*<[^>/][^>]*>\\s*([^<]+?)\\s*</[^>]+>\\s*");
     private static final Pattern BEARER_LITERAL = Pattern.compile("(?i)Bearer\\s+(.+)");
     private static final Pattern MASKED_PLACEHOLDER = Pattern.compile("[*xX•]{4,}");
+    private static final Pattern JDBC_URL = Pattern.compile("(?i)\\bjdbc:[a-z0-9][a-z0-9:._-]*://[^\\s'\"<>]+");
+    private static final Pattern SENSITIVE_PARAMETER_NAME = Pattern.compile(
+            "(?i).*(password|passwd|pwd|token|secret|api[_-]?key|apikey|access[_-]?key|accesskey|client[_-]?secret|credential|auth|webhook).*");
 
     private NonSecretHeuristics() {}
 
@@ -143,6 +146,9 @@ public final class NonSecretHeuristics {
         }
         if (isBenignTrackingHeaderContext(fieldName, originalValue)) {
             return "Skipped high-entropy candidate because the header looks like a trace or request identifier.";
+        }
+        if (looksLikeBenignDatabaseConnectionParameter(originalValue, candidate)) {
+            return "Skipped high-entropy candidate because it looks like a database connection option.";
         }
         if (looksLikeIdentifier(candidate)) {
             return "Skipped high-entropy candidate because it looks like a readable identifier.";
@@ -317,6 +323,9 @@ public final class NonSecretHeuristics {
         if (normalized.isEmpty()) {
             return false;
         }
+        if (looksLikeEncodedHighEntropyToken(normalized)) {
+            return false;
+        }
         String[] parts;
         String lower = normalized.toLowerCase(Locale.ENGLISH);
         if (lower.contains("_") || lower.contains("-")) {
@@ -333,6 +342,10 @@ public final class NonSecretHeuristics {
             }
         }
         return wordLikeParts >= 3;
+    }
+
+    private static boolean looksLikeEncodedHighEntropyToken(String value) {
+        return value.length() >= 32 && value.length() % 4 == 0 && value.matches("[A-Za-z0-9+/]+={0,2}");
     }
 
     private static boolean looksLikeCamelOrPascalIdentifier(String value) {
@@ -372,6 +385,72 @@ public final class NonSecretHeuristics {
             return false;
         }
         return looksLikeReadableStoragePath(path);
+    }
+
+    private static boolean looksLikeBenignDatabaseConnectionParameter(String originalValue, String candidate) {
+        if (!isInsideJdbcQuery(originalValue, candidate)) {
+            return false;
+        }
+        String token = expandToken(originalValue, candidate).trim();
+        int separator = token.indexOf('=');
+        if (separator <= 0 || separator == token.length() - 1) {
+            return false;
+        }
+        String parameterName = token.substring(0, separator);
+        if (!looksLikeReadableParameterName(parameterName)
+                || SENSITIVE_PARAMETER_NAME.matcher(token).matches()) {
+            return false;
+        }
+        String parameterValue = token.substring(separator + 1);
+        return looksLikeReadableConnectionParameterValue(parameterValue);
+    }
+
+    private static boolean isInsideJdbcQuery(String originalValue, String candidate) {
+        String original = nullToEmpty(originalValue);
+        if (original.isBlank() || candidate == null || candidate.isBlank()) {
+            return false;
+        }
+        Matcher matcher = JDBC_URL.matcher(original);
+        while (matcher.find()) {
+            String url = matcher.group();
+            int queryIndex = url.indexOf('?');
+            int candidateIndex = url.indexOf(candidate);
+            if (queryIndex >= 0 && candidateIndex > queryIndex && !databaseAuthorityLooksCredentialed(url)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean databaseAuthorityLooksCredentialed(String url) {
+        int schemeSeparator = url.indexOf("://");
+        if (schemeSeparator < 0) {
+            return false;
+        }
+        int authorityStart = schemeSeparator + 3;
+        int authorityEnd = url.length();
+        for (char delimiter : new char[] {'/', '?', '#'}) {
+            int delimiterIndex = url.indexOf(delimiter, authorityStart);
+            if (delimiterIndex >= 0) {
+                authorityEnd = Math.min(authorityEnd, delimiterIndex);
+            }
+        }
+        String authority = url.substring(authorityStart, authorityEnd);
+        int userInfoEnd = authority.lastIndexOf('@');
+        return userInfoEnd > 0 && authority.substring(0, userInfoEnd).contains(":");
+    }
+
+    private static boolean looksLikeReadableParameterName(String value) {
+        return value != null && value.matches("[A-Za-z][A-Za-z0-9_.-]{1,80}");
+    }
+
+    private static boolean looksLikeReadableConnectionParameterValue(String value) {
+        String trimmed = nullToEmpty(value).trim();
+        if (trimmed.isEmpty() || trimmed.length() > 160 || !trimmed.matches("[A-Za-z0-9_.,:=+-]+")) {
+            return false;
+        }
+        String normalized = trimmed.replaceAll("[.,:=+-]+", "_");
+        return looksLikeHumanReadableIdentifier(normalized);
     }
 
     private static boolean authorityLooksLikeCredentialUserInfo(String authority) {

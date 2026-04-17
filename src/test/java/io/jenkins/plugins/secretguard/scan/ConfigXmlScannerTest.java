@@ -229,6 +229,29 @@ class ConfigXmlScannerTest {
                 .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
     }
 
+    @Test
+    void doesNotFlagReadableJdbcDefaultValueOptionsAsHighEntropySecrets() {
+        String xml = """
+                <project>
+                  <properties>
+                    <hudson.model.ParametersDefinitionProperty>
+                      <parameterDefinitions>
+                        <hudson.model.StringParameterDefinition>
+                          <name>EXAMPLE_DATABASE_URL</name>
+                          <defaultValue>jdbc:mysql://db.example.invalid:3306/example_metadata?sessionVariables=sql_mode=STRICT_TRANS_TABLES&amp;permitMysqlScheme&amp;useMysqlMetadata=true</defaultValue>
+                        </hudson.model.StringParameterDefinition>
+                      </parameterDefinitions>
+                    </hudson.model.ParametersDefinitionProperty>
+                  </properties>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
     private ScanContext context(String targetType) {
         return new ScanContext(
                 "folder/job",
