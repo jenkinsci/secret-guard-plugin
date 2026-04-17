@@ -290,6 +290,17 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void doesNotFlagUrlHostPortRepositoryPathsAsHighEntropySecrets() {
+        String script = """
+                def buildType = sh(script: 'wget https://artifacts.example.invalid:443/repository/build-tools/bootstrap_bundle/ && python3 resolve_build_type.py', returnStdout: true).trim()
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
     void doesNotFlagDockerImageOrScriptPathAsHighEntropySecret() {
         String script = """
                 pipeline {

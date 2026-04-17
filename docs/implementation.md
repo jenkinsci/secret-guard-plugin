@@ -195,7 +195,7 @@ When adding a new rule:
 - skips credential ID fields such as `credentialsId` and `credentialId`
 - exposes shared runtime-reference detection for values such as `$TOKEN`, `${TOKEN}`, `env.TOKEN`, `params.TOKEN`, `env['TOKEN']`, and `credentials(...)`
 - recognizes strongly placeholder-like literals such as redacted/masked/hidden markers and repeated mask characters, including simple assignments and XML text nodes
-- skips paths, Docker image references, hash/checksum/digest/commit contexts, public certificates, and trace/request ID headers
+- skips paths, host:port repository URLs, Docker image references, hash/checksum/digest/commit contexts, public certificates, and trace/request ID headers
 - exposes a shared entropy helper for rules and Pipeline header analysis
 
 ### Services

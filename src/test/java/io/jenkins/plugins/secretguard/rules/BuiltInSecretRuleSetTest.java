@@ -42,6 +42,8 @@ class BuiltInSecretRuleSetTest {
         assertTrue(scan("", "registry.example.invalid/team/tooling/cicd/example_runner:0.2")
                 .isEmpty());
         assertTrue(scan("", "/opt/example-tools/run-task-reporter.py").isEmpty());
+        assertTrue(scan("", "https://artifacts.example.invalid:443/repository/build-tools/bootstrap_bundle/")
+                .isEmpty());
         assertTrue(scan("", "/var/run/docker.sock:/var/run/docker.sock").isEmpty());
         assertTrue(scan("", "publishAllPublicationsToMavenRepository").isEmpty());
         assertTrue(

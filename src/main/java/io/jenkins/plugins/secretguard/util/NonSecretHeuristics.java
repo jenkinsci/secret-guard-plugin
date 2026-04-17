@@ -9,6 +9,8 @@ public final class NonSecretHeuristics {
             Pattern.compile("(?i).+\\.(py|sh|bash|groovy|jar|war|zip|tar|tgz|gz|json|yaml|yml|xml|txt|log|md)$");
     private static final Pattern DOCKER_IMAGE_REFERENCE =
             Pattern.compile("(?i)(?:[a-z0-9.-]+(?::[0-9]+)?/)?[a-z0-9._-]+(?:/[a-z0-9._-]+)+(?::[a-z0-9._-]+)?");
+    private static final Pattern URL_LIKE_PATH =
+            Pattern.compile("(?i)(?:[a-z][a-z0-9+.-]*://)?[a-z0-9.-]+\\.[a-z]{2,}(?::[0-9]{2,5})?/[a-z0-9._/-]+/?");
     private static final Pattern UUID =
             Pattern.compile("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
     private static final Pattern HEADER_NAME_IN_LINE = Pattern.compile("\\bname\\s*:\\s*['\"]([^'\"]+)['\"]");
@@ -231,6 +233,7 @@ public final class NonSecretHeuristics {
         return lowerToken.startsWith("/")
                 || lowerToken.startsWith("./")
                 || lowerToken.startsWith("../")
+                || URL_LIKE_PATH.matcher(lowerToken).matches()
                 || lowerToken.contains("/opt/")
                 || lowerToken.contains("/usr/")
                 || lowerToken.contains("/var/")
