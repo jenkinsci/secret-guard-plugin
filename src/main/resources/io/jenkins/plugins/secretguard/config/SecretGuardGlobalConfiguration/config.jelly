@@ -12,17 +12,20 @@
         </f:entry>
         <f:entry title="Rule ID whitelist" field="ruleIdWhitelist">
             <f:textarea />
+            <div class="jenkins-form-description">Use newline or comma separated rule IDs.</div>
         </f:entry>
         <f:entry title="Job whitelist" field="jobWhitelist">
             <f:textarea />
+            <div class="jenkins-form-description">Use newline or comma separated full job names.</div>
         </f:entry>
         <f:entry title="Field name whitelist" field="fieldNameWhitelist">
             <f:textarea />
+            <div class="jenkins-form-description">Use newline or comma separated field names.</div>
         </f:entry>
         <f:entry title="Exemptions" field="exemptions">
-            <f:textarea />
+            <f:textarea checkMethod="post" />
             <div class="jenkins-form-description">
-                Use one exemption per line: jobFullName|ruleId|reason
+                Use one exemption per line: jobFullName|ruleId|reason. Empty reasons are ignored.
             </div>
         </f:entry>
     </f:section>

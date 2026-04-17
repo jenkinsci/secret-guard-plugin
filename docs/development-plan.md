@@ -147,11 +147,13 @@ Acceptance criteria:
 
 Priority: `P1`
 
+Status: exemption lines now have inline form validation, invalid entries are rejected in the UI, empty reasons surface as warnings, and help text is shown for whitelist and exemption fields.
+
 Tasks:
 
-- add form validation for exemption lines
-- reject exemption entries without `jobFullName|ruleId|reason`
-- warn on empty reason
+- [x] add form validation for exemption lines
+- [x] reject exemption entries without `jobFullName|ruleId|reason`
+- [x] warn on empty reason
 - [x] document accepted whitelist separators
 
 Acceptance criteria:

@@ -1,6 +1,7 @@
 package io.jenkins.plugins.secretguard.config;
 
 import hudson.Extension;
+import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import io.jenkins.plugins.secretguard.model.EnforcementMode;
 import io.jenkins.plugins.secretguard.model.Severity;
@@ -10,6 +11,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import jenkins.model.GlobalConfiguration;
 import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.QueryParameter;
 
 @Extension
 public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
@@ -109,19 +111,19 @@ public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
     }
 
     public List<String> getRuleIdWhitelistEntries() {
-        return splitEntries(getRuleIdWhitelist());
+        return splitWhitelistEntries(getRuleIdWhitelist());
     }
 
     public List<String> getJobWhitelistEntries() {
-        return splitEntries(getJobWhitelist());
+        return splitWhitelistEntries(getJobWhitelist());
     }
 
     public List<String> getFieldNameWhitelistEntries() {
-        return splitEntries(getFieldNameWhitelist());
+        return splitWhitelistEntries(getFieldNameWhitelist());
     }
 
     public List<String> getExemptionEntries() {
-        return splitEntries(getExemptions());
+        return splitExemptionEntries(getExemptions());
     }
 
     public EnforcementMode[] getEnforcementModes() {
@@ -138,6 +140,10 @@ public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
 
     public ListBoxModel doFillBlockThresholdItems() {
         return buildBlockThresholdItems();
+    }
+
+    public FormValidation doCheckExemptions(@QueryParameter String value) {
+        return validateExemptions(value);
     }
 
     static ListBoxModel buildEnforcementModeItems() {
@@ -160,7 +166,7 @@ public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
         return value == null ? "" : value.trim();
     }
 
-    private static List<String> splitEntries(String value) {
+    static List<String> splitWhitelistEntries(String value) {
         if (value == null || value.isBlank()) {
             return Collections.emptyList();
         }
@@ -168,5 +174,41 @@ public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
                 .map(String::trim)
                 .filter(entry -> !entry.isEmpty())
                 .collect(Collectors.toList());
+    }
+
+    static List<String> splitExemptionEntries(String value) {
+        if (value == null || value.isBlank()) {
+            return Collections.emptyList();
+        }
+        return Arrays.stream(value.split("\\r?\\n"))
+                .map(String::trim)
+                .filter(entry -> !entry.isEmpty())
+                .collect(Collectors.toList());
+    }
+
+    static FormValidation validateExemptions(String value) {
+        boolean hasEmptyReason = false;
+        List<String> entries = splitExemptionEntries(value);
+        for (int index = 0; index < entries.size(); index++) {
+            String entry = entries.get(index);
+            String[] parts = entry.split("\\|", 3);
+            int lineNumber = index + 1;
+            if (parts.length < 3) {
+                return FormValidation.error("Line %d must use jobFullName|ruleId|reason.", lineNumber);
+            }
+            if (parts[0].trim().isEmpty()) {
+                return FormValidation.error("Line %d is missing jobFullName.", lineNumber);
+            }
+            if (parts[1].trim().isEmpty()) {
+                return FormValidation.error("Line %d is missing ruleId.", lineNumber);
+            }
+            if (parts[2].trim().isEmpty()) {
+                hasEmptyReason = true;
+            }
+        }
+        if (hasEmptyReason) {
+            return FormValidation.warning("Entries with an empty reason are ignored until a reason is provided.");
+        }
+        return FormValidation.ok();
     }
 }

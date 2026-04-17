@@ -67,6 +67,8 @@ Whitelist entries are newline or comma separated. Exemptions use one entry per l
 jobFullName|ruleId|reason
 ```
 
+The global configuration page validates exemption lines and warns when the reason is empty.
+
 Typical remediation guidance:
 
 - Move plaintext tokens, passwords, and keys to Jenkins Credentials.

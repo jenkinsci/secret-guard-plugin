@@ -301,6 +301,7 @@ Jelly resources live under:
 
 - global configuration values through Jenkins `GlobalConfiguration`
 - latest masked scan result per target under `$JENKINS_HOME/secret-guard/results/`
+- whitelist text areas accept newline or comma separated entries, while exemptions accept one `jobFullName|ruleId|reason` entry per line with UI validation
 
 ### What is not persisted
 
