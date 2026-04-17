@@ -198,6 +198,10 @@ When adding a new rule:
 - exposes shared runtime-reference detection for values such as `$TOKEN`, `${TOKEN}`, `env.TOKEN`, `params.TOKEN`, `env['TOKEN']`, and `credentials(...)`
 - recognizes strongly placeholder-like literals such as redacted/masked/hidden markers and repeated mask characters, including simple assignments and XML text nodes
 - skips paths, repository addresses such as `http(s)://`, `ftp://`, `sftp://`, short-host/IP `host:port/path`, scp-style `user@host:path`, network-share paths, storage URI paths such as `hdfs:///...`, Docker image references, Jenkinsfile/script paths, hash/checksum/digest/commit contexts, public certificates, and trace/request ID headers
+- suppresses sensitive-file-name false positives when the value is a readable local file reference such as a relative path or filename
+- suppresses high-entropy false positives for generated parameter identifiers such as Uno-Choice `randomName` values and parameter-separator generated names
+- suppresses high-entropy false positives for readable JDBC connection options embedded in JDBC URLs
+- suppresses high-entropy false positives for readable non-secret HTTP URLs unless the authority looks credentialed or the query/fragment still looks secret-bearing
 - exposes structured reason text for ignored high-entropy candidates so UI notes and debug logs can explain the suppression
 - exposes a shared entropy helper for rules and Pipeline header analysis
 
@@ -272,7 +276,12 @@ Persisted results contain only report data such as rule IDs, severity, source lo
   - shows global summary
   - exposes the `Scan All Jobs` POST endpoint for manage users
   - runs `Scan All Jobs` asynchronously and shows a status badge, short summary, expandable details, failure list, cancellation controls, and a dismiss action for finished scan status
+  - shows summary cards for unexempted high findings, blocked jobs, jobs with findings, total findings, and scanned jobs
+  - sorts latest results by risk so blocked and actionable `HIGH` rows stay near the top
+  - provides quick filters for `All`, `High`, `Blocked`, and `With Findings`
   - links each listed job to its job-level Secret Guard report
+  - adds a `View report` action per row and compacts long target IDs while preserving the full value in the tooltip
+  - highlights blocked rows and uses blocked/allowed badges to make enforcement state easier to scan
   - renders severity values as colored badges so `LOW`, `MEDIUM`, and `HIGH` are easier to distinguish
 - `SecretGuardAdministrativeMonitor`
   - activates when unexempted high-severity findings exist

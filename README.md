@@ -85,6 +85,9 @@ Manual scan only updates the report and does not block saves or change build res
 
 The global `Secret Guard` system page exposes a `Scan All Jobs` action for users with `Manage Jenkins` permission.
 The action re-scans all Jenkins jobs in report-only mode and refreshes the latest persisted result for each scanned job.
+The page also shows summary cards for unexempted high findings, blocked jobs, jobs with findings, total findings, and scanned jobs.
+Latest results are sorted by risk, expose quick filters for `All`, `High`, `Blocked`, and `With Findings`, highlight blocked rows, and link each row to the job-level `Secret Guard` report.
+Only masked latest-result data is persisted under `$JENKINS_HOME/secret-guard/results/`; raw scanned content and raw secret values are not stored.
 
 ## Troubleshooting
 
@@ -98,10 +101,12 @@ Key message prefixes:
 - `[Secret Guard][Multibranch]`
 - `[Secret Guard][SCM Read]`
 - `[Secret Guard][SCM Read][Multibranch]`
+- `[Secret Guard][Global Scan]`
 - `[Secret Guard][Save Scan]`
 - `[Secret Guard][Item Sync]`
 - `[Secret Guard][ClassLoader]`
 - `[Secret Guard][Persistence]`
+- `[Secret Guard][Heuristics]`
 
 ## Documentation
 

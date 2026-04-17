@@ -213,12 +213,14 @@ Acceptance criteria:
 
 Priority: `P1`
 
+Status: storage location and masked-only persistence behavior are now documented in `README.md`; restart coverage and cleanup verification remain active hardening work.
+
 Tasks:
 
 - add JenkinsRule restart coverage for latest-result reload
 - verify persisted files never include raw scanned content or raw secret values
 - validate cleanup behavior for deleted and renamed Jobs
-- document storage location and retention behavior in README
+- [x] document storage location and retention behavior in README
 
 Acceptance criteria:
 
@@ -230,13 +232,15 @@ Acceptance criteria:
 
 Priority: `P1`
 
+Status: the system page now shows summary counts, root-to-job links, blocked highlighting, quick severity filters, and per-row report actions; grouping findings by severity within detailed reports remains future work.
+
 Tasks:
 
 - group findings by severity
-- show summary counts
-- link root report entries to Job report pages
-- highlight blocked findings separately
-- add concise remediation copy per rule
+- [x] show summary counts
+- [x] link root report entries to Job report pages
+- [x] highlight blocked findings separately
+- [x] add concise remediation copy per rule
 
 Acceptance criteria:
 
