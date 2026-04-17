@@ -23,47 +23,49 @@
             <j:choose>
                 <j:when test="${it.hasFindings()}">
                     <p>Last scan: ${it.result.scannedAt}</p>
-                    <table class="jenkins-table sortable">
-                        <thead>
-                            <tr>
-                                <th>Severity</th>
-                                <th>Rule</th>
-                                <th>Location</th>
-                                <th>Field</th>
-                                <th>Line</th>
-                                <th>Masked snippet</th>
-                                <th>Recommendation</th>
-                                <th>Analysis</th>
-                                <th>Exempted</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <j:forEach var="finding" items="${it.findings}">
+                    <j:forEach var="group" items="${it.severityGroups}">
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:16px 0 8px 0;">
+                            <span style="${it.getSeverityBadgeStyle(group.severity)}">
+                                ${it.getSeverityBadgeLabel(group.severity)}
+                            </span>
+                            <strong>${group.count} finding(s)</strong>
+                        </div>
+                        <table class="jenkins-table sortable">
+                            <thead>
                                 <tr>
-                                    <td>
-                                        <span style="${it.getSeverityBadgeStyle(finding.severity)}">
-                                            ${it.getSeverityBadgeLabel(finding.severity)}
-                                        </span>
-                                    </td>
-                                    <td>${finding.ruleId}</td>
-                                    <td style="max-width: 24rem; white-space: normal; overflow-wrap: anywhere;">
-                                        <span title="${finding.sourceName}">${it.getDisplayLocation(finding)}</span>
-                                    </td>
-                                    <td>${finding.fieldName}</td>
-                                    <td>${finding.lineNumber}</td>
-                                    <td>${finding.maskedSnippet}</td>
-                                    <td>${finding.recommendation}</td>
-                                    <td>${finding.analysisNote}</td>
-                                    <td>
-                                        <j:choose>
-                                            <j:when test="${finding.exempted}">Yes: ${finding.exemptionReason}</j:when>
-                                            <j:otherwise>No</j:otherwise>
-                                        </j:choose>
-                                    </td>
+                                    <th>Rule</th>
+                                    <th>Location</th>
+                                    <th>Field</th>
+                                    <th>Line</th>
+                                    <th>Masked snippet</th>
+                                    <th>Recommendation</th>
+                                    <th>Analysis</th>
+                                    <th>Exempted</th>
                                 </tr>
-                            </j:forEach>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                <j:forEach var="finding" items="${group.findings}">
+                                    <tr>
+                                        <td>${finding.ruleId}</td>
+                                        <td style="max-width: 24rem; white-space: normal; overflow-wrap: anywhere;">
+                                            <span title="${finding.sourceName}">${it.getDisplayLocation(finding)}</span>
+                                        </td>
+                                        <td>${finding.fieldName}</td>
+                                        <td>${finding.lineNumber}</td>
+                                        <td>${finding.maskedSnippet}</td>
+                                        <td>${finding.recommendation}</td>
+                                        <td>${finding.analysisNote}</td>
+                                        <td>
+                                            <j:choose>
+                                                <j:when test="${finding.exempted}">Yes: ${finding.exemptionReason}</j:when>
+                                                <j:otherwise>No</j:otherwise>
+                                            </j:choose>
+                                        </td>
+                                    </tr>
+                                </j:forEach>
+                            </tbody>
+                        </table>
+                    </j:forEach>
                 </j:when>
                 <j:when test="${it.hasRecordedResult()}">
                     <p>Last scan: ${it.result.scannedAt}</p>

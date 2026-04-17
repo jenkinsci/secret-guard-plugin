@@ -8,9 +8,11 @@ import hudson.model.JobProperty;
 import io.jenkins.plugins.secretguard.config.SecretGuardGlobalConfiguration;
 import io.jenkins.plugins.secretguard.model.SecretFinding;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
+import io.jenkins.plugins.secretguard.model.Severity;
 import io.jenkins.plugins.secretguard.service.ManualJobScanService;
 import io.jenkins.plugins.secretguard.service.ScanResultStore;
 import io.jenkins.plugins.secretguard.util.OptionalPluginClassResolver;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +32,7 @@ public class SecretGuardJobAction implements Action, SeverityBadgeSupport {
     private static final int MAX_DISPLAY_LOCATION_LENGTH = 96;
     private static final int DISPLAY_LOCATION_TAIL_SEGMENTS = 3;
     private static final String ELLIPSIS = "\u2026";
+    private static final List<Severity> DISPLAY_SEVERITY_ORDER = List.of(Severity.HIGH, Severity.MEDIUM, Severity.LOW);
 
     private final Job<?, ?> job;
     private final ManualJobScanService manualJobScanService;
@@ -79,6 +82,10 @@ public class SecretGuardJobAction implements Action, SeverityBadgeSupport {
         return Collections.singletonList(getResult());
     }
 
+    public List<SeverityGroup> getSeverityGroups() {
+        return groupFindingsBySeverity(getFindings());
+    }
+
     public boolean hasRecordedResult() {
         return result().isPresent();
     }
@@ -124,6 +131,20 @@ public class SecretGuardJobAction implements Action, SeverityBadgeSupport {
 
     private Optional<SecretScanResult> result() {
         return ScanResultStore.get().get(job.getFullName());
+    }
+
+    static List<SeverityGroup> groupFindingsBySeverity(List<SecretFinding> findings) {
+        List<SeverityGroup> groups = new ArrayList<>();
+        List<SecretFinding> safeFindings = findings == null ? List.of() : findings;
+        for (Severity severity : DISPLAY_SEVERITY_ORDER) {
+            List<SecretFinding> matches = safeFindings.stream()
+                    .filter(finding -> finding != null && finding.getSeverity() == severity)
+                    .toList();
+            if (!matches.isEmpty()) {
+                groups.add(new SeverityGroup(severity, matches));
+            }
+        }
+        return groups;
     }
 
     private static String compactLocation(String location) {
@@ -197,5 +218,27 @@ public class SecretGuardJobAction implements Action, SeverityBadgeSupport {
             return false;
         }
         return job.getProperty((Class) propertyClass.get()) != null;
+    }
+
+    public static final class SeverityGroup {
+        private final Severity severity;
+        private final List<SecretFinding> findings;
+
+        SeverityGroup(Severity severity, List<SecretFinding> findings) {
+            this.severity = severity;
+            this.findings = List.copyOf(findings);
+        }
+
+        public Severity getSeverity() {
+            return severity;
+        }
+
+        public List<SecretFinding> getFindings() {
+            return findings;
+        }
+
+        public int getCount() {
+            return findings.size();
+        }
     }
 }
