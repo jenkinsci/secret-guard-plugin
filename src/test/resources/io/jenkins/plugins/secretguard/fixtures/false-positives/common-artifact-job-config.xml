@@ -1,0 +1,24 @@
+<project>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>EXAMPLE_METADATA_URL</name>
+          <defaultValue>https://artifacts.example.invalid:443/repository/build-tools/bootstrap_bundle/maven-metadata.xml</defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <publishers>
+    <io.example.ArtifactPublisher>
+      <registryCredentialsId>artifact-reader</registryCredentialsId>
+      <checksum>sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789</checksum>
+      <imageDigest>registry.example.invalid/team/tooling/sample-runner@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789</imageDigest>
+      <artifactPath>ftp://artifacts.example.invalid:21/repository/build-tools/bootstrap_bundle/</artifactPath>
+      <customHeaders>[[name: 'X-Request-ID', value: '0af7651916cd43dd8448eb211c80319c', maskValue: false], [name: 'X-Correlation-ID', value: 'QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l', maskValue: false]]</customHeaders>
+      <certificate>-----BEGIN CERTIFICATE-----
+QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l
+-----END CERTIFICATE-----</certificate>
+    </io.example.ArtifactPublisher>
+  </publishers>
+</project>

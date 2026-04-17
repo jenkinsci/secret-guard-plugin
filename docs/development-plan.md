@@ -128,14 +128,14 @@ Implementation notes:
 
 Priority: `P1`
 
-Status: regression coverage now includes placeholders and public-certificate false positives, but the broader curated corpus is still incomplete.
+Status: regression coverage now includes placeholders plus anonymized Jenkinsfile and `config.xml` fixtures for public certificates, artifact metadata, and tracking-header cases, but the broader curated corpus is still incomplete.
 
 Tasks:
 
-- add anonymized fixtures for common Jenkinsfiles and Job XML shapes
+- [x] add anonymized fixtures for common Jenkinsfiles and Job XML shapes
 - [x] add regression cases for placeholder/mock/test values
-- add regression cases for public certificates and artifact metadata
-- add regression cases for common request/trace/correlation headers
+- [x] add regression cases for public certificates and artifact metadata
+- [x] add regression cases for common request/trace/correlation headers
 
 Acceptance criteria:
 

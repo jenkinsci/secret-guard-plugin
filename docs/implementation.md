@@ -325,12 +325,14 @@ Current test coverage is intentionally focused on the deterministic core:
   - parameter default detection
   - sensitive config fields
   - whole inline Pipeline script scanning from `config.xml`
+  - fixture-based false-positive coverage for stored artifact metadata, request headers, and public certificates
 - `PipelineScriptScannerTest`
   - environment block detection
   - command step detection
   - hardcoded `httpRequest customHeaders` detection
   - webhook URL query secret detection
   - benign tracking header false-positive guards
+  - fixture-based false-positive coverage for artifact publishing Pipelines
   - `withCredentials` example does not escalate to `HIGH`
 - `SecretScanServiceTest`
   - block decision

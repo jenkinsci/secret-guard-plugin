@@ -10,6 +10,7 @@ import io.jenkins.plugins.secretguard.model.ScanPhase;
 import io.jenkins.plugins.secretguard.model.SecretFinding;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import io.jenkins.plugins.secretguard.model.Severity;
+import io.jenkins.plugins.secretguard.testutil.TestResourceLoader;
 import org.junit.jupiter.api.Test;
 
 class PipelineScriptScannerTest {
@@ -427,6 +428,16 @@ class PipelineScriptScannerTest {
         SecretScanResult result = scanner.scan(context(), script);
         assertTrue(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")));
+    }
+
+    @Test
+    void doesNotFlagCuratedPublishPipelineFixture() {
+        SecretScanResult result = scanner.scan(
+                context(),
+                TestResourceLoader.load(
+                        "/io/jenkins/plugins/secretguard/fixtures/false-positives/common-publish.Jenkinsfile"));
+
+        assertFalse(result.hasFindings());
     }
 
     private ScanContext context() {

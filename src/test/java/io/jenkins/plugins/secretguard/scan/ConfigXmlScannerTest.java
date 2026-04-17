@@ -10,6 +10,7 @@ import io.jenkins.plugins.secretguard.model.ScanContext;
 import io.jenkins.plugins.secretguard.model.ScanPhase;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import io.jenkins.plugins.secretguard.model.Severity;
+import io.jenkins.plugins.secretguard.testutil.TestResourceLoader;
 import org.junit.jupiter.api.Test;
 
 class ConfigXmlScannerTest {
@@ -349,6 +350,17 @@ class ConfigXmlScannerTest {
 
         assertFalse(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
+    void doesNotFlagCuratedArtifactMetadataFixture() {
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(
+                context("FreeStyleProject"),
+                TestResourceLoader.load(
+                        "/io/jenkins/plugins/secretguard/fixtures/false-positives/common-artifact-job-config.xml"));
+
+        assertFalse(result.hasFindings());
     }
 
     private ScanContext context(String targetType) {
