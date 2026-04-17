@@ -69,6 +69,10 @@ class NonSecretHeuristicsTest {
                         "jdbc:mysql://db.example.invalid:3306/example_metadata?sessionVariables=sql_mode=STRICT_TRANS_TABLES&useMysqlMetadata=true",
                         "defaultValue",
                         "sessionVariables=sql_mode=STRICT_TRANS_TABLES"));
+        assertNotEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "choice-parameter-108997464504044", "randomName", "choice-parameter-108997464504044"));
         for (String value : List.of(
                 "s3://example-bucket/runtime/sample_dataset/record_01",
                 "s3a://example-bucket/runtime/sample_dataset/record_01",

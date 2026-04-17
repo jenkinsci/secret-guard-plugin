@@ -71,6 +71,11 @@ class BuiltInSecretRuleSetTest {
     }
 
     @Test
+    void doesNotTreatGeneratedRandomNamesAsHighEntropySecrets() {
+        assertTrue(scan("randomName", "choice-parameter-108997464504044").isEmpty());
+    }
+
+    @Test
     void stillDetectsSensitiveJdbcParametersAsHighEntropySecrets() {
         List<SecretFinding> findings = scan(
                 "defaultValue",

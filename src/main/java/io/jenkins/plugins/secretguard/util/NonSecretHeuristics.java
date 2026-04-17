@@ -147,6 +147,9 @@ public final class NonSecretHeuristics {
         if (isBenignTrackingHeaderContext(fieldName, originalValue)) {
             return "Skipped high-entropy candidate because the header looks like a trace or request identifier.";
         }
+        if (looksLikeGeneratedRandomName(fieldName, candidate)) {
+            return "Skipped high-entropy candidate because it looks like a generated parameter identifier.";
+        }
         if (looksLikeBenignDatabaseConnectionParameter(originalValue, candidate)) {
             return "Skipped high-entropy candidate because it looks like a database connection option.";
         }
@@ -186,6 +189,10 @@ public final class NonSecretHeuristics {
     private static boolean isScriptPathField(String fieldName) {
         String normalized = normalize(fieldName);
         return normalized.equals("scriptpath") || normalized.equals("jenkinsfilepath");
+    }
+
+    private static boolean isRandomNameField(String fieldName) {
+        return normalize(fieldName).equals("randomname");
     }
 
     private static boolean looksLikeIdentifier(String value) {
@@ -342,6 +349,17 @@ public final class NonSecretHeuristics {
             }
         }
         return wordLikeParts >= 3;
+    }
+
+    private static boolean looksLikeGeneratedRandomName(String fieldName, String value) {
+        if (!isRandomNameField(fieldName)) {
+            return false;
+        }
+        String normalized = nullToEmpty(value).trim();
+        if (normalized.isEmpty()) {
+            return false;
+        }
+        return normalized.matches("[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z][A-Za-z0-9]*)+-\\d{6,}");
     }
 
     private static boolean looksLikeEncodedHighEntropyToken(String value) {

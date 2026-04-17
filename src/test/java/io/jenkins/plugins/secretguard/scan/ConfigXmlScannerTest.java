@@ -252,6 +252,29 @@ class ConfigXmlScannerTest {
                 .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
     }
 
+    @Test
+    void doesNotFlagGeneratedParameterRandomNamesAsHighEntropySecrets() {
+        String xml = """
+                <project>
+                  <properties>
+                    <hudson.model.ParametersDefinitionProperty>
+                      <parameterDefinitions>
+                        <org.biouno.unochoice.DynamicReferenceParameter plugin="uno-choice@2.8.3">
+                          <name>EXAMPLE_MEMORY_MB</name>
+                          <randomName>choice-parameter-108997464504044</randomName>
+                        </org.biouno.unochoice.DynamicReferenceParameter>
+                      </parameterDefinitions>
+                    </hudson.model.ParametersDefinitionProperty>
+                  </properties>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
     private ScanContext context(String targetType) {
         return new ScanContext(
                 "folder/job",
