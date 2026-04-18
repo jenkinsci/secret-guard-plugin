@@ -22,6 +22,7 @@ public class ConfigXmlScanner implements SecretScanner {
     private final BuiltInSecretRuleSet ruleSet;
     private final PipelineScriptScanner pipelineScriptScanner;
     private final HttpRequestPluginConfigAdapter httpRequestPluginConfigAdapter;
+    private final GitPluginConfigAdapter gitPluginConfigAdapter;
 
     public ConfigXmlScanner() {
         this(new BuiltInSecretRuleSet());
@@ -31,6 +32,7 @@ public class ConfigXmlScanner implements SecretScanner {
         this.ruleSet = ruleSet;
         this.pipelineScriptScanner = new PipelineScriptScanner(ruleSet);
         this.httpRequestPluginConfigAdapter = new HttpRequestPluginConfigAdapter();
+        this.gitPluginConfigAdapter = new GitPluginConfigAdapter();
     }
 
     @Override
@@ -67,6 +69,9 @@ public class ConfigXmlScanner implements SecretScanner {
             if (adapterResult.skipSubtree()) {
                 return;
             }
+        }
+        if (gitPluginConfigAdapter.shouldSkipElement(element, path)) {
+            return;
         }
 
         NamedNodeMap attributes = element.getAttributes();

@@ -286,7 +286,7 @@ Status: not started; current implementation remains focused on MVP hardening and
 
 Priority: `P0`
 
-Status: started. `HTTP Request`-style `config.xml` sections now use a dedicated adapter that suppresses credentials-backed `authentication` references and parses `customHeaders` with plugin-aware header semantics; Git, Kubernetes, and other publisher/build-wrapper adapters are still pending.
+Status: started. `HTTP Request`-style `config.xml` sections now use a dedicated adapter that suppresses credentials-backed `authentication` references and parses `customHeaders` with plugin-aware header semantics. Git SCM config now also suppresses readable branch/refspec/remote-name metadata while still scanning remote URLs. Kubernetes and other publisher/build-wrapper adapters are still pending.
 
 Targets:
 

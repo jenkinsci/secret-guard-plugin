@@ -319,6 +319,54 @@ class ConfigXmlScannerTest {
     }
 
     @Test
+    void doesNotFlagGitPluginBranchAndRefspecMetadataAsSecrets() {
+        String xml = """
+                <project>
+                  <scm class="hudson.plugins.git.GitSCM" plugin="git@5.2.1">
+                    <userRemoteConfigs>
+                      <hudson.plugins.git.UserRemoteConfig>
+                        <url>git@example.invalid:platform/backend-service.git</url>
+                        <credentialsId>git-reader-main</credentialsId>
+                        <name>origin-enterprise</name>
+                        <refspec>+refs/heads/release/0123456789abcdef0123456789abcdef:refs/remotes/origin/release/0123456789abcdef0123456789abcdef</refspec>
+                      </hudson.plugins.git.UserRemoteConfig>
+                    </userRemoteConfigs>
+                    <branches>
+                      <hudson.plugins.git.BranchSpec>
+                        <name>refs/heads/release/0123456789abcdef0123456789abcdef</name>
+                      </hudson.plugins.git.BranchSpec>
+                    </branches>
+                  </scm>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertFalse(result.hasFindings());
+    }
+
+    @Test
+    void stillFlagsGitPluginRemoteUrlQuerySecrets() {
+        String xml = """
+                <project>
+                  <scm class="hudson.plugins.git.GitSCM" plugin="git@5.2.1">
+                    <userRemoteConfigs>
+                      <hudson.plugins.git.UserRemoteConfig>
+                        <url>https://git.example.invalid/platform/backend-service.git?access_token=ghp_012345678901234567890123456789012345</url>
+                        <credentialsId>git-reader-main</credentialsId>
+                      </hudson.plugins.git.UserRemoteConfig>
+                    </userRemoteConfigs>
+                  </scm>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")));
+    }
+
+    @Test
     void doesNotFlagWithCredentialsBindingsFromInlinePipelineScript() {
         String xml = """
                 <flow-definition>
