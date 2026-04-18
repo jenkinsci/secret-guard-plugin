@@ -97,6 +97,8 @@ Typical remediation guidance:
 - Does not do: does not block the manual-scan action, does not block later saves, and does not change build results.
 - Blocked field: the refreshed report still shows whether the current enforcement policy would classify the findings as blocked.
 
+![Secret Guard Job Action Page](docs/assets/secret-guard-job-action-page-screenshot.png)
+
 ## Global Scan
 
 - Entry: users with `Manage Jenkins` permission can open the global `Secret Guard` page and click `Scan All Jobs`.
@@ -107,6 +109,8 @@ Typical remediation guidance:
 - Page summary: shows cards for unexempted high findings, blocked jobs, jobs with findings, total findings, and scanned jobs.
 - Result list: sorts by risk, supports `All`, `High`, `Blocked`, `With Findings`, `With Exemptions`, and `With Notes` filters, shows exempted-count badges, highlights blocked rows, and links to each job-level `Secret Guard` report.
 - Storage: only masked latest-result data is persisted under `$JENKINS_HOME/secret-guard/results/`; raw scanned content and raw secret values are not stored.
+
+![Secret Guard Root Action Page](docs/assets/secret-guard-root-action-page-screenshot.png)
 
 ## Troubleshooting
 
