@@ -125,6 +125,15 @@ class BuiltInSecretRuleSetTest {
     }
 
     @Test
+    void doesNotTreatReadableUrlsOnSensitiveNamedFieldsAsSecrets() {
+        assertTrue(scan("getPasswordUrl", "http://service.example.invalid/auth").isEmpty());
+        assertTrue(scan("tokenEndpoint", "https://service.example.invalid/oauth/token")
+                .isEmpty());
+        assertTrue(scan("secretServiceUrl", "https://service.example.invalid/runtime/check")
+                .isEmpty());
+    }
+
+    @Test
     void stillFlagsPlaintextValuesOnSensitiveFileFields() {
         List<SecretFinding> findings = scan("PASSWORD_FILE", "PASSWORD_FILE = 'hunter2'");
 

@@ -105,6 +105,22 @@ public final class NonSecretHeuristics {
         return looksLikeReadableUrlPath(path) && !urlPathLooksSensitive(path);
     }
 
+    public static boolean looksLikeReadableEndpointUrl(String value) {
+        String candidate = extractLikelyLiteralValue(nullToEmpty(value).trim());
+        String url = findContainingHttpUrl(value, candidate);
+        if (url.isEmpty() && !candidate.equals(value)) {
+            url = findContainingHttpUrl(candidate, candidate);
+        }
+        if (url.isEmpty()) {
+            return false;
+        }
+        if (urlAuthorityLooksCredentialed(url) || urlContainsSensitiveQueryOrFragment(url)) {
+            return false;
+        }
+        String path = urlPath(url);
+        return path.isBlank() || looksLikeReadableEndpointPath(path);
+    }
+
     public static boolean isCredentialIdField(String fieldName) {
         String normalized = normalize(fieldName);
         return normalized.contains("credentialid") || normalized.contains("credentialsid");
@@ -853,6 +869,28 @@ public final class NonSecretHeuristics {
             }
         }
         return readableSegments >= 2;
+    }
+
+    private static boolean looksLikeReadableEndpointPath(String path) {
+        String[] segments = nullToEmpty(path).split("/+");
+        int readableSegments = 0;
+        for (String segment : segments) {
+            if (segment.isBlank()) {
+                continue;
+            }
+            if (segment.length() > 80 || !segment.matches("[A-Za-z0-9._~%+=:-]+")) {
+                return false;
+            }
+            if (segment.length() >= 24
+                    && entropy(segment) >= 4.0
+                    && !UUID.matcher(segment).matches()) {
+                return false;
+            }
+            if (segment.matches(".*[A-Za-z].*")) {
+                readableSegments++;
+            }
+        }
+        return readableSegments >= 1;
     }
 
     private static boolean urlPathLooksSensitive(String path) {

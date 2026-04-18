@@ -167,6 +167,45 @@ class ConfigXmlScannerTest {
     }
 
     @Test
+    void doesNotFlagReadableUrlsOnSensitiveNamedConfigFields() {
+        String xml = """
+                <project>
+                  <properties>
+                    <integration>
+                      <getPasswordUrl>http://service.example.invalid/auth</getPasswordUrl>
+                      <tokenEndpoint>https://service.example.invalid/oauth/token</tokenEndpoint>
+                    </integration>
+                  </properties>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
+    void doesNotFlagReadableUrlsAssignedToSensitiveNamedInlinePipelineVariables() {
+        String xml = """
+                <flow-definition>
+                  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition">
+                    <script><![CDATA[
+                def getPasswordUrl = "http://service.example.invalid/auth"
+                def tokenEndpoint = "https://service.example.invalid/oauth/token"
+                    ]]></script>
+                    <sandbox>true</sandbox>
+                  </definition>
+                </flow-definition>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("WorkflowJob"), xml);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
     void doesNotFlagSensitiveEnvironmentFileReferencesFromInlinePipelineScript() {
         String xml = """
                 <flow-definition>

@@ -139,6 +139,9 @@ public class BuiltInSecretRuleSet {
             if (NonSecretHeuristics.looksLikeSensitiveFileReference(fieldName, value)) {
                 return Collections.emptyList();
             }
+            if (NonSecretHeuristics.looksLikeReadableEndpointUrl(value)) {
+                return Collections.emptyList();
+            }
             if (NonSecretHeuristics.looksLikePlaceholderValue(value)) {
                 return List.of(finding(
                         getId(),

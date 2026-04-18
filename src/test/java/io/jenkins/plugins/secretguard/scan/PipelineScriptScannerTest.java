@@ -285,6 +285,18 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void doesNotFlagReadableUrlsAssignedToSensitiveNamedVariables() {
+        String script = """
+                def getPasswordUrl = "http://service.example.invalid/auth"
+                def tokenEndpoint = "https://service.example.invalid/oauth/token"
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
     void parsesMultipleCustomHeadersAcrossMixedLayouts() {
         String script = """
                 def response = httpRequest(
