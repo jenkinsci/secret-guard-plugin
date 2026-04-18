@@ -140,6 +140,23 @@ class BuiltInSecretRuleSetTest {
     }
 
     @Test
+    void stillFlagsCredentialedOrSecretBearingUrlsOnSensitiveNamedFields() {
+        assertTrue(scan("getPasswordUrl", "https://user:password123@example.invalid/auth").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+        assertTrue(
+                scan("tokenEndpoint", "https://service.example.invalid/auth?token=123e4567-e89b-12d3-a456-426614174999")
+                        .stream()
+                        .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")));
+        assertTrue(scan(
+                        "passwordServiceEndpoint",
+                        "service.example.invalid:8443/auth?token=123e4567-e89b-12d3-a456-426614174999")
+                .stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+        assertTrue(scan("secretUploadUrl", "sftp://user:password123@files.example.invalid/runtime/upload").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
     void stillFlagsPlaintextValuesOnSensitiveFileFields() {
         List<SecretFinding> findings = scan("PASSWORD_FILE", "PASSWORD_FILE = 'hunter2'");
 
