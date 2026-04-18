@@ -51,6 +51,23 @@ class SecretScanServiceTest {
     }
 
     @Test
+    void preservesScannerNotesDuringPolicyProcessing() {
+        SecretScanService service = new SecretScanService(new WhitelistService(), new ExemptionService());
+        SecretScanResult result = service.scan(
+                (context, content) -> new SecretScanResult(
+                        context.getJobFullName(),
+                        context.getTargetType(),
+                        List.of(),
+                        false,
+                        List.of("Config adapter skipped test reference.")),
+                context(EnforcementMode.AUDIT),
+                "ignored");
+
+        assertTrue(result.hasNotes());
+        assertTrue(result.getNotes().contains("Config adapter skipped test reference."));
+    }
+
+    @Test
     void suppressesHighEntropyWhenSpecificRuleHitsSameFinding() {
         SecretScanService service = new SecretScanService(new WhitelistService(), new ExemptionService());
         List<SecretFinding> findings = new ArrayList<>();

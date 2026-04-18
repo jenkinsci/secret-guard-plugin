@@ -6,6 +6,10 @@ import java.util.Optional;
 import org.w3c.dom.Element;
 
 final class GitPluginConfigAdapter implements ConfigXmlScanAdapter {
+    private static final String BRANCH_SPEC_NOTE = "Config adapter skipped Git branch metadata.";
+    private static final String REFSPEC_NOTE = "Config adapter skipped Git refspec metadata.";
+    private static final String REMOTE_NAME_NOTE = "Config adapter skipped Git remote name metadata.";
+
     @Override
     public Optional<ConfigXmlElementScanResult> scanElement(
             ScanContext context, String content, Element element, String path) {
@@ -13,8 +17,14 @@ final class GitPluginConfigAdapter implements ConfigXmlScanAdapter {
         if (!looksLikeGitContext(element, lowerPath)) {
             return Optional.empty();
         }
-        if (isBranchSpecNameField(lowerPath) || isRefspecField(lowerPath) || isRemoteConfigNameField(lowerPath)) {
-            return Optional.of(ConfigXmlElementScanResult.skip());
+        if (isBranchSpecNameField(lowerPath)) {
+            return Optional.of(ConfigXmlElementScanResult.skip(BRANCH_SPEC_NOTE));
+        }
+        if (isRefspecField(lowerPath)) {
+            return Optional.of(ConfigXmlElementScanResult.skip(REFSPEC_NOTE));
+        }
+        if (isRemoteConfigNameField(lowerPath)) {
+            return Optional.of(ConfigXmlElementScanResult.skip(REMOTE_NAME_NOTE));
         }
         return Optional.empty();
     }

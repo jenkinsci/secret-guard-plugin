@@ -40,7 +40,7 @@ public class SecretScanService {
 
     public SecretScanResult scan(SecretScanner scanner, ScanContext context, String content) {
         SecretScanResult rawResult = scanner.scan(context, content);
-        return process(context, rawResult.getFindings());
+        return process(context, rawResult.getFindings(), rawResult.getNotes());
     }
 
     public SecretScanResult process(ScanContext context, List<SecretFinding> rawFindings) {

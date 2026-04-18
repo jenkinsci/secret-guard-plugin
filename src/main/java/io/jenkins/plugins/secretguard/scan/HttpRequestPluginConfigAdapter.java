@@ -12,6 +12,11 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 final class HttpRequestPluginConfigAdapter implements ConfigXmlScanAdapter {
+    private static final String AUTHENTICATION_REFERENCE_NOTE =
+            "Config adapter skipped HTTP Request authentication reference.";
+    private static final String CUSTOM_HEADERS_NOTE =
+            "Config adapter parsed HTTP Request customHeaders with header semantics.";
+
     @Override
     public Optional<ConfigXmlElementScanResult> scanElement(
             ScanContext context, String content, Element element, String path) {
@@ -21,7 +26,7 @@ final class HttpRequestPluginConfigAdapter implements ConfigXmlScanAdapter {
             return Optional.empty();
         }
         if (isAuthenticationField(lowerPath)) {
-            return Optional.of(ConfigXmlElementScanResult.skip());
+            return Optional.of(ConfigXmlElementScanResult.skip(AUTHENTICATION_REFERENCE_NOTE));
         }
         if (isCustomHeadersField(lowerPath)) {
             List<HttpRequestHeaderSupport.ParsedCustomHeader> headers = parseStructuredHeaders(content, element);
@@ -39,7 +44,7 @@ final class HttpRequestPluginConfigAdapter implements ConfigXmlScanAdapter {
                             header.valueExpression(),
                             header.maskValueFalse()));
                 }
-                return Optional.of(ConfigXmlElementScanResult.skipWithFindings(findings));
+                return Optional.of(ConfigXmlElementScanResult.skipWithFindings(findings, CUSTOM_HEADERS_NOTE));
             }
             return Optional.empty();
         }

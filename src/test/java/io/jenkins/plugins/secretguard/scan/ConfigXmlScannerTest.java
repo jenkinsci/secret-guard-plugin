@@ -445,6 +445,9 @@ class ConfigXmlScannerTest {
         SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
 
         assertFalse(result.hasFindings());
+        assertTrue(result.hasNotes());
+        assertTrue(result.getNotes().stream().anyMatch(note -> note.contains("common plugin external secret")));
+        assertFalse(result.getNotes().stream().anyMatch(note -> note.contains("artifact-service-token-prod")));
     }
 
     @Test
@@ -464,6 +467,58 @@ class ConfigXmlScannerTest {
 
         assertTrue(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("github-token")));
+        assertFalse(
+                result.getNotes().stream().anyMatch(note -> note.contains("ghp_012345678901234567890123456789012345")));
+    }
+
+    @Test
+    void recordsAdapterDecisionNotesWithoutRawValues() {
+        String xml = """
+                <project>
+                  <scm class="hudson.plugins.git.GitSCM" plugin="git@5.2.1">
+                    <userRemoteConfigs>
+                      <hudson.plugins.git.UserRemoteConfig>
+                        <name>origin-sensitive-reference</name>
+                        <refspec>+refs/heads/release/0123456789abcdef0123456789abcdef:refs/remotes/origin/release/0123456789abcdef0123456789abcdef</refspec>
+                      </hudson.plugins.git.UserRemoteConfig>
+                    </userRemoteConfigs>
+                    <branches>
+                      <hudson.plugins.git.BranchSpec>
+                        <name>refs/heads/release/0123456789abcdef0123456789abcdef</name>
+                      </hudson.plugins.git.BranchSpec>
+                    </branches>
+                  </scm>
+                  <properties>
+                    <org.csanchez.jenkins.plugins.kubernetes.KubernetesPodTemplateProperty>
+                      <templates>
+                        <org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+                          <containers>
+                            <org.csanchez.jenkins.plugins.kubernetes.ContainerTemplate>
+                              <envVars>
+                                <org.csanchez.jenkins.plugins.kubernetes.model.SecretEnvVar>
+                                  <key>SERVICE_API_TOKEN</key>
+                                  <secretName>k8s-service-token-prod</secretName>
+                                  <secretKey>token</secretKey>
+                                </org.csanchez.jenkins.plugins.kubernetes.model.SecretEnvVar>
+                              </envVars>
+                            </org.csanchez.jenkins.plugins.kubernetes.ContainerTemplate>
+                          </containers>
+                        </org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+                      </templates>
+                    </org.csanchez.jenkins.plugins.kubernetes.KubernetesPodTemplateProperty>
+                  </properties>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertTrue(result.hasNotes());
+        assertTrue(result.getNotes().stream().anyMatch(note -> note.contains("Git branch metadata")));
+        assertTrue(result.getNotes().stream().anyMatch(note -> note.contains("Git refspec metadata")));
+        assertTrue(result.getNotes().stream().anyMatch(note -> note.contains("Kubernetes secret-backed")));
+        assertFalse(result.getNotes().stream().anyMatch(note -> note.contains("origin-sensitive-reference")));
+        assertFalse(result.getNotes().stream().anyMatch(note -> note.contains("0123456789abcdef")));
+        assertFalse(result.getNotes().stream().anyMatch(note -> note.contains("k8s-service-token-prod")));
     }
 
     @Test

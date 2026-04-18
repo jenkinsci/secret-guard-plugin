@@ -43,6 +43,7 @@ public class ConfigXmlScanner implements SecretScanner {
             return SecretScanResult.empty(context.getJobFullName(), context.getTargetType());
         }
         List<SecretFinding> findings = new ArrayList<>();
+        List<String> notes = new ArrayList<>();
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
@@ -53,19 +54,25 @@ public class ConfigXmlScanner implements SecretScanner {
             Document document = factory.newDocumentBuilder().parse(new InputSource(new StringReader(content)));
             Element root = document.getDocumentElement();
             if (root != null) {
-                scanElement(context, content, findings, root, "/" + root.getNodeName());
+                scanElement(context, content, findings, notes, root, "/" + root.getNodeName());
             }
         } catch (Exception ignored) {
             scanRawLines(context, content, findings);
         }
-        return new SecretScanResult(context.getJobFullName(), context.getTargetType(), findings, false);
+        return new SecretScanResult(context.getJobFullName(), context.getTargetType(), findings, false, notes);
     }
 
     private void scanElement(
-            ScanContext context, String content, List<SecretFinding> findings, Element element, String path) {
+            ScanContext context,
+            String content,
+            List<SecretFinding> findings,
+            List<String> notes,
+            Element element,
+            String path) {
         ConfigXmlElementScanResult adapterResult = scanWithAdapters(context, content, element, path);
         if (adapterResult != null) {
             findings.addAll(adapterResult.findings());
+            notes.addAll(adapterResult.notes());
             if (adapterResult.skipSubtree()) {
                 return;
             }
@@ -98,7 +105,7 @@ public class ConfigXmlScanner implements SecretScanner {
         for (int index = 0; index < children.getLength(); index++) {
             Node child = children.item(index);
             if (child instanceof Element childElement) {
-                scanElement(context, content, findings, childElement, path + "/" + childElement.getNodeName());
+                scanElement(context, content, findings, notes, childElement, path + "/" + childElement.getNodeName());
             }
         }
     }

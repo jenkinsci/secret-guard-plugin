@@ -6,6 +6,9 @@ import java.util.Optional;
 import org.w3c.dom.Element;
 
 final class KubernetesPluginConfigAdapter implements ConfigXmlScanAdapter {
+    private static final String SECRET_ENV_VAR_REFERENCE_NOTE =
+            "Config adapter skipped Kubernetes secret-backed environment variable reference.";
+
     @Override
     public Optional<ConfigXmlElementScanResult> scanElement(
             ScanContext context, String content, Element element, String path) {
@@ -14,7 +17,7 @@ final class KubernetesPluginConfigAdapter implements ConfigXmlScanAdapter {
             return Optional.empty();
         }
         if (isSecretBackedEnvironmentVariable(lowerPath)) {
-            return Optional.of(ConfigXmlElementScanResult.skip());
+            return Optional.of(ConfigXmlElementScanResult.skip(SECRET_ENV_VAR_REFERENCE_NOTE));
         }
         return Optional.empty();
     }

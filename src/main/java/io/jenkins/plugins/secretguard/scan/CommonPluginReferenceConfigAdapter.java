@@ -10,6 +10,8 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 final class CommonPluginReferenceConfigAdapter implements ConfigXmlScanAdapter {
+    private static final String EXTERNAL_REFERENCE_NOTE =
+            "Config adapter skipped common plugin external secret or credential reference.";
     private static final Pattern REFERENCE_VALUE = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._/@:-]{0,127}");
     private static final Pattern HIGH_CONFIDENCE_SECRET = Pattern.compile("(?is).*("
             + "gh[pousr]_[A-Za-z0-9_]{30,255}"
@@ -29,7 +31,7 @@ final class CommonPluginReferenceConfigAdapter implements ConfigXmlScanAdapter {
         }
         String value = directText(element);
         if (looksLikeReferenceValue(value)) {
-            return Optional.of(ConfigXmlElementScanResult.skip());
+            return Optional.of(ConfigXmlElementScanResult.skip(EXTERNAL_REFERENCE_NOTE));
         }
         return Optional.empty();
     }

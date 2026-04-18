@@ -126,6 +126,7 @@ When adding a new rule:
   - `ENVIRONMENT`
 - detects inline Pipeline `<script>` elements and sends the complete script text to `PipelineScriptScanner`
 - runs plugin-specific `ConfigXmlScanAdapter` implementations before generic XML value scanning so high-confidence plugin semantics can skip or replace generic traversal
+- records adapter decision notes when plugin-specific semantics skip or replace generic traversal; notes name the adapter decision but never include raw field values
 - recognizes `HTTP Request`-style `config.xml` sections so credentials-backed `authentication` references and `customHeaders` values can be interpreted with plugin-specific semantics
 - recognizes Git SCM metadata such as branch specs, refspecs, and remote names so readable repository metadata does not trigger generic secret heuristics
 - recognizes Kubernetes secret-backed environment variables as references while still scanning plaintext key/value environment variables
