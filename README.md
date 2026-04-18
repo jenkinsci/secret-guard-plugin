@@ -1,5 +1,7 @@
 # Jenkins Secret Guard Plugin
 
+![Jenkins Secret Guard cover](docs/assets/secret-guard-cover-jenkins-shield.svg)
+
 ## Introduction
 
 Jenkins Secret Guard detects hardcoded secret leakage risks in Jenkins jobs and Pipeline definitions.
