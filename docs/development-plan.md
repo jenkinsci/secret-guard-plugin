@@ -148,7 +148,7 @@ Acceptance criteria:
 
 Priority: `P1`
 
-Status: started. Runtime-reference detection and Jenkins credential-binding coverage now include bracket-index fallbacks, ternary guards, and safe-navigation method chains, while broader realistic Pipeline fixtures and deeper header-layout coverage remain open.
+Status: started. Runtime-reference detection and Jenkins credential-binding coverage now include bracket-index fallbacks, ternary guards, and safe-navigation method chains; `httpRequest customHeaders` parsing now handles parenthesized and cast list layouts plus quoted map keys, while broader realistic Pipeline fixtures and any still-unseen header layouts remain open.
 
 Tasks:
 

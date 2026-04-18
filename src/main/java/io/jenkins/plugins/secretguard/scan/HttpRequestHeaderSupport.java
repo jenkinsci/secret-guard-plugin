@@ -7,6 +7,7 @@ import io.jenkins.plugins.secretguard.util.NonSecretHeuristics;
 import io.jenkins.plugins.secretguard.util.SecretMasker;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 final class HttpRequestHeaderSupport {
@@ -68,14 +69,14 @@ final class HttpRequestHeaderSupport {
     }
 
     static List<ParsedCustomHeader> parseHeaderExpression(String expression, int baseLineNumber) {
-        String trimmed = expression == null ? "" : expression.trim();
+        String trimmed = normalizeHeaderExpression(expression);
         if (trimmed.length() < 2 || !trimmed.startsWith("[") || !trimmed.endsWith("]")) {
             return List.of();
         }
         String listBody = trimmed.substring(1, trimmed.length() - 1);
         List<ParsedCustomHeader> headers = new ArrayList<>();
         for (Segment item : splitTopLevelSegments(listBody)) {
-            String itemText = item.text().trim();
+            String itemText = stripBalancedParens(item.text().trim());
             if (itemText.length() < 2 || !itemText.startsWith("[") || !itemText.endsWith("]")) {
                 continue;
             }
@@ -90,15 +91,16 @@ final class HttpRequestHeaderSupport {
                 if (colonIndex < 0) {
                     continue;
                 }
-                String propertyName = propertyText.substring(0, colonIndex).trim();
-                String propertyValue = propertyText.substring(colonIndex + 1).trim();
+                String propertyName = normalizeMapKey(propertyText.substring(0, colonIndex));
+                String propertyValue = stripBalancedParens(
+                        propertyText.substring(colonIndex + 1).trim());
                 if ("name".equals(propertyName)) {
                     headerName = unquote(propertyValue);
                 } else if ("value".equals(propertyName)) {
                     headerValueExpression = propertyValue;
                     lineNumber = baseLineNumber + countNewlines(listBody, item.startOffset() + property.startOffset());
-                } else if ("maskValue".equals(propertyName)) {
-                    maskValueFalse = "false".equalsIgnoreCase(propertyValue);
+                } else if ("maskvalue".equals(propertyName)) {
+                    maskValueFalse = "false".equalsIgnoreCase(unquote(propertyValue));
                 }
             }
             if (!headerValueExpression.isBlank()) {
@@ -115,6 +117,12 @@ final class HttpRequestHeaderSupport {
             String line = lines[lineIndex];
             while (column < line.length() && Character.isWhitespace(line.charAt(column))) {
                 column++;
+            }
+            while (column < line.length() && line.charAt(column) == '(') {
+                column++;
+                while (column < line.length() && Character.isWhitespace(line.charAt(column))) {
+                    column++;
+                }
             }
             if (column < line.length()) {
                 break;
@@ -176,6 +184,125 @@ final class HttpRequestHeaderSupport {
             }
         }
         return ExtractedExpression.empty(startLineIndex);
+    }
+
+    private static String normalizeHeaderExpression(String expression) {
+        String trimmed = stripBalancedParens(expression == null ? "" : expression.trim());
+        int castIndex = indexOfTopLevelAsKeyword(trimmed);
+        if (castIndex >= 0) {
+            trimmed = trimmed.substring(0, castIndex).trim();
+        }
+        return stripBalancedParens(trimmed);
+    }
+
+    private static String normalizeMapKey(String value) {
+        return unquote(stripBalancedParens(value == null ? "" : value.trim())).toLowerCase(Locale.ENGLISH);
+    }
+
+    private static String stripBalancedParens(String value) {
+        String result = value == null ? "" : value.trim();
+        while (result.length() >= 2 && result.startsWith("(") && result.endsWith(")")) {
+            int depth = 0;
+            boolean balanced = true;
+            for (int index = 0; index < result.length(); index++) {
+                char c = result.charAt(index);
+                if (c == '(') {
+                    depth++;
+                } else if (c == ')') {
+                    depth--;
+                    if (depth == 0 && index < result.length() - 1) {
+                        balanced = false;
+                        break;
+                    }
+                }
+                if (depth < 0) {
+                    balanced = false;
+                    break;
+                }
+            }
+            if (!balanced || depth != 0) {
+                break;
+            }
+            result = result.substring(1, result.length() - 1).trim();
+        }
+        return result;
+    }
+
+    private static int indexOfTopLevelAsKeyword(String value) {
+        int parenthesisDepth = 0;
+        int bracketDepth = 0;
+        int braceDepth = 0;
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+        boolean escaping = false;
+        for (int index = 0; index < value.length() - 1; index++) {
+            char c = value.charAt(index);
+            if (escaping) {
+                escaping = false;
+                continue;
+            }
+            if ((inSingleQuote || inDoubleQuote) && c == '\\') {
+                escaping = true;
+                continue;
+            }
+            if (inSingleQuote) {
+                if (c == '\'') {
+                    inSingleQuote = false;
+                }
+                continue;
+            }
+            if (inDoubleQuote) {
+                if (c == '"') {
+                    inDoubleQuote = false;
+                }
+                continue;
+            }
+            if (c == '\'') {
+                inSingleQuote = true;
+                continue;
+            }
+            if (c == '"') {
+                inDoubleQuote = true;
+                continue;
+            }
+            if (c == '(') {
+                parenthesisDepth++;
+                continue;
+            }
+            if (c == ')' && parenthesisDepth > 0) {
+                parenthesisDepth--;
+                continue;
+            }
+            if (c == '[') {
+                bracketDepth++;
+                continue;
+            }
+            if (c == ']' && bracketDepth > 0) {
+                bracketDepth--;
+                continue;
+            }
+            if (c == '{') {
+                braceDepth++;
+                continue;
+            }
+            if (c == '}' && braceDepth > 0) {
+                braceDepth--;
+                continue;
+            }
+            if (parenthesisDepth == 0 && bracketDepth == 0 && braceDepth == 0 && startsWithAsKeyword(value, index)) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private static boolean startsWithAsKeyword(String value, int index) {
+        if (!value.regionMatches(true, index, "as", 0, 2)) {
+            return false;
+        }
+        boolean leftBoundary = index == 0 || Character.isWhitespace(value.charAt(index - 1));
+        boolean rightBoundary = index + 2 >= value.length() || Character.isWhitespace(value.charAt(index + 2));
+        return leftBoundary && rightBoundary;
     }
 
     private static List<Segment> splitTopLevelSegments(String value) {

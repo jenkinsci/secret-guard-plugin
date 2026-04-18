@@ -320,6 +320,38 @@ class ConfigXmlScannerTest {
     }
 
     @Test
+    void parsesParenthesizedAndCastCustomHeadersFromInlinePipelineScript() {
+        String xml = """
+                <flow-definition>
+                  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition">
+                    <script><![CDATA[
+                def response = httpRequest(
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: (
+                        [
+                            (["name": "x-service-token", "value": env.SERVICE_API_TOKEN, "maskValue": true]),
+                            ([name: "Authorization", value: "Bearer hardcodedHeaderValue0123456789ABCDEF", maskValue: false])
+                        ] as List<Map<String, Object>>
+                    )
+                )
+                    ]]></script>
+                    <sandbox>true</sandbox>
+                  </definition>
+                </flow-definition>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("WorkflowJob"), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-unmasked-header-secret")));
+        assertFalse(result.getFindings().stream()
+                .filter(finding -> finding.getRuleId().startsWith("http-request-"))
+                .anyMatch(finding -> finding.getFieldName().equals("x-service-token")));
+    }
+
+    @Test
     void detectsStructuredHttpRequestPluginCustomHeadersFromConfigXml() {
         String xml = """
                 <project>

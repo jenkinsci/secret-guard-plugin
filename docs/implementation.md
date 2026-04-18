@@ -148,7 +148,7 @@ When adding a new rule:
 - parses literal `httpRequest customHeaders` lists into per-header entries before scanning
 - detects hardcoded custom header literals and separately reports `maskValue: false`
 - detects hardcoded secrets embedded in URL query parameters such as `?key=...` and `?token=...`
-- supports mixed single-line and multi-line header layouts, multiple headers in one request, and nested Groovy expressions inside header values
+- supports mixed single-line and multi-line header layouts, multiple headers in one request, parenthesized or cast header lists, quoted map keys, and nested Groovy expressions inside header values
 - passes header names into generic rules only for parsed header `value:` entries, so later non-header lines in the same `httpRequest` block do not inherit the header context
 - treats runtime header references such as `"$TOKEN"`, `"${TOKEN}"`, `env.TOKEN`, `params.TOKEN`, `env['TOKEN']`, `env.get('TOKEN')`, `params.get('TOKEN')`, `params['TOKEN'] ?: ''`, ternary guards, safe-navigation chains, simple GString/concatenation forms, uppercase credential variable method chains, and common `withCredentials`-bound variable combinations as non-plaintext values through shared `NonSecretHeuristics` helpers
 - treats obvious redaction placeholders in headers as non-hardcoded header secrets while still allowing generic low-severity sensitive-field reporting

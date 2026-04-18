@@ -348,6 +348,31 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void parsesParenthesizedAndCastCustomHeadersLayouts() {
+        String script = """
+                def response = httpRequest(
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: (
+                        [
+                            (["name": "x-service-token", "value": env.SERVICE_API_TOKEN, "maskValue": true]),
+                            ([name: "Authorization", value: "Bearer hardcodedHeaderValue0123456789ABCDEF", maskValue: false])
+                        ] as List<Map<String, Object>>
+                    ),
+                    quiet: true
+                )
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-unmasked-header-secret")));
+        assertFalse(result.getFindings().stream()
+                .filter(finding -> finding.getRuleId().startsWith("http-request-"))
+                .anyMatch(finding -> finding.getFieldName().equals("x-service-token")));
+    }
+
+    @Test
     void stillScansOtherArgumentsOnSameLineAsCustomHeaders() {
         String script = """
                 def response = httpRequest(customHeaders: [[name: "Authorization", value: "Bearer hardcodedHeaderValue0123456789ABCDEF", maskValue: false]], url: "https://chat.example.invalid/cgi-bin/webhook/send?token=123e4567-e89b-12d3-a456-426614174999")
