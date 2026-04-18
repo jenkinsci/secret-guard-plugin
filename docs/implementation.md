@@ -107,7 +107,7 @@ Pipeline-from-SCM Jenkinsfiles are scanned during manual scans and build-time sc
     - regex-driven `PatternSecretRule`
     - entropy-based `HighEntropyRule`
   - downgrades strongly placeholder-like sensitive-field values to `LOW` instead of treating them as plaintext secrets
-  - suppresses `sensitive-field-name` findings when a sensitive-looking field actually stores a readable service URL or endpoint reference instead of a secret literal
+  - suppresses `sensitive-field-name` findings when a sensitive-looking field actually stores a readable service endpoint reference such as `http(s)://`, `ftp/sftp://`, or `host:port/path` instead of a secret literal
 
 When adding a new rule:
 

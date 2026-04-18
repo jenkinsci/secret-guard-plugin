@@ -193,6 +193,9 @@ class ConfigXmlScannerTest {
                     <script><![CDATA[
                 def getPasswordUrl = "http://service.example.invalid/auth"
                 def tokenEndpoint = "https://service.example.invalid/oauth/token"
+                def secretUploadUrl = "sftp://files.example.invalid:22/runtime/upload"
+                def passwordServiceEndpoint = "service.example.invalid:8443/auth"
+                def tokenWebhookUrl = "hooks.example.invalid/services/runtime"
                     ]]></script>
                     <sandbox>true</sandbox>
                   </definition>

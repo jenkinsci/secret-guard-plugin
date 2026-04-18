@@ -29,6 +29,7 @@ public final class NonSecretHeuristics {
     private static final Pattern SENSITIVE_PARAMETER_NAME = Pattern.compile(
             "(?i).*(password|passwd|pwd|token|secret|api[_-]?key|apikey|access[_-]?key|accesskey|client[_-]?secret|credential|auth|webhook).*");
     private static final Pattern HTTP_URL = Pattern.compile("(?i)\\bhttps?://[^\\s'\"<>]+");
+    private static final Pattern NETWORK_URL = Pattern.compile("(?i)\\b(?:https?|ftp|sftp)://[^\\s'\"<>]+");
     private static final Pattern SENSITIVE_URL_NAME = Pattern.compile(
             "(?i).*(password|passwd|pwd|token|secret|api[_-]?key|apikey|access[_-]?key|accesskey|client[_-]?secret|credential|auth|webhook|signature|sig).*");
 
@@ -107,18 +108,45 @@ public final class NonSecretHeuristics {
 
     public static boolean looksLikeReadableEndpointUrl(String value) {
         String candidate = extractLikelyLiteralValue(nullToEmpty(value).trim());
-        String url = findContainingHttpUrl(value, candidate);
+        String url = findContainingNetworkUrl(value, candidate);
         if (url.isEmpty() && !candidate.equals(value)) {
-            url = findContainingHttpUrl(candidate, candidate);
+            url = findContainingNetworkUrl(candidate, candidate);
         }
-        if (url.isEmpty()) {
+        if (!url.isEmpty()) {
+            if (urlAuthorityLooksCredentialed(url) || urlContainsSensitiveQueryOrFragment(url)) {
+                return false;
+            }
+            String path = urlPath(url);
+            return path.isBlank() || looksLikeReadableEndpointPath(path);
+        }
+        return looksLikeReadableHostPathEndpoint(candidate);
+    }
+
+    private static boolean looksLikeReadableHostPathEndpoint(String value) {
+        String candidate = stripTrailingUrlPunctuation(nullToEmpty(value).trim());
+        int queryIndex = candidate.indexOf('?');
+        String query = "";
+        if (queryIndex >= 0) {
+            query = candidate.substring(queryIndex + 1);
+            candidate = candidate.substring(0, queryIndex);
+        }
+        int fragmentIndex = candidate.indexOf('#');
+        if (fragmentIndex >= 0) {
+            candidate = candidate.substring(0, fragmentIndex);
+        }
+        if (candidate.startsWith("//")) {
+            candidate = candidate.substring(2);
+        }
+        int slashIndex = candidate.indexOf('/');
+        if (slashIndex <= 0) {
             return false;
         }
-        if (urlAuthorityLooksCredentialed(url) || urlContainsSensitiveQueryOrFragment(url)) {
+        String hostPort = candidate.substring(0, slashIndex);
+        String path = candidate.substring(slashIndex);
+        if (!looksLikeHostPort(hostPort) || !looksLikeReadableEndpointPath(path)) {
             return false;
         }
-        String path = urlPath(url);
-        return path.isBlank() || looksLikeReadableEndpointPath(path);
+        return query.isBlank() || !urlContainsSensitiveQueryOrFragment("https://" + hostPort + path + "?" + query);
     }
 
     public static boolean isCredentialIdField(String fieldName) {
@@ -757,6 +785,20 @@ public final class NonSecretHeuristics {
             return "";
         }
         Matcher matcher = HTTP_URL.matcher(originalValue);
+        while (matcher.find()) {
+            String url = stripTrailingUrlPunctuation(matcher.group());
+            if (url.contains(candidate)) {
+                return url;
+            }
+        }
+        return "";
+    }
+
+    private static String findContainingNetworkUrl(String originalValue, String candidate) {
+        if (originalValue == null || candidate == null || candidate.isBlank()) {
+            return "";
+        }
+        Matcher matcher = NETWORK_URL.matcher(originalValue);
         while (matcher.find()) {
             String url = stripTrailingUrlPunctuation(matcher.group());
             if (url.contains(candidate)) {

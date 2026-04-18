@@ -131,6 +131,12 @@ class BuiltInSecretRuleSetTest {
                 .isEmpty());
         assertTrue(scan("secretServiceUrl", "https://service.example.invalid/runtime/check")
                 .isEmpty());
+        assertTrue(scan("secretUploadUrl", "sftp://files.example.invalid:22/runtime/upload")
+                .isEmpty());
+        assertTrue(scan("passwordServiceEndpoint", "service.example.invalid:8443/auth")
+                .isEmpty());
+        assertTrue(scan("tokenWebhookUrl", "hooks.example.invalid/services/runtime")
+                .isEmpty());
     }
 
     @Test
