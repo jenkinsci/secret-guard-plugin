@@ -48,14 +48,17 @@ public class ManualJobScanService {
     public SecretScanResult scanJob(Job<?, ?> job) throws IOException {
         LOGGER.log(Level.FINE, LOG_PREFIX + "Starting manual Secret Guard scan for {0}", job.getFullName());
         SecretGuardGlobalConfiguration configuration = SecretGuardGlobalConfiguration.get();
+        EnforcementMode enforcementMode =
+                configuration == null ? EnforcementMode.AUDIT : configuration.getEnforcementMode();
+        Severity blockThreshold = configuration == null ? Severity.HIGH : configuration.getBlockThreshold();
         ScanContext context = new ScanContext(
                 job.getFullName(),
                 "config.xml",
                 job.getClass().getSimpleName(),
                 FindingLocationType.CONFIG_XML,
                 ScanPhase.MANUAL,
-                EnforcementMode.AUDIT,
-                configuration == null ? Severity.HIGH : configuration.getBlockThreshold());
+                enforcementMode,
+                blockThreshold);
         List<SecretFinding> findings = new ArrayList<>(
                 configXmlScanner.scan(context, job.getConfigFile().asString()).getFindings());
         LOGGER.log(Level.FINE, LOG_PREFIX + "Config XML scan for {0} produced {1} finding(s)", new Object[] {
@@ -74,8 +77,8 @@ public class ManualJobScanService {
                     job.getClass().getSimpleName(),
                     source.getLocationType(),
                     ScanPhase.MANUAL,
-                    EnforcementMode.AUDIT,
-                    configuration == null ? Severity.HIGH : configuration.getBlockThreshold());
+                    enforcementMode,
+                    blockThreshold);
             findings.addAll(
                     pipelineScriptScanner.scan(scmContext, source.getContent()).getFindings());
         } else {

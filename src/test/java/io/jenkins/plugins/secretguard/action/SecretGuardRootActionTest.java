@@ -190,7 +190,7 @@ class SecretGuardRootActionTest {
         assertTrue(ScanResultStore.get().get(project.getFullName()).isEmpty());
 
         configuration.setEnabled(true);
-        configuration.setEnforcementMode(EnforcementMode.AUDIT);
+        configuration.setEnforcementMode(EnforcementMode.BLOCK);
         configuration.setBlockThreshold(Severity.HIGH);
 
         jenkinsRule.jenkins.setSecurityRealm(jenkinsRule.createDummySecurityRealm());
@@ -232,6 +232,8 @@ class SecretGuardRootActionTest {
         assertTrue(ScanResultStore.get().get(project.getFullName()).isPresent());
         assertTrue(
                 ScanResultStore.get().get(project.getFullName()).orElseThrow().hasFindings());
+        assertTrue(
+                ScanResultStore.get().get(project.getFullName()).orElseThrow().isBlocked());
 
         WebRequest dismissRequest =
                 new WebRequest(webClient.createCrumbedUrl("secret-guard/dismissScanAllStatus"), HttpMethod.POST);

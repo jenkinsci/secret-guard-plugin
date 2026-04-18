@@ -66,7 +66,7 @@ If SCM Jenkinsfile content cannot be read through lightweight access, the build-
 8. `SecretScanService` applies whitelist, exemptions, deduplication, scan notes, and latest-result persistence
 9. User is redirected back to the Job report page with the refreshed latest result
 
-Manual scan always runs in report-only mode. It refreshes findings but does not block save operations and does not change build results.
+Manual scan always runs in report-only mode. It refreshes findings but does not block save operations and does not change build results; the persisted result still computes blocked state from the current global enforcement mode for reporting.
 If a Pipeline-from-SCM or multibranch Jenkinsfile cannot be read through lightweight access, the Job report and system report show a scan note instead of silently skipping that Jenkinsfile.
 
 ### Save-time flow for Pipeline-from-SCM

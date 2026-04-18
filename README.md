@@ -91,12 +91,12 @@ Typical remediation guidance:
 
 Each Job page exposes a `Scan Now` action through the `Secret Guard` side-panel entry.
 The manual scan re-checks the current Job `config.xml`, inline Pipeline script content, and Pipeline-from-SCM Jenkinsfile content when lightweight SCM access is available, then refreshes the latest report for that Job.
-Manual scan only updates the report and does not block saves or change build results.
+Manual scan only updates the report and does not block saves or change build results; the report still reflects whether the current enforcement policy would block the findings.
 
 ## Global Scan
 
 The global `Secret Guard` system page exposes a `Scan All Jobs` action for users with `Manage Jenkins` permission.
-The action re-scans all Jenkins jobs in report-only mode and refreshes the latest persisted result for each scanned job.
+The action re-scans all Jenkins jobs in report-only mode and refreshes the latest persisted result for each scanned job, including whether the current enforcement policy would block each result.
 The page also shows summary cards for unexempted high findings, blocked jobs, jobs with findings, total findings, and scanned jobs.
 Latest results are sorted by risk, expose quick filters for `All`, `High`, `Blocked`, `With Findings`, `With Exemptions`, and `With Notes`, show compact exempted-count badges, highlight blocked rows, and link each row to the job-level `Secret Guard` report.
 Only masked latest-result data is persisted under `$JENKINS_HOME/secret-guard/results/`; raw scanned content and raw secret values are not stored.
