@@ -10,8 +10,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import jenkins.model.GlobalConfiguration;
+import jenkins.model.Jenkins;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.verb.POST;
 
 @Extension
 public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
@@ -134,15 +136,21 @@ public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
         return Severity.values();
     }
 
+    @POST
     public ListBoxModel doFillEnforcementModeItems() {
+        Jenkins.get().checkPermission(Jenkins.MANAGE);
         return buildEnforcementModeItems();
     }
 
+    @POST
     public ListBoxModel doFillBlockThresholdItems() {
+        Jenkins.get().checkPermission(Jenkins.MANAGE);
         return buildBlockThresholdItems();
     }
 
+    @POST
     public FormValidation doCheckExemptions(@QueryParameter String value) {
+        Jenkins.get().checkPermission(Jenkins.MANAGE);
         return validateExemptions(value);
     }
 
