@@ -13,9 +13,9 @@ import org.w3c.dom.NodeList;
 
 final class HttpRequestPluginConfigAdapter implements ConfigXmlScanAdapter {
     private static final String AUTHENTICATION_REFERENCE_NOTE =
-            "Config adapter skipped HTTP Request authentication reference.";
+            "Adapter: skipped HTTP Request authentication reference.";
     private static final String CUSTOM_HEADERS_NOTE =
-            "Config adapter parsed HTTP Request customHeaders with header semantics.";
+            "Adapter: parsed HTTP Request customHeaders with header semantics.";
 
     @Override
     public Optional<ConfigXmlElementScanResult> scanElement(

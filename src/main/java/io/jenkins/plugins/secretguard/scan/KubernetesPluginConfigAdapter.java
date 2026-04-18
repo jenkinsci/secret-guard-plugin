@@ -7,7 +7,7 @@ import org.w3c.dom.Element;
 
 final class KubernetesPluginConfigAdapter implements ConfigXmlScanAdapter {
     private static final String SECRET_ENV_VAR_REFERENCE_NOTE =
-            "Config adapter skipped Kubernetes secret-backed environment variable reference.";
+            "Adapter: skipped Kubernetes secret-backed environment variable reference.";
 
     @Override
     public Optional<ConfigXmlElementScanResult> scanElement(

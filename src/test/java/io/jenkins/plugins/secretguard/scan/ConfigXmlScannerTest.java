@@ -446,8 +446,32 @@ class ConfigXmlScannerTest {
 
         assertFalse(result.hasFindings());
         assertTrue(result.hasNotes());
-        assertTrue(result.getNotes().stream().anyMatch(note -> note.contains("common plugin external secret")));
+        assertTrue(result.getNotes().stream().anyMatch(note -> note.contains("Adapter: skipped common plugin")));
         assertFalse(result.getNotes().stream().anyMatch(note -> note.contains("artifact-service-token-prod")));
+    }
+
+    @Test
+    void deduplicatesRepeatedAdapterDecisionNotes() {
+        String xml = """
+                <project>
+                  <publishers>
+                    <io.example.SecretAwarePublisher>
+                      <secretName>artifact-service-token-prod</secretName>
+                      <secretKey>token</secretKey>
+                      <credentialsName>artifact-deploy-reader</credentialsName>
+                      <credential>artifact-runtime-reader</credential>
+                    </io.example.SecretAwarePublisher>
+                  </publishers>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertEquals(
+                1,
+                result.getNotes().stream()
+                        .filter(note -> note.contains("Adapter: skipped common plugin"))
+                        .count());
     }
 
     @Test
@@ -513,9 +537,10 @@ class ConfigXmlScannerTest {
         SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
 
         assertTrue(result.hasNotes());
-        assertTrue(result.getNotes().stream().anyMatch(note -> note.contains("Git branch metadata")));
-        assertTrue(result.getNotes().stream().anyMatch(note -> note.contains("Git refspec metadata")));
-        assertTrue(result.getNotes().stream().anyMatch(note -> note.contains("Kubernetes secret-backed")));
+        assertTrue(result.getNotes().stream().anyMatch(note -> note.contains("Adapter: skipped Git branch metadata")));
+        assertTrue(result.getNotes().stream().anyMatch(note -> note.contains("Adapter: skipped Git refspec metadata")));
+        assertTrue(result.getNotes().stream()
+                .anyMatch(note -> note.contains("Adapter: skipped Kubernetes secret-backed")));
         assertFalse(result.getNotes().stream().anyMatch(note -> note.contains("origin-sensitive-reference")));
         assertFalse(result.getNotes().stream().anyMatch(note -> note.contains("0123456789abcdef")));
         assertFalse(result.getNotes().stream().anyMatch(note -> note.contains("k8s-service-token-prod")));

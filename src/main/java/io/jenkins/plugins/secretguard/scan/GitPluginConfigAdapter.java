@@ -6,9 +6,9 @@ import java.util.Optional;
 import org.w3c.dom.Element;
 
 final class GitPluginConfigAdapter implements ConfigXmlScanAdapter {
-    private static final String BRANCH_SPEC_NOTE = "Config adapter skipped Git branch metadata.";
-    private static final String REFSPEC_NOTE = "Config adapter skipped Git refspec metadata.";
-    private static final String REMOTE_NAME_NOTE = "Config adapter skipped Git remote name metadata.";
+    private static final String BRANCH_SPEC_NOTE = "Adapter: skipped Git branch metadata.";
+    private static final String REFSPEC_NOTE = "Adapter: skipped Git refspec metadata.";
+    private static final String REMOTE_NAME_NOTE = "Adapter: skipped Git remote name metadata.";
 
     @Override
     public Optional<ConfigXmlElementScanResult> scanElement(

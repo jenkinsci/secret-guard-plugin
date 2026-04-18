@@ -1,5 +1,6 @@
 package io.jenkins.plugins.secretguard.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -65,6 +66,28 @@ class SecretScanServiceTest {
 
         assertTrue(result.hasNotes());
         assertTrue(result.getNotes().contains("Config adapter skipped test reference."));
+    }
+
+    @Test
+    void normalizesAndDeduplicatesScannerNotesDuringPolicyProcessing() {
+        SecretScanService service = new SecretScanService(new WhitelistService(), new ExemptionService());
+        SecretScanResult result = service.scan(
+                (context, content) -> new SecretScanResult(
+                        context.getJobFullName(),
+                        context.getTargetType(),
+                        List.of(),
+                        false,
+                        List.of(
+                                " Adapter: skipped Git branch metadata. ",
+                                "Adapter:   skipped Git branch metadata.",
+                                "",
+                                "Adapter: skipped Git refspec metadata.")),
+                context(EnforcementMode.AUDIT),
+                "ignored");
+
+        assertEquals(2, result.getNotes().size());
+        assertTrue(result.getNotes().contains("Adapter: skipped Git branch metadata."));
+        assertTrue(result.getNotes().contains("Adapter: skipped Git refspec metadata."));
     }
 
     @Test

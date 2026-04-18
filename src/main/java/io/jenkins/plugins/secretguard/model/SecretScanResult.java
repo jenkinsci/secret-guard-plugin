@@ -3,7 +3,9 @@ package io.jenkins.plugins.secretguard.model;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public class SecretScanResult {
     private final String targetId;
@@ -122,12 +124,17 @@ public class SecretScanResult {
         if (notes == null || notes.isEmpty()) {
             return Collections.emptyList();
         }
-        List<String> sanitized = new ArrayList<>();
+        Set<String> sanitized = new LinkedHashSet<>();
         for (String note : notes) {
-            if (note != null && !note.isBlank()) {
-                sanitized.add(note);
+            String normalized = normalizeNote(note);
+            if (!normalized.isBlank()) {
+                sanitized.add(normalized);
             }
         }
-        return sanitized;
+        return new ArrayList<>(sanitized);
+    }
+
+    private static String normalizeNote(String note) {
+        return note == null ? "" : note.trim().replaceAll("\\s+", " ");
     }
 }
