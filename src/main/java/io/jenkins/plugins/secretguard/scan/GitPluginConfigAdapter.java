@@ -1,15 +1,22 @@
 package io.jenkins.plugins.secretguard.scan;
 
+import io.jenkins.plugins.secretguard.model.ScanContext;
 import java.util.Locale;
+import java.util.Optional;
 import org.w3c.dom.Element;
 
-final class GitPluginConfigAdapter {
-    boolean shouldSkipElement(Element element, String path) {
+final class GitPluginConfigAdapter implements ConfigXmlScanAdapter {
+    @Override
+    public Optional<ConfigXmlElementScanResult> scanElement(
+            ScanContext context, String content, Element element, String path) {
         String lowerPath = (path + "/" + element.getNodeName()).toLowerCase(Locale.ENGLISH);
         if (!looksLikeGitContext(element, lowerPath)) {
-            return false;
+            return Optional.empty();
         }
-        return isBranchSpecNameField(lowerPath) || isRefspecField(lowerPath) || isRemoteConfigNameField(lowerPath);
+        if (isBranchSpecNameField(lowerPath) || isRefspecField(lowerPath) || isRemoteConfigNameField(lowerPath)) {
+            return Optional.of(ConfigXmlElementScanResult.skip());
+        }
+        return Optional.empty();
     }
 
     private boolean looksLikeGitContext(Element element, String lowerPath) {

@@ -21,9 +21,7 @@ import org.xml.sax.InputSource;
 public class ConfigXmlScanner implements SecretScanner {
     private final BuiltInSecretRuleSet ruleSet;
     private final PipelineScriptScanner pipelineScriptScanner;
-    private final HttpRequestPluginConfigAdapter httpRequestPluginConfigAdapter;
-    private final GitPluginConfigAdapter gitPluginConfigAdapter;
-    private final KubernetesPluginConfigAdapter kubernetesPluginConfigAdapter;
+    private final List<ConfigXmlScanAdapter> configAdapters;
 
     public ConfigXmlScanner() {
         this(new BuiltInSecretRuleSet());
@@ -32,9 +30,10 @@ public class ConfigXmlScanner implements SecretScanner {
     ConfigXmlScanner(BuiltInSecretRuleSet ruleSet) {
         this.ruleSet = ruleSet;
         this.pipelineScriptScanner = new PipelineScriptScanner(ruleSet);
-        this.httpRequestPluginConfigAdapter = new HttpRequestPluginConfigAdapter();
-        this.gitPluginConfigAdapter = new GitPluginConfigAdapter();
-        this.kubernetesPluginConfigAdapter = new KubernetesPluginConfigAdapter();
+        this.configAdapters = List.of(
+                new HttpRequestPluginConfigAdapter(),
+                new GitPluginConfigAdapter(),
+                new KubernetesPluginConfigAdapter());
     }
 
     @Override
@@ -63,20 +62,12 @@ public class ConfigXmlScanner implements SecretScanner {
 
     private void scanElement(
             ScanContext context, String content, List<SecretFinding> findings, Element element, String path) {
-        HttpRequestPluginConfigAdapter.ElementScanResult adapterResult = httpRequestPluginConfigAdapter
-                .scanElement(context, content, element, path)
-                .orElse(null);
+        ConfigXmlElementScanResult adapterResult = scanWithAdapters(context, content, element, path);
         if (adapterResult != null) {
             findings.addAll(adapterResult.findings());
             if (adapterResult.skipSubtree()) {
                 return;
             }
-        }
-        if (gitPluginConfigAdapter.shouldSkipElement(element, path)) {
-            return;
-        }
-        if (kubernetesPluginConfigAdapter.shouldSkipElement(element, path)) {
-            return;
         }
 
         NamedNodeMap attributes = element.getAttributes();
@@ -109,6 +100,18 @@ public class ConfigXmlScanner implements SecretScanner {
                 scanElement(context, content, findings, childElement, path + "/" + childElement.getNodeName());
             }
         }
+    }
+
+    private ConfigXmlElementScanResult scanWithAdapters(
+            ScanContext context, String content, Element element, String path) {
+        for (ConfigXmlScanAdapter adapter : configAdapters) {
+            ConfigXmlElementScanResult result =
+                    adapter.scanElement(context, content, element, path).orElse(null);
+            if (result != null) {
+                return result;
+            }
+        }
+        return null;
     }
 
     private void scanValue(

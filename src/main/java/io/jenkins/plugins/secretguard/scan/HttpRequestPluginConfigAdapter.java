@@ -11,15 +11,17 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-final class HttpRequestPluginConfigAdapter {
-    Optional<ElementScanResult> scanElement(ScanContext context, String content, Element element, String path) {
+final class HttpRequestPluginConfigAdapter implements ConfigXmlScanAdapter {
+    @Override
+    public Optional<ConfigXmlElementScanResult> scanElement(
+            ScanContext context, String content, Element element, String path) {
         String lowerPath = (path + "/" + element.getNodeName()).toLowerCase(Locale.ENGLISH);
         String directText = directText(element);
         if (!looksLikeHttpRequestContext(lowerPath)) {
             return Optional.empty();
         }
         if (isAuthenticationField(lowerPath)) {
-            return Optional.of(ElementScanResult.skip());
+            return Optional.of(ConfigXmlElementScanResult.skip());
         }
         if (isCustomHeadersField(lowerPath)) {
             List<HttpRequestHeaderSupport.ParsedCustomHeader> headers = parseStructuredHeaders(content, element);
@@ -37,7 +39,7 @@ final class HttpRequestPluginConfigAdapter {
                             header.valueExpression(),
                             header.maskValueFalse()));
                 }
-                return Optional.of(new ElementScanResult(findings, true));
+                return Optional.of(ConfigXmlElementScanResult.skipWithFindings(findings));
             }
             return Optional.empty();
         }
@@ -143,11 +145,5 @@ final class HttpRequestPluginConfigAdapter {
             }
         }
         return line;
-    }
-
-    record ElementScanResult(List<SecretFinding> findings, boolean skipSubtree) {
-        private static ElementScanResult skip() {
-            return new ElementScanResult(List.of(), true);
-        }
     }
 }
