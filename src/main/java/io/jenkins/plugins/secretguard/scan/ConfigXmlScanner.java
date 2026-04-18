@@ -23,6 +23,7 @@ public class ConfigXmlScanner implements SecretScanner {
     private final PipelineScriptScanner pipelineScriptScanner;
     private final HttpRequestPluginConfigAdapter httpRequestPluginConfigAdapter;
     private final GitPluginConfigAdapter gitPluginConfigAdapter;
+    private final KubernetesPluginConfigAdapter kubernetesPluginConfigAdapter;
 
     public ConfigXmlScanner() {
         this(new BuiltInSecretRuleSet());
@@ -33,6 +34,7 @@ public class ConfigXmlScanner implements SecretScanner {
         this.pipelineScriptScanner = new PipelineScriptScanner(ruleSet);
         this.httpRequestPluginConfigAdapter = new HttpRequestPluginConfigAdapter();
         this.gitPluginConfigAdapter = new GitPluginConfigAdapter();
+        this.kubernetesPluginConfigAdapter = new KubernetesPluginConfigAdapter();
     }
 
     @Override
@@ -71,6 +73,9 @@ public class ConfigXmlScanner implements SecretScanner {
             }
         }
         if (gitPluginConfigAdapter.shouldSkipElement(element, path)) {
+            return;
+        }
+        if (kubernetesPluginConfigAdapter.shouldSkipElement(element, path)) {
             return;
         }
 

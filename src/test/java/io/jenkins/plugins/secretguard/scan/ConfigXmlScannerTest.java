@@ -367,6 +367,68 @@ class ConfigXmlScannerTest {
     }
 
     @Test
+    void doesNotFlagKubernetesSecretEnvVarReferencesAsPlaintextSecrets() {
+        String xml = """
+                <project>
+                  <properties>
+                    <org.csanchez.jenkins.plugins.kubernetes.KubernetesPodTemplateProperty>
+                      <templates>
+                        <org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+                          <containers>
+                            <org.csanchez.jenkins.plugins.kubernetes.ContainerTemplate>
+                              <envVars>
+                                <org.csanchez.jenkins.plugins.kubernetes.model.SecretEnvVar>
+                                  <key>SERVICE_API_TOKEN</key>
+                                  <secretName>service-api-token-prod</secretName>
+                                  <secretKey>token</secretKey>
+                                </org.csanchez.jenkins.plugins.kubernetes.model.SecretEnvVar>
+                              </envVars>
+                            </org.csanchez.jenkins.plugins.kubernetes.ContainerTemplate>
+                          </containers>
+                        </org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+                      </templates>
+                    </org.csanchez.jenkins.plugins.kubernetes.KubernetesPodTemplateProperty>
+                  </properties>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertFalse(result.hasFindings());
+    }
+
+    @Test
+    void stillFlagsKubernetesPlaintextKeyValueEnvVarSecrets() {
+        String xml = """
+                <project>
+                  <properties>
+                    <org.csanchez.jenkins.plugins.kubernetes.KubernetesPodTemplateProperty>
+                      <templates>
+                        <org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+                          <containers>
+                            <org.csanchez.jenkins.plugins.kubernetes.ContainerTemplate>
+                              <envVars>
+                                <org.csanchez.jenkins.plugins.kubernetes.model.KeyValueEnvVar>
+                                  <key>SERVICE_API_TOKEN</key>
+                                  <value>ghp_012345678901234567890123456789012345</value>
+                                </org.csanchez.jenkins.plugins.kubernetes.model.KeyValueEnvVar>
+                              </envVars>
+                            </org.csanchez.jenkins.plugins.kubernetes.ContainerTemplate>
+                          </containers>
+                        </org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+                      </templates>
+                    </org.csanchez.jenkins.plugins.kubernetes.KubernetesPodTemplateProperty>
+                  </properties>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("github-token")));
+    }
+
+    @Test
     void doesNotFlagWithCredentialsBindingsFromInlinePipelineScript() {
         String xml = """
                 <flow-definition>

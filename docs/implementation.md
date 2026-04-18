@@ -127,6 +127,7 @@ When adding a new rule:
 - detects inline Pipeline `<script>` elements and sends the complete script text to `PipelineScriptScanner`
 - recognizes `HTTP Request`-style `config.xml` sections so credentials-backed `authentication` references and `customHeaders` values can be interpreted with plugin-specific semantics
 - recognizes Git SCM metadata such as branch specs, refspecs, and remote names so readable repository metadata does not trigger generic secret heuristics
+- recognizes Kubernetes secret-backed environment variables as references while still scanning plaintext key/value environment variables
 - avoids scanning recognized Pipeline `<script>` text as ordinary XML text to reduce duplicate fallback findings
 - calculates approximate line numbers by locating the matched text in the source XML
 - falls back to raw line scanning if XML parsing fails
