@@ -21,6 +21,7 @@ import org.xml.sax.InputSource;
 public class ConfigXmlScanner implements SecretScanner {
     private final BuiltInSecretRuleSet ruleSet;
     private final PipelineScriptScanner pipelineScriptScanner;
+    private final HttpRequestPluginConfigAdapter httpRequestPluginConfigAdapter;
 
     public ConfigXmlScanner() {
         this(new BuiltInSecretRuleSet());
@@ -29,6 +30,7 @@ public class ConfigXmlScanner implements SecretScanner {
     ConfigXmlScanner(BuiltInSecretRuleSet ruleSet) {
         this.ruleSet = ruleSet;
         this.pipelineScriptScanner = new PipelineScriptScanner(ruleSet);
+        this.httpRequestPluginConfigAdapter = new HttpRequestPluginConfigAdapter();
     }
 
     @Override
@@ -57,6 +59,16 @@ public class ConfigXmlScanner implements SecretScanner {
 
     private void scanElement(
             ScanContext context, String content, List<SecretFinding> findings, Element element, String path) {
+        HttpRequestPluginConfigAdapter.ElementScanResult adapterResult = httpRequestPluginConfigAdapter
+                .scanElement(context, content, element, path)
+                .orElse(null);
+        if (adapterResult != null) {
+            findings.addAll(adapterResult.findings());
+            if (adapterResult.skipSubtree()) {
+                return;
+            }
+        }
+
         NamedNodeMap attributes = element.getAttributes();
         for (int index = 0; index < attributes.getLength(); index++) {
             Node attribute = attributes.item(index);

@@ -262,6 +262,63 @@ class ConfigXmlScannerTest {
     }
 
     @Test
+    void detectsStructuredHttpRequestPluginCustomHeadersFromConfigXml() {
+        String xml = """
+                <project>
+                  <builders>
+                    <jenkins.plugins.http__request.HttpRequest plugin="http_request@1.20">
+                      <url>https://api.example.invalid/v1/request-check</url>
+                      <authentication>service-http-request-credential</authentication>
+                      <customHeaders>
+                        <jenkins.plugins.http__request.util.HttpRequestNameValuePair>
+                          <name>Authorization</name>
+                          <value>Bearer hardcodedHeaderValue0123456789ABCDEF</value>
+                          <maskValue>false</maskValue>
+                        </jenkins.plugins.http__request.util.HttpRequestNameValuePair>
+                        <jenkins.plugins.http__request.util.HttpRequestNameValuePair>
+                          <name>X-Request-ID</name>
+                          <value>0af7651916cd43dd8448eb211c80319c</value>
+                          <maskValue>false</maskValue>
+                        </jenkins.plugins.http__request.util.HttpRequestNameValuePair>
+                      </customHeaders>
+                    </jenkins.plugins.http__request.HttpRequest>
+                  </builders>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-unmasked-header-secret")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")
+                        && finding.getFieldName().equals("authentication")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getFieldName().equals("X-Request-ID")));
+    }
+
+    @Test
+    void doesNotFlagSerializedHttpRequestPluginCustomHeadersWithRuntimeReference() {
+        String xml = """
+                <project>
+                  <builders>
+                    <jenkins.plugins.http__request.HttpRequest plugin="http_request@1.20">
+                      <url>https://api.example.invalid/v1/request-check</url>
+                      <authentication>service-http-request-credential</authentication>
+                      <customHeaders>[[name: 'x-service-token', value: "${SERVICE_TOKEN}", maskValue: true], [name: 'Authorization', value: 'Bearer ' + params.SERVICE_TOKEN, maskValue: true]]</customHeaders>
+                    </jenkins.plugins.http__request.HttpRequest>
+                  </builders>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertFalse(result.hasFindings());
+    }
+
+    @Test
     void doesNotFlagWithCredentialsBindingsFromInlinePipelineScript() {
         String xml = """
                 <flow-definition>
