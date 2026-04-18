@@ -180,6 +180,37 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void doesNotFlagAdditionalWithCredentialsBindingTypes() {
+        String script = """
+                withCredentials([
+                  file(credentialsId: 'deploy-secret-file', variable: 'SECRET_FILE'),
+                  sshUserPrivateKey(credentialsId: 'deploy-ssh-key', keyFileVariable: 'SSH_KEY_FILE', usernameVariable: 'SSH_USER', passphraseVariable: 'SSH_PASSPHRASE'),
+                  usernameColonPassword(credentialsId: 'repository-login', variable: 'REPOSITORY_LOGIN'),
+                  gitUsernamePassword(credentialsId: 'git-http-login', gitToolName: 'Default')
+                ]) {
+                  sh 'cat "$SECRET_FILE" >/dev/null'
+                  sh 'ssh -i "$SSH_KEY_FILE" -l "$SSH_USER" example.invalid true'
+                  sh 'curl -u "$REPOSITORY_LOGIN" https://example.invalid/repository/index'
+                  sh 'git ls-remote https://example.invalid/platform/example.git'
+                  httpRequest(
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [
+                      [name: "Authorization", value: REPOSITORY_LOGIN.bytes.encodeBase64().toString(), maskValue: true],
+                      [name: "x-service-passphrase", value: env.get('SSH_PASSPHRASE'), maskValue: true]
+                    ]
+                  )
+                }
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().startsWith("http-request-")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+        assertFalse(result.getFindings().stream().anyMatch(finding -> finding.getSeverity() == Severity.HIGH));
+    }
+
+    @Test
     void doesNotCarryHeaderNameAcrossFollowingLinesWhenHeaderUsesRuntimeVariable() {
         String script = """
                 def response = httpRequest \\

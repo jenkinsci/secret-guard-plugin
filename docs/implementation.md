@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document explains how the current MVP is implemented, how the main classes collaborate, and where to add future functionality safely.
+This document explains how the current implementation works, how the main classes collaborate, and where to add future functionality safely.
 
 ## Package Layout
 
@@ -66,7 +66,7 @@ If SCM Jenkinsfile content cannot be read through lightweight access, the build-
 8. `SecretScanService` applies whitelist, exemptions, deduplication, scan notes, and latest-result persistence
 9. User is redirected back to the Job report page with the refreshed latest result
 
-Manual scan always runs in report-only mode for MVP. It refreshes findings but does not block save operations and does not change build results.
+Manual scan always runs in report-only mode. It refreshes findings but does not block save operations and does not change build results.
 If a Pipeline-from-SCM or multibranch Jenkinsfile cannot be read through lightweight access, the Job report and system report show a scan note instead of silently skipping that Jenkinsfile.
 
 ### Save-time flow for Pipeline-from-SCM
@@ -168,7 +168,7 @@ When adding a new rule:
 - defaults blank script paths to `Jenkinsfile`
 - reports SCM Jenkinsfile findings with `FindingLocationType.JENKINSFILE`
 - returns an unavailable-read scan note when lightweight access is unsupported, the file is missing, empty, or reading fails
-- never performs a workspace checkout fallback in MVP
+- never performs a workspace checkout fallback in the blocking or build-start scan path
 
 #### `MultibranchContextResolver`
 
@@ -341,7 +341,7 @@ Current test coverage is intentionally focused on the deterministic core:
   - webhook URL query secret detection
   - benign tracking header false-positive guards
   - fixture-based false-positive coverage for artifact publishing Pipelines
-  - `withCredentials` example does not escalate to `HIGH`
+  - `withCredentials` examples for string, username/password, file, SSH private key, Git username/password, and username-colon-password bindings do not escalate to `HIGH`
 - `SecretScanServiceTest`
   - block decision
   - whitelist effect
@@ -403,10 +403,14 @@ Recommended next layer:
 
 ## Current Hardening Backlog
 
-1. Expand `withCredentials` regression coverage for `file`, `sshUserPrivateKey`, `gitUsernamePassword`, and `usernameColonPassword`
-2. Expand runtime-expression regression coverage for forms such as `env.get('X')`, `params['X'] ?: ''`, ternary expressions, safe-navigation calls, and method-chain transforms
-3. Build a realistic Jenkinsfile false-positive corpus so common in-house Pipeline patterns stay covered by regression tests
-4. Continue hardening `httpRequest customHeaders` parsing for more nested map/list layouts and mixed call styles
+1. Expand runtime-expression regression coverage for forms such as `params['X'] ?: ''`, ternary expressions, safe-navigation calls, and additional method-chain transforms
+2. Build a realistic Jenkinsfile false-positive corpus so common in-house Pipeline patterns stay covered by regression tests
+3. Continue hardening `httpRequest customHeaders` parsing for more nested map/list layouts and mixed call styles
+
+Completed hardening:
+
+- Added `withCredentials` regression coverage for `file`, `sshUserPrivateKey`, `gitUsernamePassword`, and `usernameColonPassword`
+- Treated `env.get('X')`, `params.get('X')`, and uppercase runtime variable method chains such as encoded username/password combinations as runtime references
 
 ## Suggested Next Steps
 

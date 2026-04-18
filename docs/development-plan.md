@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document turns the current MVP into an executable backlog. It separates immediate hardening work from feature expansion so the plugin can move from proof-of-MVP to production-ready releases without losing its focused boundary: detecting and preventing Jenkins secret leakage.
+This document keeps the current implementation backlog executable. It separates immediate hardening work from feature expansion so the plugin can move toward production-ready releases without losing its focused boundary: detecting and preventing Jenkins secret leakage.
 
 ## Current Baseline
 
@@ -35,7 +35,7 @@ Known limitations:
 
 ## Release Strategy
 
-### MVP Hardening
+### Core Hardening
 
 Goal: make the current implementation safe enough for dogfooding in `AUDIT` or `WARN` mode.
 
@@ -69,7 +69,7 @@ Expected outcome:
 - optional AI-assisted explanations
 - better policy granularity
 
-## MVP Hardening Backlog
+## Core Hardening Backlog
 
 ### 1. Add JenkinsRule lifecycle tests
 
@@ -280,7 +280,7 @@ Acceptance criteria:
 
 ## V2 Backlog
 
-Status: not started; current implementation remains focused on MVP hardening and V1 usability.
+Status: not started; current implementation remains focused on core hardening and V1 usability.
 
 ### 1. Plugin-specific configuration adapters
 
@@ -380,7 +380,7 @@ Acceptance criteria:
 
 ## Test Matrix
 
-| Area | MVP Hardening | V1 | V2 |
+| Area | Core Hardening | V1 | V2 |
 | --- | --- | --- | --- |
 | Rules | unit tests for each rule and false positives | regression suite for custom additions | large corpus tests |
 | XML scanning | parameter/env/plugin field tests | plugin adapter fixtures | compatibility fixtures |
@@ -402,22 +402,11 @@ Before each release:
 
 ## Current Hardening Backlog
 
-1. `withCredentials` regression coverage for `file`, `sshUserPrivateKey`, `gitUsernamePassword`, and `usernameColonPassword`
-2. runtime-expression regression coverage for `env.get('X')`, `params['X'] ?: ''`, ternary expressions, safe-navigation calls, and method chains
-3. realistic Jenkinsfile false-positive corpus for common internal Pipeline patterns
-4. `httpRequest customHeaders` edge-case parsing for deeper nesting and mixed single-line/multi-line call layouts
+1. runtime-expression regression coverage for `params['X'] ?: ''`, ternary expressions, safe-navigation calls, and additional method chains
+2. realistic Jenkinsfile false-positive corpus for common internal Pipeline patterns
+3. `httpRequest customHeaders` edge-case parsing for deeper nesting and mixed single-line/multi-line call layouts
 
-## Recommended Next Sprint
+Completed:
 
-The next sprint should focus only on hardening:
-
-1. `withCredentials` regression coverage for `file`, `sshUserPrivateKey`, `gitUsernamePassword`, and `usernameColonPassword`
-2. runtime-expression regression coverage for `env.get('X')`, `params['X'] ?: ''`, ternary expressions, safe-navigation calls, and method chains
-3. realistic Jenkinsfile false-positive corpus for common internal Pipeline patterns
-4. `httpRequest customHeaders` edge-case parsing for deeper nesting and mixed single-line/multi-line call layouts
-5. JenkinsRule lifecycle tests
-6. save-time blocking reliability
-7. config validation for exemptions
-8. UI smoke tests
-
-This keeps the MVP stable while continuing to reduce false positives before expanding coverage to multibranch-specific Jenkinsfile handling or historical reporting.
+- `withCredentials` regression coverage for `file`, `sshUserPrivateKey`, `gitUsernamePassword`, and `usernameColonPassword`
+- runtime-reference recognition for `env.get('X')`, `params.get('X')`, and uppercase credential variable method chains

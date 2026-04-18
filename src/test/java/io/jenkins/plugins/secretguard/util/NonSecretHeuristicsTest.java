@@ -16,7 +16,10 @@ class NonSecretHeuristicsTest {
         assertTrue(NonSecretHeuristics.isRuntimeSecretReference("params.SERVICE_API_TOKEN"));
         assertTrue(NonSecretHeuristics.isRuntimeSecretReference("env['SERVICE_API_TOKEN']"));
         assertTrue(NonSecretHeuristics.isRuntimeSecretReference("params[\"SERVICE_API_TOKEN\"]"));
+        assertTrue(NonSecretHeuristics.isRuntimeSecretReference("env.get('SERVICE_API_TOKEN')"));
+        assertTrue(NonSecretHeuristics.isRuntimeSecretReference("params.get(\"SERVICE_API_TOKEN\")"));
         assertTrue(NonSecretHeuristics.isRuntimeSecretReference("credentials('service-api-token')"));
+        assertTrue(NonSecretHeuristics.isRuntimeSecretReference("SERVICE_LOGIN.bytes.encodeBase64().toString()"));
         assertTrue(NonSecretHeuristics.isRuntimeSecretReference("'Bearer ' + env.SERVICE_API_TOKEN"));
         assertTrue(NonSecretHeuristics.isRuntimeSecretReference("'Bearer ' + params.SERVICE_API_TOKEN"));
         assertTrue(NonSecretHeuristics.isRuntimeSecretReference("('Bearer ' + env.SERVICE_API_TOKEN)"));

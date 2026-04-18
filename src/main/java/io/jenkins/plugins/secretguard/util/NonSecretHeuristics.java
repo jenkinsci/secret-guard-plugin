@@ -17,6 +17,8 @@ public final class NonSecretHeuristics {
     private static final Pattern DIRECT_RUNTIME_REFERENCE = Pattern.compile("\\$[A-Za-z_][A-Za-z0-9_]*"
             + "|(?:env|params)\\.[A-Za-z_][A-Za-z0-9_]*"
             + "|(?:env|params)\\[['\"][A-Za-z_][A-Za-z0-9_.-]*['\"]\\]"
+            + "|(?:env|params)\\.get\\(\\s*['\"][A-Za-z_][A-Za-z0-9_.-]*['\"]\\s*\\)"
+            + "|[A-Z][A-Z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*(?:\\([^\\r\\n]*\\))?)+"
             + "|credentials\\([^\\r\\n]+\\)");
     private static final Pattern ASSIGNED_QUOTED_LITERAL =
             Pattern.compile("(?s).*\\b[A-Za-z_][A-Za-z0-9_]*\\s*=\\s*(['\"])(.*?)\\1\\s*,?\\s*");

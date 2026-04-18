@@ -5,11 +5,21 @@
 Jenkins Secret Guard detects hardcoded secret leakage risks in Jenkins jobs and Pipeline definitions.
 It focuses only on high-risk secret exposure patterns, not general code style or broad security governance.
 
+Current capabilities:
+
+- save-time enforcement
+- build-time scanning
+- manual Job scans
+- global `Scan All Jobs` reporting
+- lightweight Pipeline-from-SCM and multibranch Jenkinsfile reads
+- masked latest-result persistence
+- plugin-aware false-positive reduction for common Jenkins patterns
+
 ## Getting started
 
 Configure the plugin from **Manage Jenkins → Jenkins Secret Guard**.
 
-Supported MVP scan targets:
+Supported scan targets:
 
 - Job `config.xml`
 - Pipeline inline scripts
@@ -93,22 +103,13 @@ Only masked latest-result data is persisted under `$JENKINS_HOME/secret-guard/re
 
 ## Troubleshooting
 
-For Jenkins system log troubleshooting, configure the logger `io.jenkins.plugins.secretguard`.
+For Jenkins system log troubleshooting, enable the logger `io.jenkins.plugins.secretguard`.
 
-Key message prefixes:
+Common log areas:
 
-- `[Secret Guard][Manual Scan]`
-- `[Secret Guard][Build Scan]`
-- `[Secret Guard][Pipeline Source]`
-- `[Secret Guard][Multibranch]`
-- `[Secret Guard][SCM Read]`
-- `[Secret Guard][SCM Read][Multibranch]`
-- `[Secret Guard][Global Scan]`
-- `[Secret Guard][Save Scan]`
-- `[Secret Guard][Item Sync]`
-- `[Secret Guard][ClassLoader]`
-- `[Secret Guard][Persistence]`
-- `[Secret Guard][Heuristics]`
+- scan flow: `[Manual Scan]`, `[Build Scan]`, `[Global Scan]`, `[Save Scan]`
+- Pipeline source: `[Pipeline Source]`, `[Multibranch]`, `[SCM Read]`
+- infrastructure: `[Item Sync]`, `[ClassLoader]`, `[Persistence]`, `[Heuristics]`
 
 ## Documentation
 

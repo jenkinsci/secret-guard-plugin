@@ -11,7 +11,7 @@ Jenkins Secret Guard is a focused Jenkins plugin for detecting and preventing se
 - Environment variable definitions
 - Command steps such as `sh`, `bat`, and `powershell`
 
-The MVP is intentionally deterministic:
+The implementation is intentionally deterministic:
 
 - no AI
 - no generic code-quality rules
@@ -56,7 +56,7 @@ flowchart LR
 - field name whitelist
 - exemptions in `jobFullName|ruleId|reason` format
 
-The configuration is stored using Jenkins `GlobalConfiguration`, so no external storage is required for MVP.
+The configuration is stored using Jenkins `GlobalConfiguration`, so no external storage is required for policy settings.
 
 ### 2. Domain Model
 
@@ -81,7 +81,7 @@ This model keeps scanners, listeners, and UI layers loosely coupled.
 - context
 - source location
 
-MVP rules cover:
+Built-in rules cover:
 
 - sensitive field names such as `token`, `password`, `secret`, `apikey`, `accessKey`, `clientSecret`
 - JWTs
@@ -112,7 +112,7 @@ Two scanners implement `SecretScanner`:
   - classifies command steps and HTTP-style secret usage
   - parses literal `httpRequest customHeaders` lists into per-header entries so `name`, `value`, and `maskValue` are evaluated together across single-line and multi-line layouts
   - detects URL query secrets in shell commands and other script strings, such as webhook URLs with hardcoded `key` or `token` parameters
-  - avoids heavy Groovy parsing in MVP
+  - avoids heavy Groovy parsing by design
 
 Pipeline definitions are extracted through `PipelineDefinitionExtractor`:
 
@@ -210,7 +210,7 @@ Recommended evolution path:
   - easier to reason about
   - may miss deeper semantic misuse
 - **Latest-result persistence**
-  - keeps restart behavior predictable for MVP reports
+  - keeps restart behavior predictable for latest reports
   - stores only masked snippets, not raw secret values
   - does not provide historical trends
 - **Global configuration only**
