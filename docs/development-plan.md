@@ -286,7 +286,7 @@ Status: not started; current implementation remains focused on MVP hardening and
 
 Priority: `P0`
 
-Status: started. `ConfigXmlScanner` now runs plugin-specific adapters through a shared `ConfigXmlScanAdapter` hook before generic XML value scanning. `HTTP Request`-style `config.xml` sections suppress credentials-backed `authentication` references and parse `customHeaders` with plugin-aware header semantics. Git SCM config suppresses readable branch/refspec/remote-name metadata while still scanning remote URLs. Kubernetes secret-backed environment variables are treated as references while plaintext key/value environment variables remain scanned. Other publisher/build-wrapper adapters are still pending.
+Status: started. `ConfigXmlScanner` now runs plugin-specific adapters through a shared `ConfigXmlScanAdapter` hook before generic XML value scanning. `HTTP Request`-style `config.xml` sections suppress credentials-backed `authentication` references and parse `customHeaders` with plugin-aware header semantics. Git SCM config suppresses readable branch/refspec/remote-name metadata while still scanning remote URLs. Kubernetes secret-backed environment variables are treated as references while plaintext key/value environment variables remain scanned. Common publisher/build-wrapper reference fields such as external `secretName`, paired `secretKey`, and credential names are skipped only when values look like readable references rather than high-confidence secret literals.
 
 Targets:
 

@@ -429,6 +429,44 @@ class ConfigXmlScannerTest {
     }
 
     @Test
+    void doesNotFlagCommonPublisherSecretReferenceFieldsAsPlaintextSecrets() {
+        String xml = """
+                <project>
+                  <publishers>
+                    <io.example.SecretAwarePublisher>
+                      <secretName>artifact-service-token-prod</secretName>
+                      <secretKey>token</secretKey>
+                      <credentialsName>artifact-deploy-reader</credentialsName>
+                    </io.example.SecretAwarePublisher>
+                  </publishers>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertFalse(result.hasFindings());
+    }
+
+    @Test
+    void stillFlagsCommonPublisherHighConfidenceSecretLiterals() {
+        String xml = """
+                <project>
+                  <publishers>
+                    <io.example.SecretAwarePublisher>
+                      <secretName>ghp_012345678901234567890123456789012345</secretName>
+                      <secretKey>token</secretKey>
+                    </io.example.SecretAwarePublisher>
+                  </publishers>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("github-token")));
+    }
+
+    @Test
     void doesNotFlagWithCredentialsBindingsFromInlinePipelineScript() {
         String xml = """
                 <flow-definition>

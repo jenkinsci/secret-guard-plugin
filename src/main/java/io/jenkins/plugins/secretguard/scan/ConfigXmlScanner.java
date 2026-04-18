@@ -33,7 +33,8 @@ public class ConfigXmlScanner implements SecretScanner {
         this.configAdapters = List.of(
                 new HttpRequestPluginConfigAdapter(),
                 new GitPluginConfigAdapter(),
-                new KubernetesPluginConfigAdapter());
+                new KubernetesPluginConfigAdapter(),
+                new CommonPluginReferenceConfigAdapter());
     }
 
     @Override
