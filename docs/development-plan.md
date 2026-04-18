@@ -18,20 +18,20 @@ The current implementation includes:
 - false-positive heuristics for credential IDs, hashes, public certificates, tracking headers, paths, and Docker images
 - priority-based duplicate suppression for generic fallback rules
 - save-time listener
-- build-time listener for inline Pipeline jobs and lightweight Pipeline-from-SCM Jenkinsfiles
+- build-time listener for inline Pipeline jobs, lightweight Pipeline-from-SCM Jenkinsfiles, and multibranch Jenkinsfiles
 - manual Job `Scan Now` action
-- Pipeline-from-SCM Jenkinsfile retrieval through `SCMFileSystem`
+- Pipeline-from-SCM and multibranch Jenkinsfile retrieval through `SCMFileSystem`
 - disk-backed latest-result store under `$JENKINS_HOME/secret-guard/results/`
 - Job, Run, root, and administrative report surfaces
-- unit and JenkinsRule tests for rules, scanners, masking, service policy, save blocking, build scanning, manual scanning, and Pipeline-from-SCM coverage
+- unit and JenkinsRule tests for rules, scanners, masking, service policy, save blocking, build scanning, manual scanning, and Pipeline-from-SCM and multibranch coverage
 
 Known limitations:
 
-- Pipeline-from-SCM support depends on lightweight `SCMFileSystem` access
+- Pipeline-from-SCM and multibranch support depend on lightweight `SCMFileSystem` access
 - multibranch-specific indexing integration is not implemented
 - scan history is not retained beyond the latest result
 - no export, trend, or history view exists
-- no dedicated adapters for common plugin-specific credential fields
+- plugin-specific adapters cover common `HTTP Request`, Git, Kubernetes, and generic reference-like fields, but coverage is intentionally not exhaustive for every Jenkins plugin
 
 ## Release Strategy
 
@@ -52,10 +52,10 @@ Goal: make the plugin viable for production rollout in controlled environments.
 
 Expected outcome:
 
-- global scan-all action
-- multibranch-specific Jenkinsfile support
-- clearer admin UX
-- better exemption validation
+- continue reducing false positives with realistic Pipeline and `config.xml` fixtures
+- harden scan progress, notes, and report UX for larger Jenkins instances
+- keep plugin-specific adapter coverage focused on high-value Jenkins plugin patterns
+- keep configuration validation and exemption behavior predictable as policy options evolve
 
 ### V2
 
@@ -69,7 +69,7 @@ Expected outcome:
 - optional AI-assisted explanations
 - better policy granularity
 
-## Core Hardening Backlog
+## Core Hardening Stories
 
 ### 1. Add JenkinsRule lifecycle tests
 
@@ -136,6 +136,7 @@ Tasks:
 - [x] add regression cases for placeholder/mock/test values
 - [x] add regression cases for public certificates and artifact metadata
 - [x] add regression cases for common request/trace/correlation headers
+- [ ] expand realistic Jenkinsfile false-positive corpus for broader Pipeline patterns
 
 Acceptance criteria:
 
@@ -143,7 +144,27 @@ Acceptance criteria:
 - fixtures never contain real domains, tokens, host names, or internal paths
 - high-confidence rules still detect real hardcoded secret shapes
 
-### 4. Validate global configuration inputs
+### 4. Continue scanner false-positive hardening
+
+Priority: `P1`
+
+Status: started. Runtime-reference detection and Jenkins credential-binding coverage have been expanded, while deeper expression forms and additional realistic Pipeline fixtures remain open.
+
+Tasks:
+
+- [x] add `withCredentials` regression coverage for `file`, `sshUserPrivateKey`, `gitUsernamePassword`, and `usernameColonPassword`
+- [x] recognize `env.get('X')`, `params.get('X')`, and uppercase credential variable method chains as runtime references
+- [ ] expand runtime-expression regression coverage for `params['X'] ?: ''`, ternary expressions, safe-navigation calls, and additional method chains
+- [ ] build a realistic Jenkinsfile false-positive corpus for common internal Pipeline patterns
+- [ ] continue hardening `httpRequest customHeaders` parsing for deeper nesting and mixed single-line/multi-line call layouts
+
+Acceptance criteria:
+
+- common Jenkins runtime-reference patterns do not create high-severity false positives
+- new false-positive fixes include anonymized regression coverage
+- `httpRequest customHeaders` parsing remains stable across common Groovy layouts
+
+### 5. Validate global configuration inputs
 
 Priority: `P1`
 
@@ -161,7 +182,7 @@ Acceptance criteria:
 - invalid exemption syntax is visible in global config UI
 - existing valid entries continue to load
 
-### 5. Add UI smoke tests
+### 6. Add UI smoke tests
 
 Priority: `P2`
 
@@ -280,26 +301,26 @@ Acceptance criteria:
 
 ## V2 Backlog
 
-Status: not started; current implementation remains focused on core hardening and V1 usability.
+Status: partially started; current implementation remains focused on core hardening and V1 usability.
 
 ### 1. Plugin-specific configuration adapters
 
 Priority: `P0`
 
-Status: started. `ConfigXmlScanner` now runs plugin-specific adapters through a shared `ConfigXmlScanAdapter` hook before generic XML value scanning and records deduplicated, raw-value-free `Adapter:` decision notes when generic traversal is skipped or replaced. `HTTP Request`-style `config.xml` sections suppress credentials-backed `authentication` references and parse `customHeaders` with plugin-aware header semantics. Git SCM config suppresses readable branch/refspec/remote-name metadata while still scanning remote URLs. Kubernetes secret-backed environment variables are treated as references while plaintext key/value environment variables remain scanned. Common publisher/build-wrapper reference fields such as external `secretName`, paired `secretKey`, and credential names are skipped only when values look like readable references rather than high-confidence secret literals.
+Status: started.
 
 Targets:
 
-- HTTP Request plugin
-- Git plugin credential-adjacent fields
-- Kubernetes plugin environment fields
-- common publisher/build-wrapper fields that persist strings
+- [x] HTTP Request plugin
+- [x] Git plugin credential-adjacent fields
+- [x] Kubernetes plugin environment fields
+- [x] common publisher/build-wrapper fields that persist strings
 
 Tasks:
 
-- identify plugin XML node patterns
-- add adapter-style scanners or path classifiers
-- provide plugin-specific remediation messages
+- [x] identify plugin XML node patterns
+- [x] add adapter-style scanners or path classifiers
+- [ ] provide plugin-specific remediation messages
 
 Acceptance criteria:
 
@@ -380,7 +401,7 @@ Acceptance criteria:
 
 ## Test Matrix
 
-| Area | Core Hardening | V1 | V2 |
+| Area | Core Hardening Stories | V1 | V2 |
 | --- | --- | --- | --- |
 | Rules | unit tests for each rule and false positives | regression suite for custom additions | large corpus tests |
 | XML scanning | parameter/env/plugin field tests | plugin adapter fixtures | compatibility fixtures |
@@ -399,14 +420,3 @@ Before each release:
 - verify README and docs match actual behavior
 - verify all new rules include false-positive tests
 - verify user-visible blocking messages are masked
-
-## Current Hardening Backlog
-
-1. runtime-expression regression coverage for `params['X'] ?: ''`, ternary expressions, safe-navigation calls, and additional method chains
-2. realistic Jenkinsfile false-positive corpus for common internal Pipeline patterns
-3. `httpRequest customHeaders` edge-case parsing for deeper nesting and mixed single-line/multi-line call layouts
-
-Completed:
-
-- `withCredentials` regression coverage for `file`, `sshUserPrivateKey`, `gitUsernamePassword`, and `usernameColonPassword`
-- runtime-reference recognition for `env.get('X')`, `params.get('X')`, and uppercase credential variable method chains

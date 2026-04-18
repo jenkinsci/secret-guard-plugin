@@ -6,7 +6,7 @@ This file applies to the entire repository.
 
 - This repository contains the Jenkins plugin `secret-guard`.
 - The plugin detects hardcoded secret leakage in Jenkins job configuration and inline Pipeline definitions.
-- The MVP is intentionally deterministic: no AI, no broad governance workflows, and no generic code-quality analysis.
+- The plugin is intentionally deterministic: no AI, no broad governance workflows, and no generic code-quality analysis.
 
 ## Tech stack
 
@@ -68,3 +68,15 @@ This file applies to the entire repository.
 - For false-positive fixes, prefer improving heuristics/rules and adding regression coverage instead of changing examples into unrealistic fake configurations merely to silence detection.
 - When changing `pom.xml` or dependencies, prefer staying aligned with the Jenkins plugin parent and BOM already declared in `pom.xml`.
 - Keep docs in `README.md` or `docs/` in sync when behavior, configuration, or architecture meaningfully changes.
+
+## Documentation rules
+
+- Avoid MVP-stage wording in docs. Prefer `current implementation`, `core hardening`, `V1`, or `V2` depending on context.
+- Keep `README.md` administrator-facing and concise: current capabilities, configuration entry points, scan actions, storage behavior, and troubleshooting.
+- Keep `docs/architecture.md` focused on design goals, subsystem boundaries, tradeoffs, current boundaries, and extension points.
+- Keep `docs/implementation.md` focused on package layout, class collaboration, implementation details, data/state behavior, testing strategy, and safe change guidance.
+- Keep backlog, future work, status, stories, tasks, and acceptance criteria in `docs/development-plan.md`; do not duplicate backlog sections in README or implementation docs.
+- Keep implementation details out of plan status paragraphs when a checklist is clearer; put scanner, adapter, heuristic, and persistence details in `docs/implementation.md`.
+- Keep status text consistent with checklists: if a status says incomplete, include at least one unchecked task; if all tasks are checked, mark the story completed or implemented.
+- Avoid conflicting parent/child status. For example, if any V2 story is started, do not describe the whole V2 backlog as not started.
+- After documentation changes, search for stale wording such as `MVP`, `Current Hardening Backlog`, `Suggested Next Steps`, `Recommended next layer`, and `three levels`.

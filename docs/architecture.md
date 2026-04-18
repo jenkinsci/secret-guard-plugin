@@ -7,6 +7,7 @@ Jenkins Secret Guard is a focused Jenkins plugin for detecting and preventing se
 - Job `config.xml`
 - Pipeline inline scripts
 - Pipeline-from-SCM Jenkinsfiles when lightweight SCM access is available
+- Multibranch Pipeline Jenkinsfiles when lightweight SCM access is available
 - Build parameter default values
 - Environment variable definitions
 - Command steps such as `sh`, `bat`, and `powershell`
@@ -143,7 +144,7 @@ Policy behavior:
 
 ### 6. Jenkins Integration
 
-The plugin integrates at three levels:
+The plugin integrates across save-time, build-time, manual-scan, and reporting entry points:
 
 - `SecretGuardJobConfigFilter`
   - intercepts Job create and config update HTTP requests
@@ -198,10 +199,10 @@ The current implementation deliberately does not include:
 Recommended evolution path:
 
 1. Add more `SecretRule` implementations without changing listener code
-2. Add dedicated scanners for plugin-specific configuration blocks
+2. Expand plugin-specific configuration adapters
 3. Add historical result retention if trend or audit reporting becomes required
 4. Add Pipeline step support for explicit in-pipeline scans
-5. Add multibranch-specific Jenkinsfile coverage and SCM fallback strategies
+5. Add SCM fallback strategies where lightweight Jenkinsfile reads are unavailable
 
 ## Key Tradeoffs
 

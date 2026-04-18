@@ -130,7 +130,7 @@ When adding a new rule:
 - recognizes `HTTP Request`-style `config.xml` sections so credentials-backed `authentication` references and `customHeaders` values can be interpreted with plugin-specific semantics
 - recognizes Git SCM metadata such as branch specs, refspecs, and remote names so readable repository metadata does not trigger generic secret heuristics
 - recognizes Kubernetes secret-backed environment variables as references while still scanning plaintext key/value environment variables
-- recognizes common publisher/build-wrapper reference fields such as external `secretName` and credential names when values look like readable references rather than high-confidence secret literals
+- recognizes common publisher/build-wrapper reference fields such as external `secretName`, paired `secretKey`, and credential names when values look like readable references rather than high-confidence secret literals
 - avoids scanning recognized Pipeline `<script>` text as ordinary XML text to reduce duplicate fallback findings
 - calculates approximate line numbers by locating the matched text in the source XML
 - falls back to raw line scanning if XML parsing fails
@@ -149,7 +149,7 @@ When adding a new rule:
 - detects hardcoded secrets embedded in URL query parameters such as `?key=...` and `?token=...`
 - supports mixed single-line and multi-line header layouts, multiple headers in one request, and nested Groovy expressions inside header values
 - passes header names into generic rules only for parsed header `value:` entries, so later non-header lines in the same `httpRequest` block do not inherit the header context
-- treats runtime header references such as `"$TOKEN"`, `"${TOKEN}"`, `env.TOKEN`, `params.TOKEN`, `env['TOKEN']`, simple GString/concatenation forms, and common `withCredentials`-bound variable combinations as non-plaintext values through shared `NonSecretHeuristics` helpers
+- treats runtime header references such as `"$TOKEN"`, `"${TOKEN}"`, `env.TOKEN`, `params.TOKEN`, `env['TOKEN']`, `env.get('TOKEN')`, `params.get('TOKEN')`, simple GString/concatenation forms, uppercase credential variable method chains, and common `withCredentials`-bound variable combinations as non-plaintext values through shared `NonSecretHeuristics` helpers
 - treats obvious redaction placeholders in headers as non-hardcoded header secrets while still allowing generic low-severity sensitive-field reporting
 - passes header names into generic rules so benign tracking headers do not trigger high-entropy false positives
 - keeps implementation text-based so it does not require Pipeline AST integration
@@ -203,7 +203,7 @@ When adding a new rule:
 
 - centralizes false-positive suppression for common non-secret values
 - skips credential ID fields such as `credentialsId` and `credentialId`
-- exposes shared runtime-reference detection for values such as `$TOKEN`, `${TOKEN}`, `env.TOKEN`, `params.TOKEN`, `env['TOKEN']`, and `credentials(...)`
+- exposes shared runtime-reference detection for values such as `$TOKEN`, `${TOKEN}`, `env.TOKEN`, `params.TOKEN`, `env['TOKEN']`, `env.get('TOKEN')`, `params.get('TOKEN')`, uppercase credential variable method chains, and `credentials(...)`
 - recognizes strongly placeholder-like literals such as redacted/masked/hidden markers and repeated mask characters, including simple assignments and XML text nodes
 - skips paths, repository addresses such as `http(s)://`, `ftp://`, `sftp://`, short-host/IP `host:port/path`, scp-style `user@host:path`, network-share paths, storage URI paths such as `hdfs:///...`, Docker image references, Jenkinsfile/script paths, hash/checksum/digest/commit contexts, public certificates, and trace/request ID headers
 - suppresses sensitive-file-name false positives when the value is a readable local file reference such as a relative path or filename
@@ -321,7 +321,7 @@ This means the current UI can restore the latest report after restart, and resta
 
 ## Testing Strategy
 
-Current test coverage is intentionally focused on the deterministic core:
+Representative test coverage is intentionally focused on the deterministic core:
 
 - `BuiltInSecretRuleSetTest`
   - high-confidence patterns
@@ -342,6 +342,10 @@ Current test coverage is intentionally focused on the deterministic core:
   - benign tracking header false-positive guards
   - fixture-based false-positive coverage for artifact publishing Pipelines
   - `withCredentials` examples for string, username/password, file, SSH private key, Git username/password, and username-colon-password bindings do not escalate to `HIGH`
+- `NonSecretHeuristicsTest`
+  - runtime-reference detection
+  - placeholder detection
+  - non-secret URL, path, artifact, and generated-identifier suppression reasons
 - `SecretScanServiceTest`
   - block decision
   - whitelist effect
@@ -351,7 +355,11 @@ Current test coverage is intentionally focused on the deterministic core:
   - save/create/copy blocking
   - manual scan endpoint persistence
   - build-time RunAction serialization
-  - Pipeline-from-SCM manual and build-time scanning through lightweight SCM access
+  - Pipeline-from-SCM and multibranch manual/build-time scanning through lightweight SCM access
+- action, configuration, and monitor tests
+  - Job, Run, and root action formatting and filtering
+  - administrative monitor activation and dismiss behavior
+  - global configuration validation
 - `ScanResultStoreTest`
   - latest result persistence and lazy reload
   - exemption state restoration
@@ -361,11 +369,7 @@ Current test coverage is intentionally focused on the deterministic core:
 - `SecretMaskerTest`
   - JWT, URL credential, and PEM masking
 
-Recommended next layer:
-
-- UI smoke tests for Job and root actions
-- multibranch-specific Jenkinsfile coverage
-- SCM read failure reporting tests
+Future test expansion is tracked in `docs/development-plan.md`.
 
 ## Safe Change Guidelines
 
@@ -393,28 +397,3 @@ Recommended next layer:
 - keep `Action` classes read-only
 - avoid pushing persistence logic into listeners directly
 - extend the current latest-result files or add a separate history store if long-term retention is required
-
-## Known Gaps
-
-- Pipeline-from-SCM and multibranch support depend on SCM plugins exposing lightweight `SCMFileSystem` access
-- save/create blocking intentionally does not perform SCM Jenkinsfile reads
-- multibranch-specific indexing integration is not implemented
-- no trend/history view exists
-
-## Current Hardening Backlog
-
-1. Expand runtime-expression regression coverage for forms such as `params['X'] ?: ''`, ternary expressions, safe-navigation calls, and additional method-chain transforms
-2. Build a realistic Jenkinsfile false-positive corpus so common in-house Pipeline patterns stay covered by regression tests
-3. Continue hardening `httpRequest customHeaders` parsing for more nested map/list layouts and mixed call styles
-
-Completed hardening:
-
-- Added `withCredentials` regression coverage for `file`, `sshUserPrivateKey`, `gitUsernamePassword`, and `usernameColonPassword`
-- Treated `env.get('X')`, `params.get('X')`, and uppercase runtime variable method chains such as encoded username/password combinations as runtime references
-
-## Suggested Next Steps
-
-1. Add multibranch-specific Jenkinsfile coverage
-2. Add optional Pipeline step support
-3. Persist report history if auditability becomes a requirement
-4. Expand plugin-specific adapters for common credential-bearing publishers and builders
