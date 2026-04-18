@@ -15,10 +15,10 @@ public final class NonSecretHeuristics {
             Pattern.compile("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
     private static final Pattern HEADER_NAME_IN_LINE = Pattern.compile("\\bname\\s*:\\s*['\"]([^'\"]+)['\"]");
     private static final Pattern DIRECT_RUNTIME_REFERENCE = Pattern.compile("\\$[A-Za-z_][A-Za-z0-9_]*"
-            + "|(?:env|params)\\.[A-Za-z_][A-Za-z0-9_]*"
-            + "|(?:env|params)\\[['\"][A-Za-z_][A-Za-z0-9_.-]*['\"]\\]"
-            + "|(?:env|params)\\.get\\(\\s*['\"][A-Za-z_][A-Za-z0-9_.-]*['\"]\\s*\\)"
-            + "|[A-Z][A-Z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*(?:\\([^\\r\\n]*\\))?)+"
+            + "|(?:env|params)(?:\\?)?\\.[A-Za-z_][A-Za-z0-9_]*(?:(?:\\?)?\\.[A-Za-z_][A-Za-z0-9_]*(?:\\([^\\r\\n]*\\))?)*"
+            + "|(?:env|params)\\[['\"][A-Za-z_][A-Za-z0-9_.-]*['\"]\\](?:(?:\\?)?\\.[A-Za-z_][A-Za-z0-9_]*(?:\\([^\\r\\n]*\\))?)*"
+            + "|(?:env|params)(?:\\?)?\\.get\\(\\s*['\"][A-Za-z_][A-Za-z0-9_.-]*['\"]\\s*\\)(?:(?:\\?)?\\.[A-Za-z_][A-Za-z0-9_]*(?:\\([^\\r\\n]*\\))?)*"
+            + "|[A-Z][A-Z0-9_]*(?:\\??\\.[A-Za-z_][A-Za-z0-9_]*(?:\\([^\\r\\n]*\\))?)+"
             + "|credentials\\([^\\r\\n]+\\)");
     private static final Pattern ASSIGNED_QUOTED_LITERAL =
             Pattern.compile("(?s).*\\b[A-Za-z_][A-Za-z0-9_]*\\s*=\\s*(['\"])(.*?)\\1\\s*,?\\s*");
@@ -39,11 +39,15 @@ public final class NonSecretHeuristics {
             return false;
         }
         String trimmed = stripBalancedParens(value.trim());
-        return !trimmed.isEmpty()
-                && (trimmed.contains("${")
-                        || looksLikeInterpolatedString(trimmed)
-                        || DIRECT_RUNTIME_REFERENCE.matcher(trimmed).matches()
-                        || looksLikeRuntimeConcatenation(trimmed));
+        if (trimmed.isEmpty()) {
+            return false;
+        }
+        return trimmed.contains("${")
+                || looksLikeInterpolatedString(trimmed)
+                || DIRECT_RUNTIME_REFERENCE.matcher(trimmed).matches()
+                || looksLikeRuntimeConcatenation(trimmed)
+                || looksLikeRuntimeFallbackExpression(trimmed)
+                || looksLikeRuntimeConditionalExpression(trimmed);
     }
 
     public static boolean looksLikeSafeReference(String value) {
@@ -284,7 +288,10 @@ public final class NonSecretHeuristics {
             if (token.isEmpty()) {
                 return false;
             }
-            if (DIRECT_RUNTIME_REFERENCE.matcher(token).matches() || looksLikeInterpolatedString(token)) {
+            if (DIRECT_RUNTIME_REFERENCE.matcher(token).matches()
+                    || looksLikeInterpolatedString(token)
+                    || looksLikeRuntimeFallbackExpression(token)
+                    || looksLikeRuntimeConditionalExpression(token)) {
                 hasRuntimeReference = true;
                 continue;
             }
@@ -294,6 +301,282 @@ public final class NonSecretHeuristics {
             return false;
         }
         return hasRuntimeReference;
+    }
+
+    private static boolean looksLikeRuntimeFallbackExpression(String value) {
+        int fallbackIndex = findTopLevelOperator(value, "?:");
+        if (fallbackIndex < 0) {
+            return false;
+        }
+        String left = stripBalancedParens(value.substring(0, fallbackIndex).trim());
+        String right = stripBalancedParens(value.substring(fallbackIndex + 2).trim());
+        return !left.isEmpty() && !right.isEmpty() && isRuntimeExpressionToken(left) && isSafeFallbackLiteral(right);
+    }
+
+    private static boolean looksLikeRuntimeConditionalExpression(String value) {
+        int questionIndex = findTopLevelConditionalQuestion(value);
+        if (questionIndex < 0) {
+            return false;
+        }
+        int colonIndex = findTopLevelMatchingColon(value, questionIndex + 1);
+        if (colonIndex < 0) {
+            return false;
+        }
+        String condition = stripBalancedParens(value.substring(0, questionIndex).trim());
+        String whenTrue = stripBalancedParens(
+                value.substring(questionIndex + 1, colonIndex).trim());
+        String whenFalse = stripBalancedParens(value.substring(colonIndex + 1).trim());
+        return !condition.isEmpty()
+                && !whenTrue.isEmpty()
+                && !whenFalse.isEmpty()
+                && containsRuntimeReference(condition)
+                && isSafeConditionalBranch(whenTrue)
+                && isSafeConditionalBranch(whenFalse);
+    }
+
+    private static boolean isRuntimeExpressionToken(String value) {
+        String trimmed = stripBalancedParens(value.trim());
+        return !trimmed.isEmpty()
+                && (DIRECT_RUNTIME_REFERENCE.matcher(trimmed).matches()
+                        || looksLikeInterpolatedString(trimmed)
+                        || looksLikeRuntimeConcatenation(trimmed));
+    }
+
+    private static boolean containsRuntimeReference(String value) {
+        String trimmed = stripBalancedParens(nullToEmpty(value).trim());
+        if (trimmed.isEmpty()) {
+            return false;
+        }
+        if (isRuntimeExpressionToken(trimmed)) {
+            return true;
+        }
+        if (trimmed.contains("${")) {
+            return true;
+        }
+        return DIRECT_RUNTIME_REFERENCE.matcher(trimmed).find();
+    }
+
+    private static boolean isSafeConditionalBranch(String value) {
+        return isRuntimeExpressionToken(value) || isSafeFallbackLiteral(value);
+    }
+
+    private static boolean isSafeFallbackLiteral(String value) {
+        String trimmed = stripBalancedParens(value.trim());
+        return trimmed.equals("''")
+                || trimmed.equals("\"\"")
+                || trimmed.equals("null")
+                || trimmed.equals("true")
+                || trimmed.equals("false")
+                || trimmed.matches("-?[0-9]+(?:\\.[0-9]+)?");
+    }
+
+    private static int findTopLevelConditionalQuestion(String value) {
+        int parenthesisDepth = 0;
+        int bracketDepth = 0;
+        int braceDepth = 0;
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+        boolean escaping = false;
+        for (int index = 0; index < value.length(); index++) {
+            char c = value.charAt(index);
+            if (escaping) {
+                escaping = false;
+                continue;
+            }
+            if ((inSingleQuote || inDoubleQuote) && c == '\\') {
+                escaping = true;
+                continue;
+            }
+            if (inSingleQuote) {
+                if (c == '\'') {
+                    inSingleQuote = false;
+                }
+                continue;
+            }
+            if (inDoubleQuote) {
+                if (c == '"') {
+                    inDoubleQuote = false;
+                }
+                continue;
+            }
+            if (c == '\'') {
+                inSingleQuote = true;
+                continue;
+            }
+            if (c == '"') {
+                inDoubleQuote = true;
+                continue;
+            }
+            if (c == '(') {
+                parenthesisDepth++;
+                continue;
+            }
+            if (c == ')' && parenthesisDepth > 0) {
+                parenthesisDepth--;
+                continue;
+            }
+            if (c == '[') {
+                bracketDepth++;
+                continue;
+            }
+            if (c == ']' && bracketDepth > 0) {
+                bracketDepth--;
+                continue;
+            }
+            if (c == '{') {
+                braceDepth++;
+                continue;
+            }
+            if (c == '}' && braceDepth > 0) {
+                braceDepth--;
+                continue;
+            }
+            if (parenthesisDepth == 0
+                    && bracketDepth == 0
+                    && braceDepth == 0
+                    && c == '?'
+                    && (index + 1 >= value.length() || value.charAt(index + 1) != ':')
+                    && (index == 0 || value.charAt(index - 1) != '.')) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private static int findTopLevelMatchingColon(String value, int startIndex) {
+        int parenthesisDepth = 0;
+        int bracketDepth = 0;
+        int braceDepth = 0;
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+        boolean escaping = false;
+        for (int index = startIndex; index < value.length(); index++) {
+            char c = value.charAt(index);
+            if (escaping) {
+                escaping = false;
+                continue;
+            }
+            if ((inSingleQuote || inDoubleQuote) && c == '\\') {
+                escaping = true;
+                continue;
+            }
+            if (inSingleQuote) {
+                if (c == '\'') {
+                    inSingleQuote = false;
+                }
+                continue;
+            }
+            if (inDoubleQuote) {
+                if (c == '"') {
+                    inDoubleQuote = false;
+                }
+                continue;
+            }
+            if (c == '\'') {
+                inSingleQuote = true;
+                continue;
+            }
+            if (c == '"') {
+                inDoubleQuote = true;
+                continue;
+            }
+            if (c == '(') {
+                parenthesisDepth++;
+                continue;
+            }
+            if (c == ')' && parenthesisDepth > 0) {
+                parenthesisDepth--;
+                continue;
+            }
+            if (c == '[') {
+                bracketDepth++;
+                continue;
+            }
+            if (c == ']' && bracketDepth > 0) {
+                bracketDepth--;
+                continue;
+            }
+            if (c == '{') {
+                braceDepth++;
+                continue;
+            }
+            if (c == '}' && braceDepth > 0) {
+                braceDepth--;
+                continue;
+            }
+            if (parenthesisDepth == 0 && bracketDepth == 0 && braceDepth == 0 && c == ':') {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private static int findTopLevelOperator(String value, String operator) {
+        int parenthesisDepth = 0;
+        int bracketDepth = 0;
+        int braceDepth = 0;
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+        boolean escaping = false;
+        for (int index = 0; index <= value.length() - operator.length(); index++) {
+            char c = value.charAt(index);
+            if (escaping) {
+                escaping = false;
+                continue;
+            }
+            if ((inSingleQuote || inDoubleQuote) && c == '\\') {
+                escaping = true;
+                continue;
+            }
+            if (inSingleQuote) {
+                if (c == '\'') {
+                    inSingleQuote = false;
+                }
+                continue;
+            }
+            if (inDoubleQuote) {
+                if (c == '"') {
+                    inDoubleQuote = false;
+                }
+                continue;
+            }
+            if (c == '\'') {
+                inSingleQuote = true;
+                continue;
+            }
+            if (c == '"') {
+                inDoubleQuote = true;
+                continue;
+            }
+            if (c == '(') {
+                parenthesisDepth++;
+                continue;
+            }
+            if (c == ')' && parenthesisDepth > 0) {
+                parenthesisDepth--;
+                continue;
+            }
+            if (c == '[') {
+                bracketDepth++;
+                continue;
+            }
+            if (c == ']' && bracketDepth > 0) {
+                bracketDepth--;
+                continue;
+            }
+            if (c == '{') {
+                braceDepth++;
+                continue;
+            }
+            if (c == '}' && braceDepth > 0) {
+                braceDepth--;
+                continue;
+            }
+            if (parenthesisDepth == 0 && bracketDepth == 0 && braceDepth == 0 && value.startsWith(operator, index)) {
+                return index;
+            }
+        }
+        return -1;
     }
 
     private static boolean isQuotedString(String value) {

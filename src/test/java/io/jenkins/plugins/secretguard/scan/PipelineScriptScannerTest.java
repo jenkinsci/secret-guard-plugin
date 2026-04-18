@@ -261,6 +261,30 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void doesNotFlagRuntimeHeaderReferencesWithFallbacksOrConditionals() {
+        String script = """
+                def first = httpRequest(
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [[name: "x-service-token", value: params['SERVICE_API_TOKEN'] ?: '', maskValue: true]]
+                )
+                def second = httpRequest(
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [[name: "x-service-token", value: env?.SERVICE_API_TOKEN?.trim(), maskValue: true]]
+                )
+                def third = httpRequest(
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [[name: "Authorization", value: params.SERVICE_API_TOKEN ? "Bearer ${params.SERVICE_API_TOKEN}" : '', maskValue: true]]
+                )
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().startsWith("http-request-")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
     void parsesMultipleCustomHeadersAcrossMixedLayouts() {
         String script = """
                 def response = httpRequest(

@@ -148,13 +148,13 @@ Acceptance criteria:
 
 Priority: `P1`
 
-Status: started. Runtime-reference detection and Jenkins credential-binding coverage have been expanded, while deeper expression forms and additional realistic Pipeline fixtures remain open.
+Status: started. Runtime-reference detection and Jenkins credential-binding coverage now include bracket-index fallbacks, ternary guards, and safe-navigation method chains, while broader realistic Pipeline fixtures and deeper header-layout coverage remain open.
 
 Tasks:
 
 - [x] add `withCredentials` regression coverage for `file`, `sshUserPrivateKey`, `gitUsernamePassword`, and `usernameColonPassword`
 - [x] recognize `env.get('X')`, `params.get('X')`, and uppercase credential variable method chains as runtime references
-- [ ] expand runtime-expression regression coverage for `params['X'] ?: ''`, ternary expressions, safe-navigation calls, and additional method chains
+- [x] expand runtime-expression regression coverage for `params['X'] ?: ''`, ternary expressions, safe-navigation calls, and additional method chains
 - [ ] build a realistic Jenkinsfile false-positive corpus for common internal Pipeline patterns
 - [ ] continue hardening `httpRequest customHeaders` parsing for deeper nesting and mixed single-line/multi-line call layouts
 

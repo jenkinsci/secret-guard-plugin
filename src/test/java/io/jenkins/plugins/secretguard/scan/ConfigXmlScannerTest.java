@@ -106,6 +106,12 @@ class ConfigXmlScannerTest {
                     <thirdPublisher>
                       <secret>env['SERVICE_API_TOKEN']</secret>
                     </thirdPublisher>
+                    <fourthPublisher>
+                      <secret>params['SERVICE_API_TOKEN'] ?: ''</secret>
+                    </fourthPublisher>
+                    <fifthPublisher>
+                      <secret>env?.SERVICE_API_TOKEN?.trim()</secret>
+                    </fifthPublisher>
                   </properties>
                   <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition">
                     <script><![CDATA[
@@ -118,6 +124,16 @@ class ConfigXmlScannerTest {
                     httpMode: "POST",
                     url: "https://api.example.invalid/v1/request-check",
                     customHeaders: [[name: "Authorization", value: 'Bearer ' + params.SERVICE_API_TOKEN, maskValue: true]]
+                )
+                def fallback = httpRequest(
+                    httpMode: "POST",
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [[name: "x-service-token", value: params['SERVICE_API_TOKEN'] ?: '', maskValue: true]]
+                )
+                def conditional = httpRequest(
+                    httpMode: "POST",
+                    url: "https://api.example.invalid/v1/request-check",
+                    customHeaders: [[name: "Authorization", value: params.SERVICE_API_TOKEN ? "Bearer ${params.SERVICE_API_TOKEN}" : '', maskValue: true]]
                 )
                     ]]></script>
                     <sandbox>true</sandbox>

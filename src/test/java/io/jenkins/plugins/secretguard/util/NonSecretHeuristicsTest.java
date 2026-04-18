@@ -24,10 +24,18 @@ class NonSecretHeuristicsTest {
         assertTrue(NonSecretHeuristics.isRuntimeSecretReference("'Bearer ' + params.SERVICE_API_TOKEN"));
         assertTrue(NonSecretHeuristics.isRuntimeSecretReference("('Bearer ' + env.SERVICE_API_TOKEN)"));
         assertTrue(NonSecretHeuristics.isRuntimeSecretReference("\"Bearer ${env.SERVICE_API_TOKEN}\""));
+        assertTrue(NonSecretHeuristics.isRuntimeSecretReference("params['SERVICE_API_TOKEN'] ?: ''"));
+        assertTrue(NonSecretHeuristics.isRuntimeSecretReference("env?.SERVICE_API_TOKEN?.trim()"));
+        assertTrue(NonSecretHeuristics.isRuntimeSecretReference("params?.get('SERVICE_API_TOKEN')?.trim()"));
+        assertTrue(NonSecretHeuristics.isRuntimeSecretReference(
+                "params.SERVICE_API_TOKEN ? params.SERVICE_API_TOKEN : ''"));
+        assertTrue(NonSecretHeuristics.isRuntimeSecretReference("'Bearer ' + (params['SERVICE_API_TOKEN'] ?: '')"));
         assertTrue(NonSecretHeuristics.isRuntimeSecretReference(
                 "\"${SERVICE_USER}:${SERVICE_PASS}\".bytes.encodeBase64().toString()"));
         assertFalse(NonSecretHeuristics.isRuntimeSecretReference("ExampleHeaderSecretValue0123456789ABCDEF"));
         assertFalse(NonSecretHeuristics.isRuntimeSecretReference("'Bearer ' + 'literal-token'"));
+        assertFalse(NonSecretHeuristics.isRuntimeSecretReference(
+                "params.SERVICE_API_TOKEN ? 'literal-token' : 'other-literal'"));
     }
 
     @Test

@@ -149,7 +149,7 @@ When adding a new rule:
 - detects hardcoded secrets embedded in URL query parameters such as `?key=...` and `?token=...`
 - supports mixed single-line and multi-line header layouts, multiple headers in one request, and nested Groovy expressions inside header values
 - passes header names into generic rules only for parsed header `value:` entries, so later non-header lines in the same `httpRequest` block do not inherit the header context
-- treats runtime header references such as `"$TOKEN"`, `"${TOKEN}"`, `env.TOKEN`, `params.TOKEN`, `env['TOKEN']`, `env.get('TOKEN')`, `params.get('TOKEN')`, simple GString/concatenation forms, uppercase credential variable method chains, and common `withCredentials`-bound variable combinations as non-plaintext values through shared `NonSecretHeuristics` helpers
+- treats runtime header references such as `"$TOKEN"`, `"${TOKEN}"`, `env.TOKEN`, `params.TOKEN`, `env['TOKEN']`, `env.get('TOKEN')`, `params.get('TOKEN')`, `params['TOKEN'] ?: ''`, ternary guards, safe-navigation chains, simple GString/concatenation forms, uppercase credential variable method chains, and common `withCredentials`-bound variable combinations as non-plaintext values through shared `NonSecretHeuristics` helpers
 - treats obvious redaction placeholders in headers as non-hardcoded header secrets while still allowing generic low-severity sensitive-field reporting
 - passes header names into generic rules so benign tracking headers do not trigger high-entropy false positives
 - keeps implementation text-based so it does not require Pipeline AST integration
