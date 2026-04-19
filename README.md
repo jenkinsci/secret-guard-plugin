@@ -30,7 +30,6 @@ Supported scan targets:
 - Build parameter default values
 - Environment variable definitions
 - `sh`, `bat`, `powershell`, and HTTP request style command content
-- Manual `Scan Now` action on each Job page
 
 Enforcement modes:
 
@@ -49,7 +48,7 @@ pipeline {
   stages {
     stage('call api') {
       steps {
-        sh "curl -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.abc123456789.def123456789'"
+        sh "curl -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.abc123456789.def123456789' https://example.invalid"
       }
     }
   }
@@ -73,7 +72,7 @@ pipeline {
 }
 ```
 
-Allow-list entries are newline or comma separated. Exemptions use one entry per line:
+Allow list entries are newline or comma separated. Exemptions use one entry per line:
 
 ```text
 jobFullName|ruleId|reason
@@ -118,7 +117,7 @@ For Jenkins system log troubleshooting, enable the logger `io.jenkins.plugins.se
 
 Common log areas:
 
-- scan flow: `[Manual Scan]`, `[Build Scan]`, `[Global Scan]`, `[Save Scan]`
+- scan flow: `[Manual Scan]`, `[Build Scan]`, `[Global Scan]`
 - Pipeline source: `[Pipeline Source]`, `[Multibranch]`, `[SCM Read]`
 - infrastructure: `[Item Sync]`, `[ClassLoader]`, `[Persistence]`, `[Heuristics]`
 
@@ -128,9 +127,9 @@ Common log areas:
 - Implementation guide: [`docs/implementation.md`](docs/implementation.md)
 - Development plan: [`docs/development-plan.md`](docs/development-plan.md)
 
-## Issues
+## GitHub Issues
 
-Report issues and enhancements in the [Jenkins issue tracker](https://issues.jenkins.io/).
+Report issues and enhancements in [GitHub issues](https://github.com/jenkinsci/secret-guard-plugin/issues).
 
 ## Contributing
 

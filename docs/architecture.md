@@ -22,7 +22,7 @@ The core flow is:
 
 ```mermaid
 flowchart LR
-    A["Jenkins Save / Build Event"] --> B["Listener Entry Point"]
+    A["Jenkins Save / Build Event"] --> B["Filter / Listener Entry Point"]
     B --> C["ScanContext"]
     C --> D["SecretScanner"]
     D --> E["BuiltInSecretRuleSet"]
@@ -148,16 +148,15 @@ The plugin integrates across save-time, build-time, manual-scan, and reporting e
 
 - `SecretGuardJobConfigFilter`
   - intercepts Job create and config update HTTP requests
+  - runs the save-time scan for filter-managed create and update requests
   - restores the prior `config.xml` or deletes a newly created Job when `BLOCK` mode rejects the change
-- `SecretGuardSaveableListener`
-  - scans saved Job configuration
-  - records the latest saved Job configuration result after persistence
+  - restores the previous persisted latest result when a blocked save is rolled back
 - `SecretGuardItemListener`
-  - refreshes scan results for created or updated items
+  - refreshes scan results for non-filter item lifecycle updates
   - blocks copying a risky Job before the copy is created in `BLOCK` mode
   - removes persisted latest results for deleted Jobs
   - removes the old persisted key and re-scans when a Job location changes
-  - complements save-time reporting
+  - complements filter-managed save-time enforcement for copy, delete, rename, move, and fallback synchronization paths
 - `SecretGuardRunListener`
   - scans inline Pipeline scripts and lightweight Pipeline-from-SCM Jenkinsfiles at build start
   - adds a run action report

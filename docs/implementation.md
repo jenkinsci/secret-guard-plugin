@@ -37,7 +37,7 @@ The Java sources are organized under `io.jenkins.plugins.secretguard`:
 4. `BuiltInSecretRuleSet` emits findings
 5. `SecretScanService` applies allow-list and exemption policy
 6. If mode is `BLOCK` and threshold is hit, the filter restores the previous `config.xml` or deletes the newly created Job, then returns an error response
-7. `SecretGuardSaveableListener` and `SecretGuardItemListener` refresh the persisted latest result for reporting, remove stale entries for deleted Jobs, and refresh persisted keys when Jobs are renamed or moved
+7. The filter-managed save scan becomes the latest persisted result for accepted HTTP saves, while `SecretGuardItemListener` handles copy blocking plus delete, rename, move, and fallback synchronization paths
 
 ### Build-time flow
 
@@ -194,7 +194,6 @@ When adding a new rule:
 - `[Secret Guard][Pipeline Source]` covers inline, SCM, and multibranch source resolution
 - `[Secret Guard][Multibranch]` covers branch metadata, source, revision, and script path resolution
 - `[Secret Guard][SCM Read]` and `[Secret Guard][SCM Read][Multibranch]` cover lightweight Jenkinsfile reads
-- `[Secret Guard][Save Scan]` covers save-time config scanning failures
 - `[Secret Guard][Item Sync]` covers item create/update/copy synchronization failures
 - `[Secret Guard][ClassLoader]` covers optional plugin class resolution
 - `[Secret Guard][Persistence]` covers latest-result disk persistence and restore failures

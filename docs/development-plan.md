@@ -17,7 +17,7 @@ The current implementation includes:
 - URL query secret detection for webhook-style `?key=` / `?token=` patterns
 - false-positive heuristics for credential IDs, hashes, public certificates, tracking headers, paths, and Docker images
 - priority-based duplicate suppression for generic fallback rules
-- save-time listener
+- save-time job config filter interception
 - build-time listener for inline Pipeline jobs, lightweight Pipeline-from-SCM Jenkinsfiles, and multibranch Jenkinsfiles
 - manual Job `Scan Now` action
 - Pipeline-from-SCM and multibranch Jenkinsfile retrieval through `SCMFileSystem`
@@ -103,7 +103,7 @@ Implementation notes:
 
 Priority: `P0`
 
-Status: a dedicated `SecretGuardJobConfigFilter` now wraps Job create and update HTTP requests, restores the previous `config.xml` for blocked updates, deletes blocked newly created jobs, and returns a user-visible masked error response. `SecretGuardSaveableListener` remains in place for reporting-oriented scanning rather than primary save rejection.
+Status: a dedicated `SecretGuardJobConfigFilter` now wraps Job create and update HTTP requests, restores the previous `config.xml` for blocked updates, deletes blocked newly created jobs, returns a user-visible masked error response, and restores the previous persisted latest result when a blocked save is rolled back.
 
 Tasks:
 
@@ -122,7 +122,7 @@ Acceptance criteria:
 Implementation notes:
 
 - this is the most important production-hardening item
-- keep `SaveableListener` for reporting once a safer interception point becomes primary
+- keep filter-managed save enforcement and persisted-result rollback behavior aligned when new config submission paths are introduced
 
 ### 3. Expand false-positive regression corpus
 
