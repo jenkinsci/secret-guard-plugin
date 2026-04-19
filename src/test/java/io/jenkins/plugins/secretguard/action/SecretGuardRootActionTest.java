@@ -295,6 +295,16 @@ class SecretGuardRootActionTest {
 
     @Test
     @WithJenkins
+    void filteredRootPageUsesAbsoluteScanActionTargets(JenkinsRule jenkinsRule) throws Exception {
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient();
+        Page page = webClient.goTo("secret-guard?filter=high");
+        String content = page.getWebResponse().getContentAsString();
+
+        assertTrue(content.contains("action=\"/jenkins/secret-guard/scanAll\""));
+    }
+
+    @Test
+    @WithJenkins
     void rootPageShowsNotePresenceWithoutRenderingFullNoteText(JenkinsRule jenkinsRule) throws Exception {
         String targetId = "job-with-note";
         String note =

@@ -29,7 +29,7 @@
                         </div>
                     </div>
                     <div class="secret-guard-layout-inline secret-guard-scan-actions">
-                        <f:form method="post" action="scanAll" class="secret-guard-form-inline">
+                        <f:form method="post" action="${rootURL}/secret-guard/scanAll" class="secret-guard-form-inline">
                             <j:choose>
                                 <j:when test="${it.canScanAllNow()}">
                                     <button class="jenkins-button jenkins-submit-button jenkins-button--primary" type="submit">
@@ -44,12 +44,12 @@
                             </j:choose>
                         </f:form>
                         <j:if test="${scanRunning}">
-                            <f:form method="post" action="cancelScanAll" class="secret-guard-form-inline">
+                            <f:form method="post" action="${rootURL}/secret-guard/cancelScanAll" class="secret-guard-form-inline">
                                 <button class="jenkins-button jenkins-button--secondary" type="submit">Cancel</button>
                             </f:form>
                         </j:if>
                         <j:if test="${canDismissScanAllStatus}">
-                            <f:form method="post" action="dismissScanAllStatus" class="secret-guard-form-inline">
+                            <f:form method="post" action="${rootURL}/secret-guard/dismissScanAllStatus" class="secret-guard-form-inline">
                                 <button class="jenkins-button jenkins-button--secondary" type="submit">Hide Status</button>
                             </f:form>
                         </j:if>
