@@ -10,6 +10,18 @@ import hudson.util.PluginServletFilter;
 import io.jenkins.plugins.secretguard.model.ScanPhase;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import io.jenkins.plugins.secretguard.service.JobConfigEnforcementService;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.WriteListener;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponseWrapper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -19,18 +31,6 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.WriteListener;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpServletResponseWrapper;
 import javax.xml.transform.stream.StreamSource;
 import jenkins.model.Jenkins;
 
@@ -91,7 +91,7 @@ public class SecretGuardJobConfigFilter implements Filter {
         } else {
             restoreOriginalConfig(job, snapshot.originalConfigXml);
         }
-        sendBlockedResponse(httpResponse, target, result);
+        sendBlockedResponse(httpRequest, httpResponse, target, result);
     }
 
     @Override
@@ -121,19 +121,22 @@ public class SecretGuardJobConfigFilter implements Filter {
         }
     }
 
-    private void sendBlockedResponse(HttpServletResponse response, RequestTarget target, SecretScanResult result)
+    private void sendBlockedResponse(
+            HttpServletRequest request, HttpServletResponse response, RequestTarget target, SecretScanResult result)
             throws IOException {
         String message = enforcementService.buildBlockedMessage(target.actionName, target.jobFullName, result);
         response.reset();
         response.setStatus(target.applyRequest ? HttpServletResponse.SC_OK : HttpServletResponse.SC_CONFLICT);
         response.setContentType("text/html;charset=UTF-8");
-        response.getWriter().write(buildBlockedHtml(target, result, message));
+        response.getWriter().write(buildBlockedHtml(target, result, message, request.getContextPath()));
     }
 
-    static String buildBlockedHtml(RequestTarget target, SecretScanResult result, String message) {
+    static String buildBlockedHtml(RequestTarget target, SecretScanResult result, String message, String contextPath) {
         String heading = "Secret Guard blocked the change";
         String escapedMessage = Util.xmlEscape(message == null ? "Secret Guard blocked the change." : message);
         String action = Util.xmlEscape(target == null ? "saving" : target.actionName);
+        String escapedContextPath = Util.xmlEscape(contextPath == null ? "" : contextPath);
+        String stylesheetHref = escapedContextPath + "/plugin/secret-guard/styles/secret-guard.css";
         String jobName = Util.xmlEscape(
                 target == null || target.jobFullName == null || target.jobFullName.isBlank()
                         ? "job"
@@ -157,27 +160,27 @@ public class SecretGuardJobConfigFilter implements Filter {
             analysisNote =
                     Util.xmlEscape(defaultValue(result.getFindings().get(0).getAnalysisNote(), ""));
         }
-        return "<!DOCTYPE html><html><body style=\"margin:0;padding:24px;font-family:inherit;\">"
+        return "<!DOCTYPE html><html><head><meta charset=\"UTF-8\">"
+                + "<link rel=\"stylesheet\" href=\"" + stylesheetHref + "\" type=\"text/css\" />"
+                + "<title>" + heading + "</title></head><body class=\"secret-guard-blocked-page\">"
                 + "<div id=\"error-description\" role=\"alert\" aria-live=\"assertive\" "
-                + "style=\"box-sizing:border-box;border-left:4px solid #d33833;background:#fff1f0;"
-                + "color:#1f2328;padding:16px 18px;border-radius:6px;\">"
-                + "<div style=\"font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;"
-                + "color:#b42318;margin-bottom:8px;\">Error</div>"
-                + "<h1 style=\"font-size:20px;line-height:1.4;margin:0 0 8px 0;\">" + heading + "</h1>"
-                + "<p style=\"margin:0 0 14px 0;font-size:14px;line-height:1.6;\">" + escapedMessage + "</p>"
-                + "<div style=\"display:grid;grid-template-columns:max-content 1fr;gap:8px 12px;font-size:13px;"
-                + "line-height:1.5;margin:0 0 14px 0;\">"
-                + "<div style=\"font-weight:700;\">Action</div><div>" + action + "</div>"
-                + "<div style=\"font-weight:700;\">Job</div><div><code>" + jobName + "</code></div>"
-                + "<div style=\"font-weight:700;\">Rule</div><div><code>" + ruleId + "</code></div>"
-                + "<div style=\"font-weight:700;\">Severity</div><div>" + severity + "</div>"
-                + "<div style=\"font-weight:700;\">Masked snippet</div><div><code>" + maskedSnippet + "</code></div>"
+                + "class=\"secret-guard-blocked-card\">"
+                + "<div class=\"secret-guard-blocked-label\">Error</div>"
+                + "<h1 class=\"secret-guard-blocked-title\">" + heading + "</h1>"
+                + "<p class=\"secret-guard-blocked-message\">" + escapedMessage + "</p>"
+                + "<div class=\"secret-guard-blocked-details\">"
+                + "<div class=\"secret-guard-blocked-term\">Action</div><div>" + action + "</div>"
+                + "<div class=\"secret-guard-blocked-term\">Job</div><div><code>" + jobName + "</code></div>"
+                + "<div class=\"secret-guard-blocked-term\">Rule</div><div><code>" + ruleId + "</code></div>"
+                + "<div class=\"secret-guard-blocked-term\">Severity</div><div>" + severity + "</div>"
+                + "<div class=\"secret-guard-blocked-term\">Masked snippet</div><div><code>" + maskedSnippet
+                + "</code></div>"
                 + (analysisNote.isBlank()
                         ? ""
-                        : "<div style=\"font-weight:700;\">Analysis</div><div>" + analysisNote + "</div>")
+                        : "<div class=\"secret-guard-blocked-term\">Analysis</div><div>" + analysisNote + "</div>")
                 + "</div>"
-                + "<div style=\"font-size:13px;line-height:1.6;padding-top:12px;border-top:1px solid #f2c1bf;\">"
-                + "<div style=\"font-weight:700;margin-bottom:4px;\">Recommended fix</div>"
+                + "<div class=\"secret-guard-blocked-recommendation\">"
+                + "<div class=\"secret-guard-blocked-term secret-guard-blocked-term--stacked\">Recommended fix</div>"
                 + "<div>" + recommendation + "</div>"
                 + "</div></div></body></html>";
     }
@@ -334,12 +337,6 @@ public class SecretGuardJobConfigFilter implements Filter {
         @Override
         public void setStatus(int sc) {
             status = sc;
-        }
-
-        @Override
-        public void setStatus(int sc, String sm) {
-            status = sc;
-            errorMessage = sm;
         }
 
         @Override

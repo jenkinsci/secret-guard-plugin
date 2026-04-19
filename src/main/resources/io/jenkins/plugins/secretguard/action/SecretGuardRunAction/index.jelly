@@ -2,11 +2,12 @@
 <j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout">
     <l:layout title="Secret Guard">
         <l:main-panel>
+            <link rel="stylesheet" href="${rootURL}/plugin/secret-guard/styles/secret-guard.css" type="text/css" />
             <h1>Secret Guard Build Report</h1>
             <j:if test="${it.hasNotes()}">
-                <div class="jenkins-alert jenkins-alert-info" role="status" style="margin:16px 0;">
+                <div class="jenkins-alert jenkins-alert-info secret-guard-section" role="status">
                     <strong>Scan notes</strong>
-                    <ul style="margin:8px 0 0 18px;">
+                    <ul class="secret-guard-notes-list">
                         <j:forEach var="note" items="${it.notes}">
                             <li>${note}</li>
                         </j:forEach>
@@ -32,7 +33,7 @@
                             <j:forEach var="finding" items="${it.findings}">
                                 <tr>
                                     <td>
-                                        <span style="${it.getSeverityBadgeStyle(finding.severity)}">
+                                        <span class="${it.getSeverityBadgeClass(finding.severity)}">
                                             ${it.getSeverityBadgeLabel(finding.severity)}
                                         </span>
                                     </td>

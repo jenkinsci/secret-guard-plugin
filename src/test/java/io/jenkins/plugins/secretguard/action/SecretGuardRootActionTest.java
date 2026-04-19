@@ -12,11 +12,15 @@ import io.jenkins.plugins.secretguard.model.FindingLocationType;
 import io.jenkins.plugins.secretguard.model.SecretFinding;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import io.jenkins.plugins.secretguard.model.Severity;
+import io.jenkins.plugins.secretguard.service.GlobalJobScanService;
+import io.jenkins.plugins.secretguard.service.GlobalJobScanStatus;
 import io.jenkins.plugins.secretguard.service.ScanResultStore;
 import java.io.StringReader;
+import java.lang.reflect.Field;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.xml.transform.stream.StreamSource;
 import jenkins.model.Jenkins;
 import org.htmlunit.HttpMethod;
@@ -65,9 +69,9 @@ class SecretGuardRootActionTest {
         SecretScanResult lowResult =
                 new SecretScanResult("low-job", "WorkflowJob", List.of(finding(Severity.LOW)), false);
 
-        assertEquals("background:#fff1f0;", action.getResultRowStyle(blockedResult));
-        assertEquals("background:#fff8e5;", action.getResultRowStyle(highResult));
-        assertEquals("", action.getResultRowStyle(lowResult));
+        assertEquals("secret-guard-row--blocked", action.getResultRowClass(blockedResult));
+        assertEquals("secret-guard-row--high", action.getResultRowClass(highResult));
+        assertEquals("", action.getResultRowClass(lowResult));
     }
 
     @Test
@@ -176,6 +180,10 @@ class SecretGuardRootActionTest {
         Page allowedPage = allowedClient.goTo("secret-guard");
         assertEquals(200, allowedPage.getWebResponse().getStatusCode());
         assertTrue(allowedPage.getWebResponse().getContentAsString().contains("Jenkins Secret Guard"));
+        assertTrue(allowedPage
+                .getWebResponse()
+                .getContentAsString()
+                .contains("/plugin/secret-guard/scripts/secret-guard-root-action.js"));
     }
 
     @Test
@@ -242,6 +250,25 @@ class SecretGuardRootActionTest {
         assertEquals(200, dismissedPage.getWebResponse().getStatusCode());
         assertFalse(dismissedPage.getWebResponse().getContentAsString().contains("Hide Status"));
         assertFalse(rootAction.canDismissScanAllStatus());
+    }
+
+    @Test
+    @WithJenkins
+    void rootPageKeepsAutoRefreshMarkerWhenScanStateChangesDuringRender(JenkinsRule jenkinsRule) throws Exception {
+        SecretGuardRootAction rootAction = jenkinsRule
+                .jenkins
+                .getExtensionList(SecretGuardRootAction.class)
+                .get(0);
+        setGlobalJobScanService(rootAction, new RenderRaceGlobalJobScanService());
+
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient();
+        Page page = webClient.goTo("secret-guard");
+        String content = page.getWebResponse().getContentAsString();
+
+        assertTrue(content.contains("cancelScanAll"));
+        assertTrue(content.contains("id=\"secret-guard-auto-refresh\""));
+        assertTrue(content.contains("This page refreshes automatically while the scan runs."));
+        assertFalse(content.contains("dismissScanAllStatus"));
     }
 
     @Test
@@ -329,5 +356,59 @@ class SecretGuardRootActionTest {
             Thread.sleep(100);
         }
         assertFalse(rootAction.getScanAllStatus().isRunning());
+    }
+
+    private static void setGlobalJobScanService(SecretGuardRootAction rootAction, GlobalJobScanService service)
+            throws Exception {
+        Field field = SecretGuardRootAction.class.getDeclaredField("globalJobScanService");
+        field.setAccessible(true);
+        field.set(rootAction, service);
+    }
+
+    private static final class RenderRaceGlobalJobScanService extends GlobalJobScanService {
+        private final AtomicInteger statusCalls = new AtomicInteger();
+
+        @Override
+        public boolean canStartScanAllJobs() {
+            return false;
+        }
+
+        @Override
+        public GlobalJobScanStatus getStatus() {
+            if (statusCalls.incrementAndGet() <= 2) {
+                return runningStatus();
+            }
+            return completedStatus();
+        }
+
+        private GlobalJobScanStatus runningStatus() {
+            return new GlobalJobScanStatus(
+                    GlobalJobScanStatus.State.RUNNING,
+                    3,
+                    1,
+                    0,
+                    0,
+                    0,
+                    "example-job",
+                    "Scanning example-job",
+                    Instant.now(),
+                    null,
+                    List.of());
+        }
+
+        private GlobalJobScanStatus completedStatus() {
+            return new GlobalJobScanStatus(
+                    GlobalJobScanStatus.State.COMPLETED,
+                    3,
+                    3,
+                    0,
+                    0,
+                    0,
+                    null,
+                    "Global scan completed.",
+                    Instant.now(),
+                    Instant.now(),
+                    List.of());
+        }
     }
 }

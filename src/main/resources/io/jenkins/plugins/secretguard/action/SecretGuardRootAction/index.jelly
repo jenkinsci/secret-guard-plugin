@@ -2,23 +2,21 @@
 <j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout" xmlns:f="/lib/form">
     <l:layout title="Secret Guard">
         <l:main-panel>
+            <link rel="stylesheet" href="${rootURL}/plugin/secret-guard/styles/secret-guard.css" type="text/css" />
+            <script src="${rootURL}/plugin/secret-guard/scripts/secret-guard-root-action.js" type="text/javascript"></script>
             <h1>Jenkins Secret Guard</h1>
             <p>Review latest Jenkins job secret scan results and run on-demand global scans.</p>
             <j:set var="scanStatus" value="${it.scanAllStatus}" />
-            <j:if test="${it.scanAllRunning}">
-                <script>
-                    window.setTimeout(function () {
-                        window.location.reload();
-                    }, 3000);
-                </script>
-            </j:if>
-            <div class="jenkins-alert" role="status" style="margin:16px 0;">
-                <div style="display:flex;gap:16px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;">
+            <j:set var="scanRunning" value="${it.canCancelScanAll()}" />
+            <j:set var="canDismissScanAllStatus" value="${!scanRunning &amp;&amp; it.canDismissScanAllStatus()}" />
+            <j:set var="scanAllDetailsOpen" value="${scanRunning || it.scanAllDetailsOpen()}" />
+            <div class="jenkins-alert secret-guard-section" role="status">
+                <div class="secret-guard-layout-between">
                     <div>
-                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <div class="secret-guard-layout-inline">
                             <j:choose>
                                 <j:when test="${it.hasScanAllStatus()}">
-                                    <span style="${it.getScanAllStateBadgeStyle(scanStatus.state)}">${scanStatus.state}</span>
+                                    <span class="${it.getScanAllStateBadgeClass(scanStatus.state)}">${scanStatus.state}</span>
                                     <span>${it.scanAllSummaryText}</span>
                                     <j:if test="${it.scanAllDurationText != null}">
                                         <span>Duration: ${it.scanAllDurationText}</span>
@@ -30,8 +28,8 @@
                             </j:choose>
                         </div>
                     </div>
-                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <f:form method="post" action="scanAll" style="margin:0;">
+                    <div class="secret-guard-layout-inline">
+                        <f:form method="post" action="scanAll" class="secret-guard-form-inline">
                             <j:choose>
                                 <j:when test="${it.canScanAllNow()}">
                                     <button class="jenkins-button jenkins-submit-button jenkins-button--primary" type="submit">
@@ -45,13 +43,13 @@
                                 </j:otherwise>
                             </j:choose>
                         </f:form>
-                        <j:if test="${it.canCancelScanAll()}">
-                            <f:form method="post" action="cancelScanAll" style="margin:0;">
+                        <j:if test="${scanRunning}">
+                            <f:form method="post" action="cancelScanAll" class="secret-guard-form-inline">
                                 <button class="jenkins-button jenkins-button--secondary" type="submit">Cancel</button>
                             </f:form>
                         </j:if>
-                        <j:if test="${it.canDismissScanAllStatus()}">
-                            <f:form method="post" action="dismissScanAllStatus" style="margin:0;">
+                        <j:if test="${canDismissScanAllStatus}">
+                            <f:form method="post" action="dismissScanAllStatus" class="secret-guard-form-inline">
                                 <button class="jenkins-button jenkins-button--secondary" type="submit">Hide Status</button>
                             </f:form>
                         </j:if>
@@ -59,10 +57,10 @@
                 </div>
                 <j:if test="${it.hasScanAllStatus()}">
                     <j:choose>
-                        <j:when test="${it.scanAllDetailsOpen()}">
+                        <j:when test="${scanAllDetailsOpen}">
                             <details open="open">
                                 <summary>Details</summary>
-                                <div style="margin-top:8px;">
+                                <div class="secret-guard-details-body">
                                     <j:if test="${scanStatus.message != null}">
                                         <div>${scanStatus.message}</div>
                                     </j:if>
@@ -83,15 +81,17 @@
                                         <div>Finished: ${scanStatus.finishedAt}</div>
                                     </j:if>
                                     <j:if test="${scanStatus.hasFailedJobs()}">
-                                        <div style="margin-top:8px;">Recent failed jobs:</div>
+                                        <div class="secret-guard-failed-jobs">Recent failed jobs:</div>
                                         <ul>
                                             <j:forEach var="failedJob" items="${scanStatus.failedJobFullNames}">
                                                 <li><code>${failedJob}</code></li>
                                             </j:forEach>
                                         </ul>
                                     </j:if>
-                                    <j:if test="${it.scanAllRunning}">
-                                        <div>This page refreshes automatically while the scan runs.</div>
+                                    <j:if test="${scanRunning}">
+                                        <div id="secret-guard-auto-refresh" data-interval-ms="3000">
+                                            This page refreshes automatically while the scan runs.
+                                        </div>
                                     </j:if>
                                 </div>
                             </details>
@@ -99,7 +99,7 @@
                         <j:otherwise>
                             <details>
                                 <summary>Details</summary>
-                                <div style="margin-top:8px;">
+                                <div class="secret-guard-details-body">
                                     <j:if test="${scanStatus.message != null}">
                                         <div>${scanStatus.message}</div>
                                     </j:if>
@@ -117,7 +117,7 @@
                                         <div>Finished: ${scanStatus.finishedAt}</div>
                                     </j:if>
                                     <j:if test="${scanStatus.hasFailedJobs()}">
-                                        <div style="margin-top:8px;">Recent failed jobs:</div>
+                                        <div class="secret-guard-failed-jobs">Recent failed jobs:</div>
                                         <ul>
                                             <j:forEach var="failedJob" items="${scanStatus.failedJobFullNames}">
                                                 <li><code>${failedJob}</code></li>
@@ -130,36 +130,36 @@
                     </j:choose>
                 </j:if>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:12px;margin:16px 0;">
+            <div class="secret-guard-summary-grid">
                 <div class="${it.highFindingsCardClass}">
-                    <strong style="display:block;font-size:1.6rem;">${it.unexemptedHighCount}</strong>
+                    <strong class="secret-guard-stat-value">${it.unexemptedHighCount}</strong>
                     <span>Unexempted high findings</span>
                 </div>
                 <div class="${it.blockedJobsCardClass}">
-                    <strong style="display:block;font-size:1.6rem;">${it.blockedJobCount}</strong>
+                    <strong class="secret-guard-stat-value">${it.blockedJobCount}</strong>
                     <span>Blocked jobs</span>
                 </div>
                 <div class="jenkins-alert jenkins-alert-info">
-                    <strong style="display:block;font-size:1.6rem;">${it.jobsWithFindingsCount}</strong>
+                    <strong class="secret-guard-stat-value">${it.jobsWithFindingsCount}</strong>
                     <span>Jobs with findings</span>
                 </div>
                 <div class="jenkins-alert jenkins-alert-info">
-                    <strong style="display:block;font-size:1.6rem;">${it.totalFindingsCount}</strong>
+                    <strong class="secret-guard-stat-value">${it.totalFindingsCount}</strong>
                     <span>Total findings</span>
                 </div>
                 <div class="jenkins-alert jenkins-alert-info">
-                    <strong style="display:block;font-size:1.6rem;">${it.scannedJobCount}</strong>
+                    <strong class="secret-guard-stat-value">${it.scannedJobCount}</strong>
                     <span>Scanned jobs</span>
                 </div>
             </div>
             <j:choose>
                 <j:when test="${it.hasResults()}">
-                    <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:0 0 12px 0;">
+                    <div class="secret-guard-results-header">
                         <div>
                             <strong>Results</strong>
                             <span>Showing ${it.filteredResultCount} of ${it.scannedJobCount}</span>
                         </div>
-                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+                        <div class="secret-guard-layout-inline-end">
                             <span>Filters:</span>
                             <a class="${it.getFilterButtonClass('all')}" href="${it.getFilterUrl('all')}">${it.getFilterButtonLabel('all')}</a>
                             <a class="${it.getFilterButtonClass('high')}" href="${it.getFilterUrl('high')}">${it.getFilterButtonLabel('high')}</a>
@@ -194,9 +194,9 @@
                         </thead>
                         <tbody>
                             <j:forEach var="result" items="${it.filteredResults}">
-                                <tr style="${it.getResultRowStyle(result)}">
+                                <tr class="${it.getResultRowClass(result)}">
                                     <j:set var="jobUrl" value="${it.getJobSecretGuardUrl(result)}" />
-                                    <td style="max-width: 24rem; white-space: normal; overflow-wrap: anywhere;">
+                                    <td class="secret-guard-cell-wrap-sm">
                                         <j:choose>
                                             <j:when test="${jobUrl != null}">
                                                 <a href="${jobUrl}" title="${result.targetId}">${it.getDisplayTargetId(result)}</a>
@@ -208,7 +208,7 @@
                                     </td>
                                     <td>${result.targetType}</td>
                                     <td>
-                                        <span style="${it.getSeverityBadgeStyle(result.highestSeverity)}">
+                                        <span class="${it.getSeverityBadgeClass(result.highestSeverity)}">
                                             ${it.getSeverityBadgeLabel(result.highestSeverity)}
                                         </span>
                                     </td>
@@ -216,24 +216,22 @@
                                         <span>${result.findings.size()}</span>
                                         <j:if test="${it.getExemptedFindingsCount(result) > 0}">
                                             <span
-                                                class="jenkins-alert jenkins-alert-warning"
-                                                style="display:inline-flex;align-items:center;padding:2px 8px;margin:0 0 0 6px;border-radius:999px;line-height:1.5;"
+                                                class="jenkins-alert jenkins-alert-warning secret-guard-pill secret-guard-pill--offset"
                                             >${it.getExemptedFindingsCount(result)} exempted</span>
                                         </j:if>
                                     </td>
-                                    <td style="max-width: 28rem; white-space: normal; overflow-wrap: anywhere;">
+                                    <td class="secret-guard-cell-wrap-md">
                                         <j:choose>
                                             <j:when test="${result.hasNotes()}">
                                                 <span
-                                                    class="jenkins-alert jenkins-alert-warning"
-                                                    style="display:inline-flex;align-items:center;padding:2px 8px;margin:0;border-radius:999px;line-height:1.5;"
+                                                    class="jenkins-alert jenkins-alert-warning secret-guard-pill"
                                                 >Yes</span>
                                             </j:when>
                                             <j:otherwise>-</j:otherwise>
                                         </j:choose>
                                     </td>
                                     <td>
-                                        <span style="${it.getBlockedBadgeStyle(result.blocked)}">
+                                        <span class="${it.getBlockedBadgeClass(result.blocked)}">
                                             ${it.getBlockedBadgeLabel(result.blocked)}
                                         </span>
                                     </td>

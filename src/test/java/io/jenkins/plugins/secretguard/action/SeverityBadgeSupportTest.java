@@ -10,10 +10,10 @@ class SeverityBadgeSupportTest {
     private final SeverityBadgeSupport support = new SeverityBadgeSupport() {};
 
     @Test
-    void returnsDistinctStylesPerSeverity() {
-        assertTrue(support.getSeverityBadgeStyle(Severity.HIGH).contains("#fff1f0"));
-        assertTrue(support.getSeverityBadgeStyle(Severity.MEDIUM).contains("#fff7ed"));
-        assertTrue(support.getSeverityBadgeStyle(Severity.LOW).contains("#eff6ff"));
+    void returnsDistinctClassesPerSeverity() {
+        assertTrue(support.getSeverityBadgeClass(Severity.HIGH).contains("secret-guard-badge--high"));
+        assertTrue(support.getSeverityBadgeClass(Severity.MEDIUM).contains("secret-guard-badge--medium"));
+        assertTrue(support.getSeverityBadgeClass(Severity.LOW).contains("secret-guard-badge--low"));
     }
 
     @Test

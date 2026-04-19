@@ -2,6 +2,7 @@
 <j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout" xmlns:f="/lib/form">
     <l:layout title="Secret Guard">
         <l:main-panel>
+            <link rel="stylesheet" href="${rootURL}/plugin/secret-guard/styles/secret-guard.css" type="text/css" />
             <h1>Secret Guard Report for ${it.job.fullDisplayName}</h1>
             <j:if test="${it.manualScanCompleted}">
                 <p>Manual scan completed.</p>
@@ -27,9 +28,9 @@
                         <span title="${it.getDisplayTimeTitle(it.result.scannedAt)}">${it.getDisplayTime(it.result.scannedAt)}</span>
                     </p>
                     <j:if test="${it.hasNotes()}">
-                        <div class="jenkins-alert jenkins-alert-info" role="status" style="margin:16px 0;">
+                        <div class="jenkins-alert jenkins-alert-info secret-guard-section" role="status">
                             <strong>Scan notes</strong>
-                            <ul style="margin:8px 0 0 18px;">
+                            <ul class="secret-guard-notes-list">
                                 <j:forEach var="note" items="${it.notes}">
                                     <li>${note}</li>
                                 </j:forEach>
@@ -37,8 +38,8 @@
                         </div>
                     </j:if>
                     <j:forEach var="group" items="${it.severityGroups}">
-                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:16px 0 8px 0;">
-                            <span style="${it.getSeverityBadgeStyle(group.severity)}">
+                        <div class="secret-guard-severity-group">
+                            <span class="${it.getSeverityBadgeClass(group.severity)}">
                                 ${it.getSeverityBadgeLabel(group.severity)}
                             </span>
                             <strong>${group.count} finding(s)</strong>
@@ -60,7 +61,7 @@
                                 <j:forEach var="finding" items="${group.findings}">
                                     <tr>
                                         <td>${finding.ruleId}</td>
-                                        <td style="max-width: 24rem; white-space: normal; overflow-wrap: anywhere;">
+                                        <td class="secret-guard-cell-wrap-sm">
                                             <span title="${finding.sourceName}">${it.getDisplayLocation(finding)}</span>
                                         </td>
                                         <td>${finding.fieldName}</td>
@@ -86,9 +87,9 @@
                         <span title="${it.getDisplayTimeTitle(it.result.scannedAt)}">${it.getDisplayTime(it.result.scannedAt)}</span>
                     </p>
                     <j:if test="${it.hasNotes()}">
-                        <div class="jenkins-alert jenkins-alert-info" role="status" style="margin:16px 0;">
+                        <div class="jenkins-alert jenkins-alert-info secret-guard-section" role="status">
                             <strong>Scan notes</strong>
-                            <ul style="margin:8px 0 0 18px;">
+                            <ul class="secret-guard-notes-list">
                                 <j:forEach var="note" items="${it.notes}">
                                     <li>${note}</li>
                                 </j:forEach>

@@ -170,25 +170,20 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
         return remainingSeconds + "s";
     }
 
-    public String getScanAllStateBadgeStyle(GlobalJobScanStatus.State state) {
+    public String getScanAllStateBadgeClass(GlobalJobScanStatus.State state) {
         if (state == GlobalJobScanStatus.State.COMPLETED) {
-            return "display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;"
-                    + "line-height:1.5;border:1px solid #b7dfb9;background:#edf7ed;color:#1e6b2a;";
+            return "secret-guard-badge secret-guard-badge--state-completed";
         }
         if (state == GlobalJobScanStatus.State.RUNNING) {
-            return "display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;"
-                    + "line-height:1.5;border:1px solid #b6d4fe;background:#eff6ff;color:#175cd3;";
+            return "secret-guard-badge secret-guard-badge--state-running";
         }
         if (state == GlobalJobScanStatus.State.CANCELLED) {
-            return "display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;"
-                    + "line-height:1.5;border:1px solid #d5d7da;background:#f5f5f5;color:#344054;";
+            return "secret-guard-badge secret-guard-badge--state-cancelled";
         }
         if (state == GlobalJobScanStatus.State.FAILED) {
-            return "display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;"
-                    + "line-height:1.5;border:1px solid #f5c2c0;background:#fff1f0;color:#b42318;";
+            return "secret-guard-badge secret-guard-badge--state-failed";
         }
-        return "display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;"
-                + "line-height:1.5;border:1px solid #d5d7da;background:#f5f5f5;color:#344054;";
+        return "secret-guard-badge secret-guard-badge--state-idle";
     }
 
     public List<SecretScanResult> getResults() {
@@ -279,13 +274,11 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
         return getBlockedJobCount() > 0 ? "jenkins-alert jenkins-alert-danger" : "jenkins-alert jenkins-alert-info";
     }
 
-    public String getBlockedBadgeStyle(boolean blocked) {
+    public String getBlockedBadgeClass(boolean blocked) {
         if (blocked) {
-            return "display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;"
-                    + "line-height:1.5;border:1px solid #f5c2c0;background:#fff1f0;color:#b42318;";
+            return "secret-guard-badge secret-guard-badge--blocked";
         }
-        return "display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;"
-                + "line-height:1.5;border:1px solid #d5d7da;background:#f5f5f5;color:#344054;";
+        return "secret-guard-badge secret-guard-badge--allowed";
     }
 
     public String getBlockedBadgeLabel(boolean blocked) {
@@ -299,15 +292,15 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
         return compactTargetId(result.getTargetId());
     }
 
-    public String getResultRowStyle(SecretScanResult result) {
+    public String getResultRowClass(SecretScanResult result) {
         if (result == null) {
             return "";
         }
         if (result.isBlocked()) {
-            return "background:#fff1f0;";
+            return "secret-guard-row--blocked";
         }
         if (result.hasActionableFindingsAtOrAbove(Severity.HIGH)) {
-            return "background:#fff8e5;";
+            return "secret-guard-row--high";
         }
         return "";
     }

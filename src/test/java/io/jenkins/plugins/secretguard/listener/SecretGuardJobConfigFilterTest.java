@@ -1,5 +1,6 @@
 package io.jenkins.plugins.secretguard.listener;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.jenkins.plugins.secretguard.model.FindingLocationType;
@@ -27,15 +28,18 @@ class SecretGuardJobConfigFilterTest {
                         "ghp_?2345",
                         "Move plaintext secrets to Jenkins Credentials.")),
                 true);
-        String html = SecretGuardJobConfigFilter.buildBlockedHtml(null, result, "Blocked <message>");
+        String html = SecretGuardJobConfigFilter.buildBlockedHtml(null, result, "Blocked <message>", "/jenkins");
 
         assertTrue(html.contains("id=\"error-description\""));
         assertTrue(html.contains("role=\"alert\""));
         assertTrue(html.contains(">Error<"));
         assertTrue(html.contains("Secret Guard blocked the change"));
         assertTrue(html.contains("Blocked &lt;message&gt;"));
+        assertTrue(html.contains("href=\"/jenkins/plugin/secret-guard/styles/secret-guard.css\""));
+        assertTrue(html.contains("class=\"secret-guard-blocked-card\""));
         assertTrue(html.contains(">Rule</div><div><code>github-token</code></div>"));
         assertTrue(html.contains(">Masked snippet</div><div><code>ghp_?2345</code></div>"));
         assertTrue(html.contains("Move plaintext secrets to Jenkins Credentials."));
+        assertFalse(html.contains("style="));
     }
 }
