@@ -48,6 +48,21 @@ class SecretGuardItemListenerTest {
         assertFalse(ScanResultStore.get().get("after-rename").orElseThrow().isBlocked());
     }
 
+    @Test
+    @WithJenkins
+    void skipsUpdateScanWhenFilterManagesSaveRequest(JenkinsRule jenkinsRule) throws Exception {
+        configureAuditMode();
+        FreeStyleProject project = jenkinsRule.createFreeStyleProject("filter-managed-save");
+        ScanResultStore.get().remove(project.getFullName());
+
+        try (JobConfigSaveScanGuard.Scope ignored = JobConfigSaveScanGuard.filterManagedSave()) {
+            project.updateByXml(new StreamSource(
+                    new StringReader(withRiskyParameter(project.getConfigFile().asString()))));
+        }
+
+        assertTrue(ScanResultStore.get().get(project.getFullName()).isEmpty());
+    }
+
     private void configureAuditMode() {
         SecretGuardGlobalConfiguration configuration = SecretGuardGlobalConfiguration.get();
         configuration.setEnabled(true);

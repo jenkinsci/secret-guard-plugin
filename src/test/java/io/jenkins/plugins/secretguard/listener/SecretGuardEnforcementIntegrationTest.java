@@ -91,6 +91,10 @@ class SecretGuardEnforcementIntegrationTest {
         assertFalse(restoredXml.contains("API_TOKEN"));
         assertFalse(restoredXml.contains("ghp_012345678901234567890123456789012345"));
         assertTrue(restoredXml.contains("<properties/>") || restoredXml.contains("<properties></properties>"));
+        SecretScanResult storedResult =
+                ScanResultStore.get().get(project.getFullName()).orElseThrow();
+        assertFalse(storedResult.hasFindings());
+        assertFalse(storedResult.isBlocked());
     }
 
     @Test

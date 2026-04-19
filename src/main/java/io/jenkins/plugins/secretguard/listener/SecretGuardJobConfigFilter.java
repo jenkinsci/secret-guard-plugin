@@ -10,6 +10,7 @@ import hudson.util.PluginServletFilter;
 import io.jenkins.plugins.secretguard.model.ScanPhase;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import io.jenkins.plugins.secretguard.service.JobConfigEnforcementService;
+import io.jenkins.plugins.secretguard.service.ScanResultStore;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
@@ -64,34 +65,37 @@ public class SecretGuardJobConfigFilter implements Filter {
             return;
         }
 
-        Snapshot snapshot = captureSnapshot(target);
-        BufferedResponseWrapper bufferedResponse = new BufferedResponseWrapper(httpResponse);
-        chain.doFilter(request, bufferedResponse);
+        try (JobConfigSaveScanGuard.Scope ignored = JobConfigSaveScanGuard.filterManagedSave()) {
+            Snapshot snapshot = captureSnapshot(target);
+            BufferedResponseWrapper bufferedResponse = new BufferedResponseWrapper(httpResponse);
+            chain.doFilter(request, bufferedResponse);
 
-        if (bufferedResponse.hasFailureStatus()) {
-            bufferedResponse.commitTo(httpResponse);
-            return;
-        }
+            if (bufferedResponse.hasFailureStatus()) {
+                bufferedResponse.commitTo(httpResponse);
+                return;
+            }
 
-        Job<?, ?> job = target.resolveJob();
-        if (job == null) {
-            bufferedResponse.commitTo(httpResponse);
-            return;
-        }
+            Job<?, ?> job = target.resolveJob();
+            if (job == null) {
+                bufferedResponse.commitTo(httpResponse);
+                return;
+            }
 
-        SecretScanResult result =
-                enforcementService.scan(job, job.getConfigFile().asString(), ScanPhase.SAVE);
-        if (!result.isBlocked()) {
-            bufferedResponse.commitTo(httpResponse);
-            return;
-        }
+            SecretScanResult result =
+                    enforcementService.scan(job, job.getConfigFile().asString(), ScanPhase.SAVE);
+            if (!result.isBlocked()) {
+                bufferedResponse.commitTo(httpResponse);
+                return;
+            }
 
-        if (snapshot.originalConfigXml == null) {
-            deleteCreatedJob(job);
-        } else {
-            restoreOriginalConfig(job, snapshot.originalConfigXml);
+            if (snapshot.originalConfigXml == null) {
+                deleteCreatedJob(job);
+            } else {
+                restoreOriginalConfig(job, snapshot.originalConfigXml);
+            }
+            restoreSnapshotResult(snapshot);
+            sendBlockedResponse(httpRequest, httpResponse, target, result);
         }
-        sendBlockedResponse(httpRequest, httpResponse, target, result);
     }
 
     @Override
@@ -100,10 +104,12 @@ public class SecretGuardJobConfigFilter implements Filter {
     private Snapshot captureSnapshot(RequestTarget target) throws IOException {
         Job<?, ?> existingJob = target.resolveJob();
         if (existingJob == null) {
-            return new Snapshot(target.jobFullName, null);
+            return new Snapshot(target.jobFullName, null, null);
         }
         return new Snapshot(
-                existingJob.getFullName(), existingJob.getConfigFile().asString());
+                existingJob.getFullName(),
+                existingJob.getConfigFile().asString(),
+                ScanResultStore.get().get(existingJob.getFullName()).orElse(null));
     }
 
     private void restoreOriginalConfig(Job<?, ?> job, String originalConfigXml) throws IOException {
@@ -119,6 +125,14 @@ public class SecretGuardJobConfigFilter implements Filter {
             Thread.currentThread().interrupt();
             throw new ServletException("Interrupted while deleting blocked job " + job.getFullName(), e);
         }
+    }
+
+    private void restoreSnapshotResult(Snapshot snapshot) {
+        if (snapshot.previousResult == null) {
+            ScanResultStore.get().remove(snapshot.jobFullName);
+            return;
+        }
+        ScanResultStore.get().put(snapshot.previousResult);
     }
 
     private void sendBlockedResponse(
@@ -192,10 +206,12 @@ public class SecretGuardJobConfigFilter implements Filter {
     private static final class Snapshot {
         private final String jobFullName;
         private final String originalConfigXml;
+        private final SecretScanResult previousResult;
 
-        private Snapshot(String jobFullName, String originalConfigXml) {
+        private Snapshot(String jobFullName, String originalConfigXml, SecretScanResult previousResult) {
             this.jobFullName = jobFullName;
             this.originalConfigXml = originalConfigXml;
+            this.previousResult = previousResult;
         }
     }
 

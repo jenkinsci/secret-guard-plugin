@@ -65,6 +65,9 @@ public class SecretGuardItemListener extends ItemListener {
     }
 
     private void scanItem(Item item) {
+        if (JobConfigSaveScanGuard.isFilterManagedSave()) {
+            return;
+        }
         if (!(item instanceof Job<?, ?> job) || !(item instanceof AbstractItem abstractItem)) {
             return;
         }
