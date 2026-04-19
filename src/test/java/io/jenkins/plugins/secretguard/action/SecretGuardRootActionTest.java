@@ -307,6 +307,7 @@ class SecretGuardRootActionTest {
         String content = page.getWebResponse().getContentAsString();
 
         assertTrue(content.contains(">Yes<"));
+        assertTrue(content.contains("secret-guard-pill--warning"));
         assertFalse(content.contains(note));
 
         ScanResultStore.get().remove(targetId);
@@ -332,6 +333,7 @@ class SecretGuardRootActionTest {
 
         assertTrue(content.contains("With Exemptions (1)"));
         assertTrue(content.contains(">1 exempted<"));
+        assertTrue(content.contains("secret-guard-pill--warning"));
         assertTrue(content.contains(targetId));
         assertFalse(content.contains(exemptionReason));
 

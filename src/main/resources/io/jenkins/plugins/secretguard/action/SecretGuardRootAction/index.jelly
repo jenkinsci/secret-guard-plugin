@@ -227,17 +227,15 @@
                                     <td>
                                         <span>${result.findings.size()}</span>
                                         <j:if test="${it.getExemptedFindingsCount(result) > 0}">
-                                            <span
-                                                class="jenkins-alert jenkins-alert-warning secret-guard-pill secret-guard-pill--offset"
-                                            >${it.getExemptedFindingsCount(result)} exempted</span>
+                                            <span class="secret-guard-pill secret-guard-pill--warning secret-guard-pill--offset">
+                                                ${it.getExemptedFindingsCount(result)} exempted
+                                            </span>
                                         </j:if>
                                     </td>
-                                    <td class="secret-guard-cell-wrap-md">
+                                    <td class="secret-guard-cell-status">
                                         <j:choose>
                                             <j:when test="${result.hasNotes()}">
-                                                <span
-                                                    class="jenkins-alert jenkins-alert-warning secret-guard-pill"
-                                                >Yes</span>
+                                                <span class="secret-guard-pill secret-guard-pill--warning">Yes</span>
                                             </j:when>
                                             <j:otherwise>-</j:otherwise>
                                         </j:choose>
