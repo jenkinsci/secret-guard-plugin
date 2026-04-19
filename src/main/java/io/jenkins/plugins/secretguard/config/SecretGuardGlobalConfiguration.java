@@ -2,7 +2,6 @@ package io.jenkins.plugins.secretguard.config;
 
 import hudson.Extension;
 import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
 import io.jenkins.plugins.secretguard.model.EnforcementMode;
 import io.jenkins.plugins.secretguard.model.Severity;
 import java.util.Arrays;
@@ -128,46 +127,10 @@ public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
         return splitExemptionEntries(getExemptions());
     }
 
-    public EnforcementMode[] getEnforcementModes() {
-        return EnforcementMode.values();
-    }
-
-    public Severity[] getSeverities() {
-        return Severity.values();
-    }
-
-    @POST
-    public ListBoxModel doFillEnforcementModeItems() {
-        Jenkins.get().checkPermission(Jenkins.MANAGE);
-        return buildEnforcementModeItems();
-    }
-
-    @POST
-    public ListBoxModel doFillBlockThresholdItems() {
-        Jenkins.get().checkPermission(Jenkins.MANAGE);
-        return buildBlockThresholdItems();
-    }
-
     @POST
     public FormValidation doCheckExemptions(@QueryParameter String value) {
         Jenkins.get().checkPermission(Jenkins.MANAGE);
         return validateExemptions(value);
-    }
-
-    static ListBoxModel buildEnforcementModeItems() {
-        ListBoxModel items = new ListBoxModel();
-        for (EnforcementMode mode : EnforcementMode.values()) {
-            items.add(mode.name(), mode.name());
-        }
-        return items;
-    }
-
-    static ListBoxModel buildBlockThresholdItems() {
-        ListBoxModel items = new ListBoxModel();
-        for (Severity severity : Severity.values()) {
-            items.add(severity.name(), severity.name());
-        }
-        return items;
     }
 
     private static String normalizeText(String value) {

@@ -8,13 +8,17 @@
                 title="Enforcement mode"
                 field="enforcementMode"
                 description="AUDIT records findings only, WARN marks builds unstable, and BLOCK rejects unexempted findings at or above the configured threshold.">
-            <f:select />
+            <f:enum>
+                ${it.name()}
+            </f:enum>
         </f:entry>
         <f:entry
                 title="Block threshold"
                 field="blockThreshold"
                 description="Applies only in BLOCK mode and sets the minimum severity that rejects unexempted findings.">
-            <f:select />
+            <f:enum>
+                ${it.name()}
+            </f:enum>
         </f:entry>
         <f:entry
                 title="Rule ID allow list"
