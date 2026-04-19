@@ -452,7 +452,7 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
         }
         return switch (filter) {
             case ALL -> true;
-            case HIGH -> result.hasActionableFindingsAtOrAbove(Severity.HIGH);
+            case HIGH -> result.getHighestSeverity().isAtLeast(Severity.HIGH);
             case BLOCKED -> result.isBlocked();
             case WITH_FINDINGS -> result.hasFindings();
             case WITH_EXEMPTIONS -> result.hasExemptedFindings();

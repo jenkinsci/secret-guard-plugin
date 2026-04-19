@@ -94,7 +94,7 @@ class SecretGuardRootActionTest {
                 List.of(blockedResult, highResult, lowResult, emptyResult, notesResult, exemptedResult);
 
         assertEquals(
-                List.of(blockedResult, highResult),
+                List.of(blockedResult, highResult, exemptedResult),
                 SecretGuardRootAction.filterResults(results, SecretGuardRootAction.ResultFilter.HIGH));
         assertEquals(
                 List.of(blockedResult),
