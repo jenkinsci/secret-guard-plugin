@@ -334,6 +334,8 @@ class SecretGuardRootActionTest {
         assertTrue(content.contains("With Exemptions (1)"));
         assertTrue(content.contains(">1 exempted<"));
         assertTrue(content.contains("secret-guard-pill--warning"));
+        assertTrue(content.contains("id=\"secret-guard-results-section\""));
+        assertTrue(content.contains("secret-guard-filter-link"));
         assertTrue(content.contains(targetId));
         assertFalse(content.contains(exemptionReason));
 

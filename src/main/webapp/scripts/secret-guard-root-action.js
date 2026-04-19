@@ -1,6 +1,8 @@
 (function () {
     var DETAILS_PANEL_ID = "secret-guard-scan-all-details";
     var DETAILS_TOGGLE_ID = "secret-guard-scan-all-details-toggle";
+    var RESULTS_SECTION_ID = "secret-guard-results-section";
+    var FILTER_LINK_CLASS = "secret-guard-filter-link";
     var STORAGE_KEY_SUFFIX = ":scan-all-details-open";
 
     function getSessionStorage() {
@@ -78,8 +80,98 @@
         }, interval);
     }
 
+    function shouldHandleFilterClick(event, link) {
+        return !!link
+            && !event.defaultPrevented
+            && event.button === 0
+            && !event.metaKey
+            && !event.ctrlKey
+            && !event.shiftKey
+            && !event.altKey
+            && link.target !== "_blank";
+    }
+
+    function setResultsLoading(loading) {
+        var resultsSection = document.getElementById(RESULTS_SECTION_ID);
+        if (!resultsSection) {
+            return;
+        }
+
+        if (loading) {
+            resultsSection.setAttribute("aria-busy", "true");
+            resultsSection.classList.add("secret-guard-results-section--loading");
+        } else {
+            resultsSection.removeAttribute("aria-busy");
+            resultsSection.classList.remove("secret-guard-results-section--loading");
+        }
+    }
+
+    function replaceResultsSection(nextDocument) {
+        var currentSection = document.getElementById(RESULTS_SECTION_ID);
+        var nextSection = nextDocument.getElementById(RESULTS_SECTION_ID);
+        if (!currentSection || !nextSection) {
+            return false;
+        }
+
+        currentSection.replaceWith(nextSection);
+        return true;
+    }
+
+    function fetchAndReplaceResults(url, pushHistory) {
+        setResultsLoading(true);
+
+        return window.fetch(url, {
+            headers: {
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            credentials: "same-origin"
+        }).then(function (response) {
+            if (!response.ok) {
+                throw new Error("Failed to load filtered results.");
+            }
+            return response.text();
+        }).then(function (html) {
+            var parser = new DOMParser();
+            var nextDocument = parser.parseFromString(html, "text/html");
+            if (!replaceResultsSection(nextDocument)) {
+                window.location.assign(url);
+                return;
+            }
+
+            if (pushHistory) {
+                window.history.pushState({resultsUrl: url}, "", url);
+            }
+        }).catch(function () {
+            window.location.assign(url);
+        }).finally(function () {
+            setResultsLoading(false);
+        });
+    }
+
+    function initializeFilterRefresh() {
+        document.addEventListener("click", function (event) {
+            var link = event.target.closest("." + FILTER_LINK_CLASS);
+            if (!shouldHandleFilterClick(event, link)) {
+                return;
+            }
+
+            var resultsSection = document.getElementById(RESULTS_SECTION_ID);
+            if (!resultsSection || !resultsSection.contains(link)) {
+                return;
+            }
+
+            event.preventDefault();
+            fetchAndReplaceResults(link.href, true);
+        });
+
+        window.addEventListener("popstate", function () {
+            fetchAndReplaceResults(window.location.href, false);
+        });
+    }
+
     function initialize() {
         initializeDetailsState();
+        initializeFilterRefresh();
         scheduleRefresh();
     }
 

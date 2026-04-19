@@ -164,114 +164,125 @@
                     <span>Scanned jobs</span>
                 </div>
             </div>
-            <j:choose>
-                <j:when test="${it.hasResults()}">
-                    <div class="secret-guard-results-header">
-                        <div class="secret-guard-results-summary">
-                            <strong>Results</strong>
-                            <span>Showing ${it.filteredResultCount} of ${it.scannedJobCount}</span>
+            <div id="secret-guard-results-section">
+                <j:choose>
+                    <j:when test="${it.hasResults()}">
+                        <div class="secret-guard-results-header">
+                            <div class="secret-guard-results-summary">
+                                <strong>Results</strong>
+                                <span>Showing ${it.filteredResultCount} of ${it.scannedJobCount}</span>
+                            </div>
+                            <div class="secret-guard-layout-inline-end">
+                                <span>Filters:</span>
+                                <a class="${it.getFilterButtonClass('all')} secret-guard-filter-link" href="${it.getFilterUrl('all')}">${it.getFilterButtonLabel('all')}</a>
+                                <a class="${it.getFilterButtonClass('high')} secret-guard-filter-link" href="${it.getFilterUrl('high')}">${it.getFilterButtonLabel('high')}</a>
+                                <a class="${it.getFilterButtonClass('blocked')} secret-guard-filter-link" href="${it.getFilterUrl('blocked')}">${it.getFilterButtonLabel('blocked')}</a>
+                                <a
+                                    class="${it.getFilterButtonClass('with-findings')} secret-guard-filter-link"
+                                    href="${it.getFilterUrl('with-findings')}"
+                                >
+                                    ${it.getFilterButtonLabel('with-findings')}
+                                </a>
+                                <a
+                                    class="${it.getFilterButtonClass('with-exemptions')} secret-guard-filter-link"
+                                    href="${it.getFilterUrl('with-exemptions')}"
+                                >
+                                    ${it.getFilterButtonLabel('with-exemptions')}
+                                </a>
+                                <a
+                                    class="${it.getFilterButtonClass('with-notes')} secret-guard-filter-link"
+                                    href="${it.getFilterUrl('with-notes')}"
+                                >
+                                    ${it.getFilterButtonLabel('with-notes')}
+                                </a>
+                            </div>
                         </div>
-                        <div class="secret-guard-layout-inline-end">
-                            <span>Filters:</span>
-                            <a class="${it.getFilterButtonClass('all')}" href="${it.getFilterUrl('all')}">${it.getFilterButtonLabel('all')}</a>
-                            <a class="${it.getFilterButtonClass('high')}" href="${it.getFilterUrl('high')}">${it.getFilterButtonLabel('high')}</a>
-                            <a class="${it.getFilterButtonClass('blocked')}" href="${it.getFilterUrl('blocked')}">${it.getFilterButtonLabel('blocked')}</a>
-                            <a class="${it.getFilterButtonClass('with-findings')}" href="${it.getFilterUrl('with-findings')}">
-                                ${it.getFilterButtonLabel('with-findings')}
-                            </a>
-                            <a class="${it.getFilterButtonClass('with-exemptions')}" href="${it.getFilterUrl('with-exemptions')}">
-                                ${it.getFilterButtonLabel('with-exemptions')}
-                            </a>
-                            <a class="${it.getFilterButtonClass('with-notes')}" href="${it.getFilterUrl('with-notes')}">
-                                ${it.getFilterButtonLabel('with-notes')}
-                            </a>
-                        </div>
-                    </div>
-                </j:when>
-            </j:choose>
-            <j:choose>
-                <j:when test="${it.hasFilteredResults()}">
-                    <table class="jenkins-table sortable">
-                        <thead>
-                            <tr>
-                                <th>Job</th>
-                                <th>Target type</th>
-                                <th>Highest severity</th>
-                                <th>Findings</th>
-                                <th>Notes</th>
-                                <th>Blocked</th>
-                                <th>Scanned at</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <j:forEach var="result" items="${it.filteredResults}">
-                                <tr class="${it.getResultRowClass(result)}">
-                                    <j:set var="jobUrl" value="${it.getJobSecretGuardUrl(result)}" />
-                                    <td class="secret-guard-cell-wrap-sm">
-                                        <j:choose>
-                                            <j:when test="${jobUrl != null}">
-                                                <a href="${jobUrl}" title="${result.targetId}">${it.getDisplayTargetId(result)}</a>
-                                            </j:when>
-                                            <j:otherwise>
-                                                <span title="${result.targetId}">${it.getDisplayTargetId(result)}</span>
-                                            </j:otherwise>
-                                        </j:choose>
-                                    </td>
-                                    <td>${result.targetType}</td>
-                                    <td>
-                                        <span class="${it.getSeverityBadgeClass(result.highestSeverity)}">
-                                            ${it.getSeverityBadgeLabel(result.highestSeverity)}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span>${result.findings.size()}</span>
-                                        <j:if test="${it.getExemptedFindingsCount(result) > 0}">
-                                            <span class="secret-guard-pill secret-guard-pill--warning secret-guard-pill--offset">
-                                                ${it.getExemptedFindingsCount(result)} exempted
-                                            </span>
-                                        </j:if>
-                                    </td>
-                                    <td class="secret-guard-cell-status">
-                                        <j:choose>
-                                            <j:when test="${result.hasNotes()}">
-                                                <span class="secret-guard-pill secret-guard-pill--warning">Yes</span>
-                                            </j:when>
-                                            <j:otherwise>-</j:otherwise>
-                                        </j:choose>
-                                    </td>
-                                    <td>
-                                        <span class="${it.getBlockedBadgeClass(result.blocked)}">
-                                            ${it.getBlockedBadgeLabel(result.blocked)}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span title="${it.getDisplayTimeTitle(result.scannedAt)}">
-                                            ${it.getDisplayTime(result.scannedAt)}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <j:choose>
-                                            <j:when test="${jobUrl != null}">
-                                                <a class="jenkins-button jenkins-button--secondary" href="${jobUrl}">View report</a>
-                                            </j:when>
-                                            <j:otherwise>-</j:otherwise>
-                                        </j:choose>
-                                    </td>
+                    </j:when>
+                </j:choose>
+                <j:choose>
+                    <j:when test="${it.hasFilteredResults()}">
+                        <table class="jenkins-table sortable">
+                            <thead>
+                                <tr>
+                                    <th>Job</th>
+                                    <th>Target type</th>
+                                    <th>Highest severity</th>
+                                    <th>Findings</th>
+                                    <th>Notes</th>
+                                    <th>Blocked</th>
+                                    <th>Scanned at</th>
+                                    <th>Action</th>
                                 </tr>
-                            </j:forEach>
-                        </tbody>
-                    </table>
-                </j:when>
-                <j:otherwise>
-                    <p>
-                        ${it.emptyResultsMessage}
-                        <j:if test="${it.hasResults()}">
-                            <a href="${it.getFilterUrl('all')}">Show all</a>
-                        </j:if>
-                    </p>
-                </j:otherwise>
-            </j:choose>
+                            </thead>
+                            <tbody>
+                                <j:forEach var="result" items="${it.filteredResults}">
+                                    <tr class="${it.getResultRowClass(result)}">
+                                        <j:set var="jobUrl" value="${it.getJobSecretGuardUrl(result)}" />
+                                        <td class="secret-guard-cell-wrap-sm">
+                                            <j:choose>
+                                                <j:when test="${jobUrl != null}">
+                                                    <a href="${jobUrl}" title="${result.targetId}">${it.getDisplayTargetId(result)}</a>
+                                                </j:when>
+                                                <j:otherwise>
+                                                    <span title="${result.targetId}">${it.getDisplayTargetId(result)}</span>
+                                                </j:otherwise>
+                                            </j:choose>
+                                        </td>
+                                        <td>${result.targetType}</td>
+                                        <td>
+                                            <span class="${it.getSeverityBadgeClass(result.highestSeverity)}">
+                                                ${it.getSeverityBadgeLabel(result.highestSeverity)}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span>${result.findings.size()}</span>
+                                            <j:if test="${it.getExemptedFindingsCount(result) > 0}">
+                                                <span class="secret-guard-pill secret-guard-pill--warning secret-guard-pill--offset">
+                                                    ${it.getExemptedFindingsCount(result)} exempted
+                                                </span>
+                                            </j:if>
+                                        </td>
+                                        <td class="secret-guard-cell-status">
+                                            <j:choose>
+                                                <j:when test="${result.hasNotes()}">
+                                                    <span class="secret-guard-pill secret-guard-pill--warning">Yes</span>
+                                                </j:when>
+                                                <j:otherwise>-</j:otherwise>
+                                            </j:choose>
+                                        </td>
+                                        <td>
+                                            <span class="${it.getBlockedBadgeClass(result.blocked)}">
+                                                ${it.getBlockedBadgeLabel(result.blocked)}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span title="${it.getDisplayTimeTitle(result.scannedAt)}">
+                                                ${it.getDisplayTime(result.scannedAt)}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <j:choose>
+                                                <j:when test="${jobUrl != null}">
+                                                    <a class="jenkins-button jenkins-button--secondary" href="${jobUrl}">View report</a>
+                                                </j:when>
+                                                <j:otherwise>-</j:otherwise>
+                                            </j:choose>
+                                        </td>
+                                    </tr>
+                                </j:forEach>
+                            </tbody>
+                        </table>
+                    </j:when>
+                    <j:otherwise>
+                        <p>
+                            ${it.emptyResultsMessage}
+                            <j:if test="${it.hasResults()}">
+                                <a class="secret-guard-filter-link" href="${it.getFilterUrl('all')}">Show all</a>
+                            </j:if>
+                        </p>
+                    </j:otherwise>
+                </j:choose>
+            </div>
         </l:main-panel>
     </l:layout>
 </j:jelly>
