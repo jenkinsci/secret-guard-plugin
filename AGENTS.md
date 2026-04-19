@@ -36,6 +36,10 @@ This file applies to the entire repository.
 - Sanitize user-provided or internal-looking identifiers in code, tests, and docs. Prefer neutral placeholders such as `example.invalid`, `repo-host`, `build-tools`, and `SERVICE_TOKEN`.
 - Keep enforcement policy centralized in `SecretScanService`, global runtime behavior in `SecretGuardGlobalConfiguration`, and extraction/detection responsibilities split between `scan/` and `rules/`.
 - Keep UI/reporting code presentation-only and Jenkins-native, with concise administrator-facing wording and minimal Jelly/HTML structure.
+- Keep UI markup CSP-friendly. Do not introduce inline `<script>` or `<style>` tags, inline event handlers, or `style=` attributes in Jelly views or Java-generated HTML responses.
+- Prefer external static assets under `src/main/webapp` for plugin-specific JavaScript and CSS, and load them from Jelly or generated HTML instead of embedding presentation logic inline.
+- When Java needs to influence presentation, return stable CSS class names rather than assembled style strings.
+- For Jelly pages that render mutable runtime state, snapshot values with `<j:set>` before branching on them so a single render does not mix pre-change and post-change state.
 - Follow existing code style: small focused classes, descriptive names, and minimal inline comments.
 
 ## Testing expectations
@@ -43,10 +47,12 @@ This file applies to the entire repository.
 - After every code change, run `mvn spotless:apply` before finishing the task.
 - Add or update focused tests for behavior changes in the corresponding `src/test/java` package.
 - Prefer synthetic sample secrets and sanitized generic fixtures; never use real credentials or internal-looking domains, paths, or naming patterns.
+- For CSP- or UI-related changes, add focused regression coverage that verifies external asset references, required render markers, and absence of inline `style=` usage where applicable.
 - When practical, validate with the smallest relevant command first, for example:
   - `mvn -Dtest=SecretScanServiceTest test`
   - `mvn -Dtest=ConfigXmlScannerTest test`
 - Use `mvn test` for broader verification when changes affect multiple areas.
+- When touching Jelly views or Java-generated HTML, also consider a quick repository scan for inline markup patterns, for example `grep -RInE 'style=|<style|<script|\\son[a-zA-Z]+=' src/main/resources src/main/java src/main/webapp`.
 
 ## Change guidance
 
