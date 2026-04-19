@@ -4,29 +4,41 @@
         <f:entry title="Enabled" field="enabled">
             <f:checkbox />
         </f:entry>
-        <f:entry title="Enforcement mode" field="enforcementMode">
+        <f:entry
+                title="Enforcement mode"
+                field="enforcementMode"
+                description="AUDIT records findings only, WARN marks builds unstable, and BLOCK rejects unexempted findings at or above the configured threshold.">
             <f:select />
         </f:entry>
-        <f:entry title="Block threshold" field="blockThreshold">
+        <f:entry
+                title="Block threshold"
+                field="blockThreshold"
+                description="Applies only in BLOCK mode and sets the minimum severity that rejects unexempted findings.">
             <f:select />
         </f:entry>
-        <f:entry title="Rule ID allow list" field="ruleIdAllowList">
+        <f:entry
+                title="Rule ID allow list"
+                field="ruleIdAllowList"
+                description="Use newline or comma separated rule IDs.">
             <f:textarea />
-            <div class="jenkins-form-description">Use newline or comma separated rule IDs.</div>
         </f:entry>
-        <f:entry title="Job allow list" field="jobAllowList">
+        <f:entry
+                title="Job allow list"
+                field="jobAllowList"
+                description="Use newline or comma separated full job names.">
             <f:textarea />
-            <div class="jenkins-form-description">Use newline or comma separated full job names.</div>
         </f:entry>
-        <f:entry title="Field name allow list" field="fieldNameAllowList">
+        <f:entry
+                title="Field name allow list"
+                field="fieldNameAllowList"
+                description="Use newline or comma separated field names.">
             <f:textarea />
-            <div class="jenkins-form-description">Use newline or comma separated field names.</div>
         </f:entry>
-        <f:entry title="Exemptions" field="exemptions">
+        <f:entry
+                title="Exemptions"
+                field="exemptions"
+                description="Use one exemption per line: jobFullName|ruleId|reason. Empty reasons are ignored.">
             <f:textarea checkMethod="post" />
-            <div class="jenkins-form-description">
-                Use one exemption per line: jobFullName|ruleId|reason. Empty reasons are ignored.
-            </div>
         </f:entry>
     </f:section>
 </j:jelly>
