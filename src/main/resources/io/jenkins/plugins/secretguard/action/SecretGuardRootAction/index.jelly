@@ -75,10 +75,10 @@
                                         <div>Current job: <code>${scanStatus.currentJobFullName}</code></div>
                                     </j:if>
                                     <j:if test="${scanStatus.startedAt != null}">
-                                        <div>Started: ${scanStatus.startedAt}</div>
+                                        <div>Started: ${it.getDisplayTimeTitle(scanStatus.startedAt)}</div>
                                     </j:if>
                                     <j:if test="${scanStatus.finishedAt != null}">
-                                        <div>Finished: ${scanStatus.finishedAt}</div>
+                                        <div>Finished: ${it.getDisplayTimeTitle(scanStatus.finishedAt)}</div>
                                     </j:if>
                                     <j:if test="${scanStatus.hasFailedJobs()}">
                                         <div class="secret-guard-failed-jobs">Recent failed jobs:</div>
@@ -111,10 +111,10 @@
                                         ${scanStatus.jobsScanned}/${scanStatus.totalJobs}
                                     </progress>
                                     <j:if test="${scanStatus.startedAt != null}">
-                                        <div>Started: ${scanStatus.startedAt}</div>
+                                        <div>Started: ${it.getDisplayTimeTitle(scanStatus.startedAt)}</div>
                                     </j:if>
                                     <j:if test="${scanStatus.finishedAt != null}">
-                                        <div>Finished: ${scanStatus.finishedAt}</div>
+                                        <div>Finished: ${it.getDisplayTimeTitle(scanStatus.finishedAt)}</div>
                                     </j:if>
                                     <j:if test="${scanStatus.hasFailedJobs()}">
                                         <div class="secret-guard-failed-jobs">Recent failed jobs:</div>

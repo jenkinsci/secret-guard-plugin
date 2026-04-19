@@ -273,6 +273,27 @@ class SecretGuardRootActionTest {
 
     @Test
     @WithJenkins
+    void rootPageFormatsScanAllDetailTimestampsWithoutRawInstantText(JenkinsRule jenkinsRule) throws Exception {
+        Instant startedAt = Instant.parse("2026-04-19T02:24:50.103104950Z");
+        Instant finishedAt = Instant.parse("2026-04-19T02:24:52.632356931Z");
+        SecretGuardRootAction rootAction = jenkinsRule
+                .jenkins
+                .getExtensionList(SecretGuardRootAction.class)
+                .get(0);
+        setGlobalJobScanService(rootAction, new CompletedGlobalJobScanService(startedAt, finishedAt));
+
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient();
+        Page page = webClient.goTo("secret-guard");
+        String content = page.getWebResponse().getContentAsString();
+
+        assertTrue(content.contains("Started: " + rootAction.getDisplayTimeTitle(startedAt)));
+        assertTrue(content.contains("Finished: " + rootAction.getDisplayTimeTitle(finishedAt)));
+        assertFalse(content.contains(startedAt.toString()));
+        assertFalse(content.contains(finishedAt.toString()));
+    }
+
+    @Test
+    @WithJenkins
     void rootPageShowsNotePresenceWithoutRenderingFullNoteText(JenkinsRule jenkinsRule) throws Exception {
         String targetId = "job-with-note";
         String note =
@@ -408,6 +429,32 @@ class SecretGuardRootActionTest {
                     "Global scan completed.",
                     Instant.now(),
                     Instant.now(),
+                    List.of());
+        }
+    }
+
+    private static final class CompletedGlobalJobScanService extends GlobalJobScanService {
+        private final Instant startedAt;
+        private final Instant finishedAt;
+
+        private CompletedGlobalJobScanService(Instant startedAt, Instant finishedAt) {
+            this.startedAt = startedAt;
+            this.finishedAt = finishedAt;
+        }
+
+        @Override
+        public GlobalJobScanStatus getStatus() {
+            return new GlobalJobScanStatus(
+                    GlobalJobScanStatus.State.COMPLETED,
+                    2,
+                    2,
+                    0,
+                    0,
+                    0,
+                    null,
+                    "Global scan completed.",
+                    startedAt,
+                    finishedAt,
                     List.of());
         }
     }
