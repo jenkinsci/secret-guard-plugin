@@ -38,7 +38,7 @@
                 title="Exemptions"
                 field="exemptions"
                 description="Use one exemption per line: jobFullName|ruleId|reason. Empty reasons are ignored.">
-            <f:textarea checkMethod="post" />
+            <f:textarea />
         </f:entry>
     </f:section>
 </j:jelly>
