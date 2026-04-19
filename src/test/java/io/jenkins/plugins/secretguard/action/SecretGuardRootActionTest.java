@@ -268,8 +268,29 @@ class SecretGuardRootActionTest {
         assertTrue(content.contains("cancelScanAll"));
         assertTrue(content.contains("id=\"secret-guard-scan-all-details\""));
         assertTrue(content.contains("id=\"secret-guard-auto-refresh\""));
+        assertTrue(content.contains("Current job: <code>example-job</code>"));
         assertTrue(content.contains("This page refreshes automatically while the scan runs."));
         assertFalse(content.contains("dismissScanAllStatus"));
+    }
+
+    @Test
+    @WithJenkins
+    void rootPageUsesSingleHiddenDetailsPanelWithoutDroppingStatusFields(JenkinsRule jenkinsRule) throws Exception {
+        SecretGuardRootAction rootAction = jenkinsRule
+                .jenkins
+                .getExtensionList(SecretGuardRootAction.class)
+                .get(0);
+        setGlobalJobScanService(rootAction, new HiddenDetailsGlobalJobScanService());
+
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient();
+        Page page = webClient.goTo("secret-guard");
+        String content = page.getWebResponse().getContentAsString();
+
+        assertEquals(1, countOccurrences(content, "id=\"secret-guard-scan-all-details\""));
+        assertTrue(
+                content.contains("class=\"jenkins-hidden secret-guard-details-body secret-guard-scan-details-panel\""));
+        assertTrue(content.contains("Current job: <code>example-job</code>"));
+        assertFalse(content.contains("id=\"secret-guard-auto-refresh\""));
     }
 
     @Test
@@ -401,6 +422,16 @@ class SecretGuardRootActionTest {
         field.set(rootAction, service);
     }
 
+    private static int countOccurrences(String content, String needle) {
+        int count = 0;
+        int index = 0;
+        while ((index = content.indexOf(needle, index)) != -1) {
+            count++;
+            index += needle.length();
+        }
+        return count;
+    }
+
     private static final class RenderRaceGlobalJobScanService extends GlobalJobScanService {
         private final AtomicInteger statusCalls = new AtomicInteger();
 
@@ -471,6 +502,24 @@ class SecretGuardRootActionTest {
                     startedAt,
                     finishedAt,
                     List.of());
+        }
+    }
+
+    private static final class HiddenDetailsGlobalJobScanService extends GlobalJobScanService {
+        @Override
+        public GlobalJobScanStatus getStatus() {
+            return new GlobalJobScanStatus(
+                    GlobalJobScanStatus.State.COMPLETED,
+                    4,
+                    4,
+                    1,
+                    1,
+                    1,
+                    "example-job",
+                    "Global scan completed.",
+                    Instant.parse("2026-04-19T02:24:50Z"),
+                    Instant.parse("2026-04-19T02:25:00Z"),
+                    List.of("folder/example-job"));
         }
     }
 }

@@ -27,7 +27,8 @@
     }
 
     function setDetailsOpen(panel, toggle, open, persist) {
-        panel.hidden = !open;
+        panel.hidden = false;
+        panel.classList.toggle("jenkins-hidden", !open);
         toggle.setAttribute("aria-expanded", open ? "true" : "false");
         toggle.textContent = open ? "Hide Details" : "Details";
         if (persist) {
@@ -54,7 +55,7 @@
         setDetailsOpen(panel, toggle, open, false);
 
         toggle.addEventListener("click", function () {
-            setDetailsOpen(panel, toggle, panel.hidden, true);
+            setDetailsOpen(panel, toggle, panel.classList.contains("jenkins-hidden"), true);
         });
 
         persistDetailsState(open);
