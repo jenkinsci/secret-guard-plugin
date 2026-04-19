@@ -1,5 +1,5 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout" xmlns:f="/lib/form">
+<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout" xmlns:f="/lib/form" xmlns:t="/lib/hudson">
     <l:layout title="Secret Guard">
         <l:main-panel>
             <link rel="stylesheet" href="${rootURL}/plugin/secret-guard/styles/secret-guard.css" type="text/css" />
@@ -81,9 +81,7 @@
                             Progress: ${scanStatus.jobsScanned} / ${scanStatus.totalJobs}
                             (${scanStatus.progressPercentage}%)
                         </div>
-                        <progress max="${scanStatus.progressMax}" value="${scanStatus.jobsScanned}">
-                            ${scanStatus.jobsScanned}/${scanStatus.totalJobs}
-                        </progress>
+                        <t:progressBar pos="${scanStatus.progressPercentage}" />
                         <j:if test="${scanStatus.currentJobFullName != null}">
                             <div>Current job: <code>${scanStatus.currentJobFullName}</code></div>
                         </j:if>
