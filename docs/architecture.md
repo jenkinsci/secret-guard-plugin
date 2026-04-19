@@ -27,7 +27,7 @@ flowchart LR
     C --> D["SecretScanner"]
     D --> E["BuiltInSecretRuleSet"]
     E --> F["SecretFinding[]"]
-    F --> G["WhitelistService / ExemptionService"]
+    F --> G["AllowListService / ExemptionService"]
     G --> H["SecretScanService"]
     H --> I["ScanResultStore"]
     H --> J["Mode Decision (Audit/Warn/Block)"]
@@ -52,9 +52,9 @@ flowchart LR
 - plugin enabled flag
 - enforcement mode: `AUDIT`, `WARN`, `BLOCK`
 - block threshold, default `HIGH`
-- rule ID whitelist
-- job whitelist
-- field name whitelist
+- rule ID allow list
+- job allow list
+- field name allow list
 - exemptions in `jobFullName|ruleId|reason` format
 
 The configuration is stored using Jenkins `GlobalConfiguration`, so no external storage is required for policy settings.
@@ -130,7 +130,7 @@ The scanner layer is responsible for extracting candidate values and location me
 `SecretScanService` is the central coordinator:
 
 - executes the scanner
-- applies whitelists
+- applies allow lists
 - applies exemptions
 - suppresses lower-priority duplicate findings when a more specific rule matches the same source location
 - computes whether the result should block
@@ -221,6 +221,6 @@ Recommended evolution path:
 ## Operational Notes
 
 - Use `WARN` first in production rollout to measure noise
-- Tighten to `BLOCK` only after tuning whitelists and exemptions
+- Tighten to `BLOCK` only after tuning allow lists and exemptions
 - Review global high-severity findings through the root action and administrative monitor
 - Keep exemption reasons specific so future audits remain understandable

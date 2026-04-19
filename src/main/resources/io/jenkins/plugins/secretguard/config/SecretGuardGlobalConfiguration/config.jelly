@@ -10,15 +10,15 @@
         <f:entry title="Block threshold" field="blockThreshold">
             <f:select />
         </f:entry>
-        <f:entry title="Rule ID whitelist" field="ruleIdWhitelist">
+        <f:entry title="Rule ID allow list" field="ruleIdAllowList">
             <f:textarea />
             <div class="jenkins-form-description">Use newline or comma separated rule IDs.</div>
         </f:entry>
-        <f:entry title="Job whitelist" field="jobWhitelist">
+        <f:entry title="Job allow list" field="jobAllowList">
             <f:textarea />
             <div class="jenkins-form-description">Use newline or comma separated full job names.</div>
         </f:entry>
-        <f:entry title="Field name whitelist" field="fieldNameWhitelist">
+        <f:entry title="Field name allow list" field="fieldNameAllowList">
             <f:textarea />
             <div class="jenkins-form-description">Use newline or comma separated field names.</div>
         </f:entry>

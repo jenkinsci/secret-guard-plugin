@@ -8,7 +8,7 @@ This document keeps the current implementation backlog executable. It separates 
 
 The current implementation includes:
 
-- global configuration for enablement, mode, threshold, whitelist, and exemptions
+- global configuration for enablement, mode, threshold, allow lists, and exemptions
 - deterministic built-in secret rules
 - `config.xml` scanner
 - save-time extraction and scanning of inline Pipeline `<script>` content from Job XML
@@ -168,14 +168,14 @@ Acceptance criteria:
 
 Priority: `P1`
 
-Status: exemption lines now have inline form validation, invalid entries are rejected in the UI, empty reasons surface as warnings, and help text is shown for whitelist and exemption fields.
+Status: exemption lines now have inline form validation, invalid entries are rejected in the UI, empty reasons surface as warnings, and help text is shown for allow-list and exemption fields.
 
 Tasks:
 
 - [x] add form validation for exemption lines
 - [x] reject exemption entries without `jobFullName|ruleId|reason`
 - [x] warn on empty reason
-- [x] document accepted whitelist separators
+- [x] document accepted allow-list separators
 
 Acceptance criteria:
 

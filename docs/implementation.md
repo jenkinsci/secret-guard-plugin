@@ -23,7 +23,7 @@ The Java sources are organized under `io.jenkins.plugins.secretguard`:
 - `scan`
   - content scanners for XML and Pipeline text
 - `service`
-  - orchestration, whitelist/exemption logic, and result storage
+  - orchestration, allow-list/exemption logic, and result storage
 - `util`
   - helper utilities such as masking
 
@@ -35,7 +35,7 @@ The Java sources are organized under `io.jenkins.plugins.secretguard`:
 2. `SecretGuardJobConfigFilter` wraps Job create and update HTTP requests before the response is committed
 3. `ConfigXmlScanner` extracts candidate values from the candidate `config.xml`
 4. `BuiltInSecretRuleSet` emits findings
-5. `SecretScanService` applies whitelist and exemption policy
+5. `SecretScanService` applies allow-list and exemption policy
 6. If mode is `BLOCK` and threshold is hit, the filter restores the previous `config.xml` or deletes the newly created Job, then returns an error response
 7. `SecretGuardSaveableListener` and `SecretGuardItemListener` refresh the persisted latest result for reporting, remove stale entries for deleted Jobs, and refresh persisted keys when Jobs are renamed or moved
 
@@ -63,7 +63,7 @@ If SCM Jenkinsfile content cannot be read through lightweight access, the build-
 5. `ConfigXmlScanner` scans XML content and inline Pipeline script content
 6. `PipelineDefinitionExtractor` tries to read Pipeline-from-SCM or multibranch Jenkinsfile content through `SCMFileSystem`
 7. `PipelineScriptScanner` scans the SCM Jenkinsfile as `JENKINSFILE` when it is available
-8. `SecretScanService` applies whitelist, exemptions, deduplication, scan notes, and latest-result persistence
+8. `SecretScanService` applies allow-list, exemptions, deduplication, scan notes, and latest-result persistence
 9. User is redirected back to the Job report page with the refreshed latest result
 
 Manual scan always runs in report-only mode. It refreshes findings but does not block save operations and does not change build results; the persisted result still computes blocked state from the current global enforcement mode for reporting.
@@ -81,7 +81,7 @@ Pipeline-from-SCM Jenkinsfiles are scanned during manual scans and build-time sc
 
 - `SecretGuardGlobalConfiguration`
   - exposes Jenkins global form fields
-  - parses multi-line whitelist entries
+  - parses multi-line allow-list entries
   - parses multi-line exemption entries
   - safely returns `null` when accessed outside a Jenkins runtime, which keeps unit tests simple
 
@@ -227,9 +227,9 @@ This is the only place that should decide whether a result blocks:
 Responsibilities:
 
 - short-circuit when plugin is disabled
-- apply whitelist first
+- apply allow list first
 - apply exemptions second
-- apply priority-based deduplication after whitelist and exemption processing
+- apply priority-based deduplication after allow-list and exemption processing
 - compute blocked state using mode and threshold
 - write result into `ScanResultStore`
 
@@ -242,7 +242,7 @@ Priority-based deduplication suppresses generic rules, such as `high-entropy-str
 - updates `GlobalJobScanStatus` with total jobs, completed jobs, current job, findings counters, failures, and terminal state
 - supports cooperative cancellation between jobs so large Jenkins instances do not block the UI behind a synchronous request
 
-#### `WhitelistService`
+#### `AllowListService`
 
 Supports matching by:
 
@@ -250,7 +250,7 @@ Supports matching by:
 - job full name
 - field name
 
-Whitelisted findings are converted to exempted findings with a generated reason so they still appear in reports.
+Allow-listed findings are converted to exempted findings with a generated reason so they still appear in reports.
 
 #### `ExemptionService`
 
@@ -309,7 +309,7 @@ Jelly resources live under:
 
 - global configuration values through Jenkins `GlobalConfiguration`
 - latest masked scan result per target under `$JENKINS_HOME/secret-guard/results/`
-- whitelist text areas accept newline or comma separated entries, while exemptions accept one `jobFullName|ruleId|reason` entry per line with UI validation
+- allow-list text areas accept newline or comma separated entries, while exemptions accept one `jobFullName|ruleId|reason` entry per line with UI validation
 
 ### What is not persisted
 
@@ -349,7 +349,7 @@ Representative test coverage is intentionally focused on the deterministic core:
   - non-secret URL, path, artifact, and generated-identifier suppression reasons
 - `SecretScanServiceTest`
   - block decision
-  - whitelist effect
+  - allow-list effect
   - warn-mode handling
   - priority-based duplicate suppression
 - `SecretGuardEnforcementIntegrationTest`

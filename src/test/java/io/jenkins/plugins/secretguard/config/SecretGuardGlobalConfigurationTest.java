@@ -29,10 +29,10 @@ class SecretGuardGlobalConfigurationTest {
     }
 
     @Test
-    void splitsWhitelistEntriesByCommaOrNewline() {
+    void splitsAllowListEntriesByCommaOrNewline() {
         assertEquals(
                 List.of("github-token", "url-query-secret", "high-entropy-string"),
-                SecretGuardGlobalConfiguration.splitWhitelistEntries(
+                SecretGuardGlobalConfiguration.splitAllowListEntries(
                         "github-token,\nurl-query-secret\r\nhigh-entropy-string"));
     }
 

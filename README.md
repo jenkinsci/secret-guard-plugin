@@ -73,7 +73,7 @@ pipeline {
 }
 ```
 
-Whitelist entries are newline or comma separated. Exemptions use one entry per line:
+Allow-list entries are newline or comma separated. Exemptions use one entry per line:
 
 ```text
 jobFullName|ruleId|reason

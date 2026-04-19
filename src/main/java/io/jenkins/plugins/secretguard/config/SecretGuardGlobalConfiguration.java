@@ -20,9 +20,9 @@ public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
     private boolean enabled = true;
     private EnforcementMode enforcementMode = EnforcementMode.AUDIT;
     private Severity blockThreshold = Severity.HIGH;
-    private String ruleIdWhitelist = "";
-    private String jobWhitelist = "";
-    private String fieldNameWhitelist = "";
+    private String ruleIdAllowList = "";
+    private String jobAllowList = "";
+    private String fieldNameAllowList = "";
     private String exemptions = "";
 
     public SecretGuardGlobalConfiguration() {
@@ -72,33 +72,33 @@ public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
         save();
     }
 
-    public String getRuleIdWhitelist() {
-        return ruleIdWhitelist == null ? "" : ruleIdWhitelist;
+    public String getRuleIdAllowList() {
+        return ruleIdAllowList == null ? "" : ruleIdAllowList;
     }
 
     @DataBoundSetter
-    public void setRuleIdWhitelist(String ruleIdWhitelist) {
-        this.ruleIdWhitelist = normalizeText(ruleIdWhitelist);
+    public void setRuleIdAllowList(String ruleIdAllowList) {
+        this.ruleIdAllowList = normalizeText(ruleIdAllowList);
         save();
     }
 
-    public String getJobWhitelist() {
-        return jobWhitelist == null ? "" : jobWhitelist;
+    public String getJobAllowList() {
+        return jobAllowList == null ? "" : jobAllowList;
     }
 
     @DataBoundSetter
-    public void setJobWhitelist(String jobWhitelist) {
-        this.jobWhitelist = normalizeText(jobWhitelist);
+    public void setJobAllowList(String jobAllowList) {
+        this.jobAllowList = normalizeText(jobAllowList);
         save();
     }
 
-    public String getFieldNameWhitelist() {
-        return fieldNameWhitelist == null ? "" : fieldNameWhitelist;
+    public String getFieldNameAllowList() {
+        return fieldNameAllowList == null ? "" : fieldNameAllowList;
     }
 
     @DataBoundSetter
-    public void setFieldNameWhitelist(String fieldNameWhitelist) {
-        this.fieldNameWhitelist = normalizeText(fieldNameWhitelist);
+    public void setFieldNameAllowList(String fieldNameAllowList) {
+        this.fieldNameAllowList = normalizeText(fieldNameAllowList);
         save();
     }
 
@@ -112,16 +112,16 @@ public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
         save();
     }
 
-    public List<String> getRuleIdWhitelistEntries() {
-        return splitWhitelistEntries(getRuleIdWhitelist());
+    public List<String> getRuleIdAllowListEntries() {
+        return splitAllowListEntries(getRuleIdAllowList());
     }
 
-    public List<String> getJobWhitelistEntries() {
-        return splitWhitelistEntries(getJobWhitelist());
+    public List<String> getJobAllowListEntries() {
+        return splitAllowListEntries(getJobAllowList());
     }
 
-    public List<String> getFieldNameWhitelistEntries() {
-        return splitWhitelistEntries(getFieldNameWhitelist());
+    public List<String> getFieldNameAllowListEntries() {
+        return splitAllowListEntries(getFieldNameAllowList());
     }
 
     public List<String> getExemptionEntries() {
@@ -174,7 +174,7 @@ public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
         return value == null ? "" : value.trim();
     }
 
-    static List<String> splitWhitelistEntries(String value) {
+    static List<String> splitAllowListEntries(String value) {
         if (value == null || value.isBlank()) {
             return Collections.emptyList();
         }

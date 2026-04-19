@@ -3,15 +3,15 @@ package io.jenkins.plugins.secretguard.service;
 import io.jenkins.plugins.secretguard.config.SecretGuardGlobalConfiguration;
 import io.jenkins.plugins.secretguard.model.SecretFinding;
 
-public class WhitelistService {
-    public boolean isWhitelisted(SecretFinding finding) {
+public class AllowListService {
+    public boolean isAllowListed(SecretFinding finding) {
         SecretGuardGlobalConfiguration configuration = SecretGuardGlobalConfiguration.get();
         if (configuration == null) {
             return false;
         }
-        return containsIgnoreCase(configuration.getRuleIdWhitelistEntries(), finding.getRuleId())
-                || containsIgnoreCase(configuration.getJobWhitelistEntries(), finding.getJobFullName())
-                || containsIgnoreCase(configuration.getFieldNameWhitelistEntries(), finding.getFieldName());
+        return containsIgnoreCase(configuration.getRuleIdAllowListEntries(), finding.getRuleId())
+                || containsIgnoreCase(configuration.getJobAllowListEntries(), finding.getJobFullName())
+                || containsIgnoreCase(configuration.getFieldNameAllowListEntries(), finding.getFieldName());
     }
 
     private boolean containsIgnoreCase(Iterable<String> values, String candidate) {

@@ -20,18 +20,18 @@ import org.junit.jupiter.api.Test;
 class SecretScanServiceTest {
     @Test
     void blocksOnActionableHighFindings() {
-        SecretScanService service = new SecretScanService(new WhitelistService(), new ExemptionService());
+        SecretScanService service = new SecretScanService(new AllowListService(), new ExemptionService());
         SecretScanResult result =
                 service.scan(scannerWith(singleFinding(false)), context(EnforcementMode.BLOCK), "ignored");
         assertTrue(result.isBlocked());
     }
 
     @Test
-    void whitelistedFindingsDoNotBlock() {
+    void allowListedFindingsDoNotBlock() {
         SecretScanService service = new SecretScanService(
-                new WhitelistService() {
+                new AllowListService() {
                     @Override
-                    public boolean isWhitelisted(SecretFinding finding) {
+                    public boolean isAllowListed(SecretFinding finding) {
                         return true;
                     }
                 },
@@ -44,7 +44,7 @@ class SecretScanServiceTest {
 
     @Test
     void warnModeIsReportedSeparately() {
-        SecretScanService service = new SecretScanService(new WhitelistService(), new ExemptionService());
+        SecretScanService service = new SecretScanService(new AllowListService(), new ExemptionService());
         SecretScanResult result =
                 service.scan(scannerWith(singleFinding(false)), context(EnforcementMode.WARN), "ignored");
         assertFalse(result.isBlocked());
@@ -53,7 +53,7 @@ class SecretScanServiceTest {
 
     @Test
     void preservesScannerNotesDuringPolicyProcessing() {
-        SecretScanService service = new SecretScanService(new WhitelistService(), new ExemptionService());
+        SecretScanService service = new SecretScanService(new AllowListService(), new ExemptionService());
         SecretScanResult result = service.scan(
                 (context, content) -> new SecretScanResult(
                         context.getJobFullName(),
@@ -70,7 +70,7 @@ class SecretScanServiceTest {
 
     @Test
     void normalizesAndDeduplicatesScannerNotesDuringPolicyProcessing() {
-        SecretScanService service = new SecretScanService(new WhitelistService(), new ExemptionService());
+        SecretScanService service = new SecretScanService(new AllowListService(), new ExemptionService());
         SecretScanResult result = service.scan(
                 (context, content) -> new SecretScanResult(
                         context.getJobFullName(),
@@ -92,7 +92,7 @@ class SecretScanServiceTest {
 
     @Test
     void suppressesHighEntropyWhenSpecificRuleHitsSameFinding() {
-        SecretScanService service = new SecretScanService(new WhitelistService(), new ExemptionService());
+        SecretScanService service = new SecretScanService(new AllowListService(), new ExemptionService());
         List<SecretFinding> findings = new ArrayList<>();
         findings.add(finding("high-entropy-string", Severity.MEDIUM, "x-example-auth", "Exa…DEF"));
         findings.add(finding("http-request-hardcoded-header-secret", Severity.HIGH, "x-example-auth", "Exa…DEF"));
@@ -143,7 +143,7 @@ class SecretScanServiceTest {
                   </definition>
                 </flow-definition>
                 """;
-        SecretScanService service = new SecretScanService(new WhitelistService(), new ExemptionService());
+        SecretScanService service = new SecretScanService(new AllowListService(), new ExemptionService());
         SecretScanResult result = service.scan(new ConfigXmlScanner(), context(EnforcementMode.BLOCK), xml);
 
         assertFalse(result.getFindings().stream()

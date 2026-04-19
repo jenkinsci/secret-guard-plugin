@@ -23,7 +23,7 @@ This file applies to the entire repository.
 - `src/main/java/io/jenkins/plugins/secretguard/monitor`: administrative monitor
 - `src/main/java/io/jenkins/plugins/secretguard/rules`: deterministic secret-detection rules
 - `src/main/java/io/jenkins/plugins/secretguard/scan`: scanners for XML and Pipeline content
-- `src/main/java/io/jenkins/plugins/secretguard/service`: orchestration, persistence, whitelist, and exemptions
+- `src/main/java/io/jenkins/plugins/secretguard/service`: orchestration, persistence, allow-list handling, and exemptions
 - `src/main/java/io/jenkins/plugins/secretguard/util`: masking and heuristic helpers
 - `src/test/java/io/jenkins/plugins/secretguard`: package-aligned unit tests
 - `docs/`: architecture, implementation notes, and development plan

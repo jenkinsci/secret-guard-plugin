@@ -26,15 +26,15 @@ public class SecretScanService {
             "http-request-hardcoded-header-secret",
             "http-request-unmasked-header-secret");
 
-    private final WhitelistService whitelistService;
+    private final AllowListService allowListService;
     private final ExemptionService exemptionService;
 
     public SecretScanService() {
-        this(new WhitelistService(), new ExemptionService());
+        this(new AllowListService(), new ExemptionService());
     }
 
-    SecretScanService(WhitelistService whitelistService, ExemptionService exemptionService) {
-        this.whitelistService = whitelistService;
+    SecretScanService(AllowListService allowListService, ExemptionService exemptionService) {
+        this.allowListService = allowListService;
         this.exemptionService = exemptionService;
     }
 
@@ -54,8 +54,8 @@ public class SecretScanService {
         }
         List<SecretFinding> processedFindings = new ArrayList<>();
         for (SecretFinding finding : rawFindings) {
-            SecretFinding processed = whitelistService.isWhitelisted(finding)
-                    ? finding.withExemption("Whitelisted by global Secret Guard configuration")
+            SecretFinding processed = allowListService.isAllowListed(finding)
+                    ? finding.withExemption("Allow-listed by global Secret Guard configuration")
                     : exemptionService.applyExemption(finding);
             processedFindings.add(processed);
         }
