@@ -10,16 +10,16 @@
             <j:set var="scanRunning" value="${it.canCancelScanAll()}" />
             <j:set var="canDismissScanAllStatus" value="${!scanRunning &amp;&amp; it.canDismissScanAllStatus()}" />
             <j:set var="scanAllDetailsOpen" value="${scanRunning || it.scanAllDetailsOpen()}" />
-            <div class="jenkins-alert secret-guard-section" role="status">
-                <div class="secret-guard-layout-between">
-                    <div>
+            <div class="jenkins-alert secret-guard-section secret-guard-scan-card" role="status">
+                <div class="secret-guard-layout-between secret-guard-scan-header">
+                    <div class="secret-guard-scan-summary">
                         <div class="secret-guard-layout-inline">
                             <j:choose>
                                 <j:when test="${it.hasScanAllStatus()}">
                                     <span class="${it.getScanAllStateBadgeClass(scanStatus.state)}">${scanStatus.state}</span>
-                                    <span>${it.scanAllSummaryText}</span>
+                                    <span class="secret-guard-scan-summary-text">${it.scanAllSummaryText}</span>
                                     <j:if test="${it.scanAllDurationText != null}">
-                                        <span>Duration: ${it.scanAllDurationText}</span>
+                                        <span class="secret-guard-scan-meta">Duration: ${it.scanAllDurationText}</span>
                                     </j:if>
                                 </j:when>
                                 <j:otherwise>
@@ -28,7 +28,7 @@
                             </j:choose>
                         </div>
                     </div>
-                    <div class="secret-guard-layout-inline">
+                    <div class="secret-guard-layout-inline secret-guard-scan-actions">
                         <f:form method="post" action="scanAll" class="secret-guard-form-inline">
                             <j:choose>
                                 <j:when test="${it.canScanAllNow()}">
@@ -53,79 +53,91 @@
                                 <button class="jenkins-button jenkins-button--secondary" type="submit">Hide Status</button>
                             </f:form>
                         </j:if>
+                        <j:if test="${it.hasScanAllStatus()}">
+                            <button
+                                id="secret-guard-scan-all-details-toggle"
+                                class="jenkins-button jenkins-button--secondary"
+                                type="button"
+                                aria-controls="secret-guard-scan-all-details"
+                                aria-expanded="${scanAllDetailsOpen}"
+                            >
+                                <j:choose>
+                                    <j:when test="${scanAllDetailsOpen}">Hide Details</j:when>
+                                    <j:otherwise>Details</j:otherwise>
+                                </j:choose>
+                            </button>
+                        </j:if>
                     </div>
                 </div>
                 <j:if test="${it.hasScanAllStatus()}">
                     <j:choose>
                         <j:when test="${scanAllDetailsOpen}">
-                            <details open="open">
-                                <summary>Details</summary>
-                                <div class="secret-guard-details-body">
-                                    <j:if test="${scanStatus.message != null}">
-                                        <div>${scanStatus.message}</div>
-                                    </j:if>
-                                    <div>
-                                        Progress: ${scanStatus.jobsScanned} / ${scanStatus.totalJobs}
-                                        (${scanStatus.progressPercentage}%)
-                                    </div>
-                                    <progress max="${scanStatus.progressMax}" value="${scanStatus.jobsScanned}">
-                                        ${scanStatus.jobsScanned}/${scanStatus.totalJobs}
-                                    </progress>
-                                    <j:if test="${scanStatus.currentJobFullName != null}">
-                                        <div>Current job: <code>${scanStatus.currentJobFullName}</code></div>
-                                    </j:if>
-                                    <j:if test="${scanStatus.startedAt != null}">
-                                        <div>Started: ${it.getDisplayTimeTitle(scanStatus.startedAt)}</div>
-                                    </j:if>
-                                    <j:if test="${scanStatus.finishedAt != null}">
-                                        <div>Finished: ${it.getDisplayTimeTitle(scanStatus.finishedAt)}</div>
-                                    </j:if>
-                                    <j:if test="${scanStatus.hasFailedJobs()}">
-                                        <div class="secret-guard-failed-jobs">Recent failed jobs:</div>
-                                        <ul>
-                                            <j:forEach var="failedJob" items="${scanStatus.failedJobFullNames}">
-                                                <li><code>${failedJob}</code></li>
-                                            </j:forEach>
-                                        </ul>
-                                    </j:if>
-                                    <j:if test="${scanRunning}">
-                                        <div id="secret-guard-auto-refresh" data-interval-ms="3000">
-                                            This page refreshes automatically while the scan runs.
-                                        </div>
-                                    </j:if>
+                            <div id="secret-guard-scan-all-details" class="secret-guard-details-body secret-guard-scan-details-panel">
+                                <j:if test="${scanStatus.message != null}">
+                                    <div>${scanStatus.message}</div>
+                                </j:if>
+                                <div>
+                                    Progress: ${scanStatus.jobsScanned} / ${scanStatus.totalJobs}
+                                    (${scanStatus.progressPercentage}%)
                                 </div>
-                            </details>
+                                <progress max="${scanStatus.progressMax}" value="${scanStatus.jobsScanned}">
+                                    ${scanStatus.jobsScanned}/${scanStatus.totalJobs}
+                                </progress>
+                                <j:if test="${scanStatus.currentJobFullName != null}">
+                                    <div>Current job: <code>${scanStatus.currentJobFullName}</code></div>
+                                </j:if>
+                                <j:if test="${scanStatus.startedAt != null}">
+                                    <div>Started: ${it.getDisplayTimeTitle(scanStatus.startedAt)}</div>
+                                </j:if>
+                                <j:if test="${scanStatus.finishedAt != null}">
+                                    <div>Finished: ${it.getDisplayTimeTitle(scanStatus.finishedAt)}</div>
+                                </j:if>
+                                <j:if test="${scanStatus.hasFailedJobs()}">
+                                    <div class="secret-guard-failed-jobs">Recent failed jobs:</div>
+                                    <ul>
+                                        <j:forEach var="failedJob" items="${scanStatus.failedJobFullNames}">
+                                            <li><code>${failedJob}</code></li>
+                                        </j:forEach>
+                                    </ul>
+                                </j:if>
+                                <j:if test="${scanRunning}">
+                                    <div id="secret-guard-auto-refresh" data-interval-ms="3000">
+                                        This page refreshes automatically while the scan runs.
+                                    </div>
+                                </j:if>
+                            </div>
                         </j:when>
                         <j:otherwise>
-                            <details>
-                                <summary>Details</summary>
-                                <div class="secret-guard-details-body">
-                                    <j:if test="${scanStatus.message != null}">
-                                        <div>${scanStatus.message}</div>
-                                    </j:if>
-                                    <div>
-                                        Progress: ${scanStatus.jobsScanned} / ${scanStatus.totalJobs}
-                                        (${scanStatus.progressPercentage}%)
-                                    </div>
-                                    <progress max="${scanStatus.progressMax}" value="${scanStatus.jobsScanned}">
-                                        ${scanStatus.jobsScanned}/${scanStatus.totalJobs}
-                                    </progress>
-                                    <j:if test="${scanStatus.startedAt != null}">
-                                        <div>Started: ${it.getDisplayTimeTitle(scanStatus.startedAt)}</div>
-                                    </j:if>
-                                    <j:if test="${scanStatus.finishedAt != null}">
-                                        <div>Finished: ${it.getDisplayTimeTitle(scanStatus.finishedAt)}</div>
-                                    </j:if>
-                                    <j:if test="${scanStatus.hasFailedJobs()}">
-                                        <div class="secret-guard-failed-jobs">Recent failed jobs:</div>
-                                        <ul>
-                                            <j:forEach var="failedJob" items="${scanStatus.failedJobFullNames}">
-                                                <li><code>${failedJob}</code></li>
-                                            </j:forEach>
-                                        </ul>
-                                    </j:if>
+                            <div
+                                id="secret-guard-scan-all-details"
+                                class="secret-guard-details-body secret-guard-scan-details-panel"
+                                hidden="hidden"
+                            >
+                                <j:if test="${scanStatus.message != null}">
+                                    <div>${scanStatus.message}</div>
+                                </j:if>
+                                <div>
+                                    Progress: ${scanStatus.jobsScanned} / ${scanStatus.totalJobs}
+                                    (${scanStatus.progressPercentage}%)
                                 </div>
-                            </details>
+                                <progress max="${scanStatus.progressMax}" value="${scanStatus.jobsScanned}">
+                                    ${scanStatus.jobsScanned}/${scanStatus.totalJobs}
+                                </progress>
+                                <j:if test="${scanStatus.startedAt != null}">
+                                    <div>Started: ${it.getDisplayTimeTitle(scanStatus.startedAt)}</div>
+                                </j:if>
+                                <j:if test="${scanStatus.finishedAt != null}">
+                                    <div>Finished: ${it.getDisplayTimeTitle(scanStatus.finishedAt)}</div>
+                                </j:if>
+                                <j:if test="${scanStatus.hasFailedJobs()}">
+                                    <div class="secret-guard-failed-jobs">Recent failed jobs:</div>
+                                    <ul>
+                                        <j:forEach var="failedJob" items="${scanStatus.failedJobFullNames}">
+                                            <li><code>${failedJob}</code></li>
+                                        </j:forEach>
+                                    </ul>
+                                </j:if>
+                            </div>
                         </j:otherwise>
                     </j:choose>
                 </j:if>
@@ -155,7 +167,7 @@
             <j:choose>
                 <j:when test="${it.hasResults()}">
                     <div class="secret-guard-results-header">
-                        <div>
+                        <div class="secret-guard-results-summary">
                             <strong>Results</strong>
                             <span>Showing ${it.filteredResultCount} of ${it.scannedJobCount}</span>
                         </div>

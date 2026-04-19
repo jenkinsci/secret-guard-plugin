@@ -266,6 +266,7 @@ class SecretGuardRootActionTest {
         String content = page.getWebResponse().getContentAsString();
 
         assertTrue(content.contains("cancelScanAll"));
+        assertTrue(content.contains("id=\"secret-guard-scan-all-details\""));
         assertTrue(content.contains("id=\"secret-guard-auto-refresh\""));
         assertTrue(content.contains("This page refreshes automatically while the scan runs."));
         assertFalse(content.contains("dismissScanAllStatus"));
