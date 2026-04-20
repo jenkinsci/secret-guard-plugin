@@ -1,0 +1,9 @@
+<project>
+  <publishers>
+    <io.example.ChatNotifierPublisher>
+      <webhookUrl>https://hooks.example.invalid/services/release-events/build-status</webhookUrl>
+      <notifyUrl>https://notify.example.invalid/api/callback/release-created</notifyUrl>
+      <endpointUrl>https://notify.example.invalid/api/notify/build-summary</endpointUrl>
+    </io.example.ChatNotifierPublisher>
+  </publishers>
+</project>

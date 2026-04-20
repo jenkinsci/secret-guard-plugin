@@ -503,6 +503,48 @@ class ConfigXmlScannerTest {
     }
 
     @Test
+    void doesNotFlagReadableNotifierUrlsInConfigXml() {
+        String xml = """
+                <project>
+                  <publishers>
+                    <io.example.ChatNotifierPublisher>
+                      <webhookUrl>https://hooks.example.invalid/services/release-events/build-status</webhookUrl>
+                      <callbackUrl>https://notify.example.invalid/api/callback/release-created</callbackUrl>
+                    </io.example.ChatNotifierPublisher>
+                  </publishers>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("notifier-url-secret")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
+    void detectsSecretsEmbeddedInNotifierUrlsFromConfigXml() {
+        String xml = """
+                <project>
+                  <publishers>
+                    <io.example.ChatNotifierPublisher>
+                      <webhookUrl>https://hooks.example.invalid/services/TEAM01/ROOM01/Nr8YkL2Pm5Qx7Vd1Hs4Jt6Ua</webhookUrl>
+                      <notifyUrl>https://notify.example.invalid/api/webhook/deliver?signature=Nr8YkL2Pm5Qx7Vd1Hs4Jt6Ua</notifyUrl>
+                    </io.example.ChatNotifierPublisher>
+                  </publishers>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("notifier-url-secret")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")));
+    }
+
+    @Test
     void doesNotFlagKubernetesSecretEnvVarReferencesAsPlaintextSecrets() {
         String xml = """
                 <project>
@@ -865,6 +907,31 @@ class ConfigXmlScannerTest {
                 .anyMatch(finding -> finding.getRuleId().equals("http-request-unmasked-header-secret")));
         assertFalse(result.getFindings().stream()
                 .anyMatch(finding -> finding.getFieldName().equals("X-Request-ID")));
+    }
+
+    @Test
+    void doesNotFlagCuratedNotifierUrlFixture() {
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(
+                context("FreeStyleProject"),
+                TestResourceLoader.load(
+                        "/io/jenkins/plugins/secretguard/fixtures/false-positives/common-notifier-urls-config.xml"));
+
+        assertFalse(result.hasFindings());
+    }
+
+    @Test
+    void detectsCuratedNotifierSecretFixture() {
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(
+                context("FreeStyleProject"),
+                TestResourceLoader.load(
+                        "/io/jenkins/plugins/secretguard/fixtures/true-positives/common-notifier-secret-job-config.xml"));
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("notifier-url-secret")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")));
     }
 
     private ScanContext context(String targetType) {

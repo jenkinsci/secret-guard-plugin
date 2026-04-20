@@ -5,9 +5,11 @@ import io.jenkins.plugins.secretguard.model.SecretFinding;
 import io.jenkins.plugins.secretguard.model.Severity;
 import io.jenkins.plugins.secretguard.util.NonSecretHeuristics;
 import io.jenkins.plugins.secretguard.util.SecretMasker;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -69,6 +71,7 @@ public class BuiltInSecretRuleSet {
                 Pattern.compile("(?i)https?://[^\\s:/@'\"<>]+:[^\\s/@'\"<>]{6,}@[^\\s'\"<>]+"),
                 Recommendations.NO_URL_SECRET));
         builtIns.add(new UrlQuerySecretRule());
+        builtIns.add(new NotifierUrlSecretRule());
         builtIns.add(new HighEntropyRule());
         this.rules = Collections.unmodifiableList(builtIns);
     }
@@ -267,7 +270,7 @@ public class BuiltInSecretRuleSet {
     private static final class UrlQuerySecretRule implements SecretRule {
         private static final Pattern URL = Pattern.compile("https?://[^\\s'\"<>\\\\]+");
         private static final Pattern SECRET_QUERY_PARAMETER = Pattern.compile(
-                "(?i)(?:^|[?&])(key|token|secret|password|access_token|api[_-]?key|auth|webhook)=([^&#\\s'\"<>\\\\]+)");
+                "(?i)(?:^|[?&])(key|token|secret|password|access[_-]?token|access[_-]?key|api[_-]?key|auth(?:[_-]?token)?|webhook|client[_-]?secret|secret[_-]?key|signature|sig)=([^&#\\s'\"<>\\\\]+)");
 
         @Override
         public String getId() {
@@ -307,6 +310,150 @@ public class BuiltInSecretRuleSet {
         }
     }
 
+    private static final class NotifierUrlSecretRule implements SecretRule {
+        private static final Pattern URL = Pattern.compile("https?://[^\\s'\"<>\\\\]+");
+        private static final Pattern UUID =
+                Pattern.compile("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
+        private static final Pattern HEX_TOKEN = Pattern.compile("(?i)[a-f0-9]{24,}");
+        private static final Pattern UPPER_TOKEN = Pattern.compile("[A-Z0-9_-]{24,}");
+        private static final Pattern GENERIC_TOKEN = Pattern.compile("[A-Za-z0-9._@=-]{20,}");
+
+        @Override
+        public String getId() {
+            return "notifier-url-secret";
+        }
+
+        @Override
+        public List<SecretFinding> scan(
+                ScanContext context, String sourceName, int lineNumber, String fieldName, String value) {
+            if (value == null || value.isBlank() || looksLikeSafeReference(value)) {
+                return Collections.emptyList();
+            }
+            Matcher urlMatcher = URL.matcher(value);
+            List<SecretFinding> findings = new ArrayList<>();
+            while (urlMatcher.find()) {
+                String url = urlMatcher.group();
+                String matchedSegment = findEmbeddedNotifierSecret(url);
+                if (matchedSegment.isEmpty()) {
+                    continue;
+                }
+                findings.add(finding(
+                        getId(),
+                        "Notifier or webhook URL contains an embedded secret in its path",
+                        Severity.HIGH,
+                        context,
+                        sourceName,
+                        lineNumber,
+                        fieldName,
+                        matchedSegment,
+                        Recommendations.NO_NOTIFIER_URL_SECRET));
+            }
+            return findings;
+        }
+
+        private String findEmbeddedNotifierSecret(String url) {
+            URI uri;
+            try {
+                uri = URI.create(url);
+            } catch (IllegalArgumentException ignored) {
+                return "";
+            }
+            String host = nullToEmpty(uri.getHost()).toLowerCase(Locale.ENGLISH);
+            String path = nullToEmpty(uri.getPath());
+            if (path.isBlank()) {
+                return "";
+            }
+            String[] rawSegments = path.split("/+");
+            List<String> segments = new ArrayList<>();
+            for (String rawSegment : rawSegments) {
+                if (!rawSegment.isBlank()) {
+                    segments.add(rawSegment);
+                }
+            }
+            if (segments.isEmpty()) {
+                return "";
+            }
+
+            boolean hostLooksNotifier = containsNotifierIndicator(host);
+            int indicatorIndex = firstNotifierIndicatorIndex(segments);
+            if (!hostLooksNotifier && indicatorIndex < 0) {
+                return "";
+            }
+
+            int startIndex = indicatorIndex >= 0 ? indicatorIndex + 1 : Math.max(0, segments.size() - 3);
+            for (int index = segments.size() - 1; index >= startIndex; index--) {
+                String segment = segments.get(index);
+                String previousSegment = index > 0 ? segments.get(index - 1) : "";
+                if (looksLikeEmbeddedNotifierSecret(segment, previousSegment)) {
+                    return segment;
+                }
+            }
+            return "";
+        }
+
+        private int firstNotifierIndicatorIndex(List<String> segments) {
+            for (int index = 0; index < segments.size(); index++) {
+                if (containsNotifierIndicator(segments.get(index))) {
+                    return index;
+                }
+            }
+            return -1;
+        }
+
+        private boolean containsNotifierIndicator(String value) {
+            String normalized = normalize(value);
+            return normalized.contains("webhook")
+                    || normalized.contains("hook")
+                    || normalized.contains("notify")
+                    || normalized.contains("notifier")
+                    || normalized.contains("incoming")
+                    || normalized.contains("callback")
+                    || normalized.contains("trigger");
+        }
+
+        private boolean looksLikeEmbeddedNotifierSecret(String segment, String previousSegment) {
+            String candidate = segment.trim();
+            if (candidate.length() < 12 || containsNotifierIndicator(candidate) || candidate.matches("(?i)v\\d+")) {
+                return false;
+            }
+            if (UUID.matcher(candidate).matches()) {
+                return normalize(previousSegment).contains("hook");
+            }
+            if (HEX_TOKEN.matcher(candidate).matches()) {
+                return true;
+            }
+            if (UPPER_TOKEN.matcher(candidate).matches()) {
+                return true;
+            }
+            if (!GENERIC_TOKEN.matcher(candidate).matches()) {
+                return false;
+            }
+            boolean hasUpper = candidate.chars().anyMatch(Character::isUpperCase);
+            boolean hasLower = candidate.chars().anyMatch(Character::isLowerCase);
+            boolean hasDigit = candidate.chars().anyMatch(Character::isDigit);
+            if (!hasDigit) {
+                return false;
+            }
+            if (candidate.contains("@") && NonSecretHeuristics.entropy(candidate) >= 3.4) {
+                return true;
+            }
+            if (hasUpper && hasLower && candidate.length() >= 20 && NonSecretHeuristics.entropy(candidate) >= 3.4) {
+                return true;
+            }
+            return !candidate.contains("-")
+                    && candidate.length() >= 24
+                    && NonSecretHeuristics.entropy(candidate) >= 3.6;
+        }
+
+        private String normalize(String value) {
+            return nullToEmpty(value).toLowerCase(Locale.ENGLISH).replaceAll("[^a-z0-9]", "");
+        }
+
+        private String nullToEmpty(String value) {
+            return value == null ? "" : value;
+        }
+    }
+
     private static final class Recommendations {
         private static final String CREDENTIALS =
                 "Move the plaintext secret to Jenkins Credentials and inject it only at runtime.";
@@ -318,6 +465,8 @@ public class BuiltInSecretRuleSet {
                 "Do not embed secrets in URLs; use Jenkins Credentials and safe request configuration.";
         private static final String NO_URL_QUERY_SECRET =
                 "Move URL query secrets such as webhook keys to Jenkins Credentials and inject them at runtime.";
+        private static final String NO_NOTIFIER_URL_SECRET =
+                "Treat notifier or webhook URLs with embedded tokens as secrets; store them in Jenkins Credentials.";
         private static final String PLACEHOLDER =
                 "Verify this placeholder is not used as a real secret; store real values in Jenkins Credentials.";
     }

@@ -526,6 +526,33 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void detectsNotifierSecretsEmbeddedInWebhookUrlPaths() {
+        String script = """
+                def webhookUrl = "https://hooks.example.invalid/services/TEAM01/ROOM01/Nr8YkL2Pm5Qx7Vd1Hs4Jt6Ua"
+                sh "curl -X POST '${webhookUrl}'"
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("notifier-url-secret")));
+    }
+
+    @Test
+    void doesNotFlagReadableNotifierUrlsInPipelineScripts() {
+        String script = """
+                def webhookUrl = "https://hooks.example.invalid/services/release-events/build-status"
+                def callbackUrl = "https://notify.example.invalid/api/callback/release-created"
+                sh "echo ready"
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("notifier-url-secret")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
     void doesNotFlagCuratedPublishPipelineFixture() {
         SecretScanResult result = scanner.scan(
                 context(),

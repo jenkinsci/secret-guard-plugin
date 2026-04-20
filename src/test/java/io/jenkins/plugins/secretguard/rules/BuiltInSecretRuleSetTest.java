@@ -192,6 +192,31 @@ class BuiltInSecretRuleSetTest {
         assertTrue(findings.stream().anyMatch(finding -> finding.getSeverity() == Severity.HIGH));
     }
 
+    @Test
+    void detectsSecretInNotifierUrlQueryVariants() {
+        List<SecretFinding> findings =
+                scan("", "https://notify.example.invalid/api/webhook/deliver?signature=Nr8YkL2Pm5Qx7Vd1Hs4Jt6Ua");
+
+        assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("url-query-secret")));
+    }
+
+    @Test
+    void detectsSecretEmbeddedInNotifierUrlPath() {
+        List<SecretFinding> findings =
+                scan("webhookUrl", "https://hooks.example.invalid/services/TEAM01/ROOM01/Nr8YkL2Pm5Qx7Vd1Hs4Jt6Ua");
+
+        assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("notifier-url-secret")));
+        assertTrue(findings.stream().anyMatch(finding -> finding.getSeverity() == Severity.HIGH));
+    }
+
+    @Test
+    void doesNotTreatReadableNotifierUrlsAsSecrets() {
+        assertTrue(scan("webhookUrl", "https://hooks.example.invalid/services/release-events/build-status")
+                .isEmpty());
+        assertTrue(scan("notifyUrl", "https://notify.example.invalid/api/callback/release-created")
+                .isEmpty());
+    }
+
     private List<SecretFinding> scan(String fieldName, String value) {
         return scan("Pipeline script", fieldName, value);
     }
