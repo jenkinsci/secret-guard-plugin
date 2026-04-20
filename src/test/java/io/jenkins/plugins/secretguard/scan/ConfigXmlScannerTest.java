@@ -285,6 +285,52 @@ class ConfigXmlScannerTest {
     }
 
     @Test
+    void doesNotFlagReadableDescriptionIdentifiersAsHighEntropySecrets() {
+        String xml = """
+                <project>
+                  <properties>
+                    <hudson.model.ParametersDefinitionProperty>
+                      <parameterDefinitions>
+                        <hudson.model.StringParameterDefinition>
+                          <name>EXAMPLE_OPERATION_NOTE</name>
+                          <description>Run svcOnlineRestoreSvcFromReplicaDataBackup before retrying the workflow.</description>
+                        </hudson.model.StringParameterDefinition>
+                      </parameterDefinitions>
+                    </hudson.model.ParametersDefinitionProperty>
+                  </properties>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
+    void stillFlagsEncodedDescriptionTokensAsHighEntropySecrets() {
+        String xml = """
+                <project>
+                  <properties>
+                    <hudson.model.ParametersDefinitionProperty>
+                      <parameterDefinitions>
+                        <hudson.model.StringParameterDefinition>
+                          <name>EXAMPLE_OPERATION_NOTE</name>
+                          <description>Token sample: QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l</description>
+                        </hudson.model.StringParameterDefinition>
+                      </parameterDefinitions>
+                    </hudson.model.ParametersDefinitionProperty>
+                  </properties>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
     void parsesMixedCustomHeadersFromInlinePipelineScript() {
         String xml = """
                 <flow-definition>

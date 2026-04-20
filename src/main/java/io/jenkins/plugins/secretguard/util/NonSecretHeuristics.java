@@ -242,6 +242,9 @@ public final class NonSecretHeuristics {
         if (looksLikeNonSecretUrl(originalValue, candidate)) {
             return "Skipped high-entropy candidate because it looks like a non-secret URL.";
         }
+        if (looksLikeFreeTextReadableIdentifier(sourceName, fieldName, candidate)) {
+            return "Skipped high-entropy candidate because the free-text value looks like a readable identifier.";
+        }
         if (looksLikeIdentifier(candidate)) {
             return "Skipped high-entropy candidate because it looks like a readable identifier.";
         }
@@ -313,6 +316,63 @@ public final class NonSecretHeuristics {
                 || lower.startsWith("http")
                 || lower.contains("example")
                 || UUID.matcher(lower).matches();
+    }
+
+    private static boolean isFreeTextField(String sourceName, String fieldName) {
+        if (normalize(fieldName).equals("description")) {
+            return true;
+        }
+        String normalizedSource = nullToEmpty(sourceName).replace('\\', '/').toLowerCase(Locale.ENGLISH);
+        return normalizedSource.endsWith("/description") || normalizedSource.contains("/description/");
+    }
+
+    private static boolean looksLikeFreeTextReadableIdentifier(String sourceName, String fieldName, String value) {
+        if (!isFreeTextField(sourceName, fieldName)) {
+            return false;
+        }
+        String normalized = nullToEmpty(value).trim();
+        if (!looksLikeCamelOrPascalIdentifier(normalized)
+                || SENSITIVE_PARAMETER_NAME.matcher(normalized).matches()) {
+            return false;
+        }
+        String[] parts = normalized.split("(?<=[a-z0-9])(?=[A-Z])");
+        if (parts.length < 5 || uppercaseRatio(normalized) > 0.30 || digitRatio(normalized) > 0.10) {
+            return false;
+        }
+        int readableParts = 0;
+        for (String part : parts) {
+            String lower = part.toLowerCase(Locale.ENGLISH);
+            if (lower.length() >= 4 && lower.matches("[a-z]+") && lower.matches(".*[aeiou].*")) {
+                readableParts++;
+            }
+        }
+        return readableParts >= 3;
+    }
+
+    private static double uppercaseRatio(String value) {
+        if (value.isEmpty()) {
+            return 0.0;
+        }
+        int uppercase = 0;
+        for (char c : value.toCharArray()) {
+            if (Character.isUpperCase(c)) {
+                uppercase++;
+            }
+        }
+        return (double) uppercase / value.length();
+    }
+
+    private static double digitRatio(String value) {
+        if (value.isEmpty()) {
+            return 0.0;
+        }
+        int digits = 0;
+        for (char c : value.toCharArray()) {
+            if (Character.isDigit(c)) {
+                digits++;
+            }
+        }
+        return (double) digits / value.length();
     }
 
     private static boolean looksLikeInterpolatedString(String value) {

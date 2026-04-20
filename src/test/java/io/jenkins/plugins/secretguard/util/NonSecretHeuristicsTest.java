@@ -1,5 +1,6 @@
 package io.jenkins.plugins.secretguard.util;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -118,6 +119,20 @@ class NonSecretHeuristicsTest {
                         "Example: http://jenkins.example.invalid:8080/job/example-service/job/build-test/80",
                         "description",
                         "8080/job/example-service/job/build-test/80"));
+        assertNotEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "/project/properties/hudson.model.ParametersDefinitionProperty/parameterDefinitions/hudson.model.StringParameterDefinition/description",
+                        "Run svcOnlineRestoreSvcFromReplicaDataBackup before retrying the workflow.",
+                        "description",
+                        "svcOnlineRestoreSvcFromReplicaDataBackup"));
+        assertEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "/project/properties/hudson.model.ParametersDefinitionProperty/parameterDefinitions/hudson.model.StringParameterDefinition/description",
+                        "Example token: QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l",
+                        "description",
+                        "QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l"));
         for (String value : List.of(
                 "s3://example-bucket/runtime/sample_dataset/record_01",
                 "s3a://example-bucket/runtime/sample_dataset/record_01",
