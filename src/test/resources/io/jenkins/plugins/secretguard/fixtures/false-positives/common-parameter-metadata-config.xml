@@ -1,0 +1,27 @@
+<project>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>EXAMPLE_DATABASE_URL</name>
+          <defaultValue>jdbc:mysql://db.example.invalid:3306/example_metadata?sessionVariables=sql_mode=STRICT_TRANS_TABLES&amp;permitMysqlScheme&amp;useMysqlMetadata=true</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>EXAMPLE_BUILD_URL</name>
+          <description>Example: http://jenkins.example.invalid:8080/job/example-service/job/build-test/80</description>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>EXAMPLE_OPERATION_NOTE</name>
+          <description>Run svcOnlineRestoreSvcFromReplicaDataBackup before retrying the workflow.</description>
+        </hudson.model.StringParameterDefinition>
+        <org.biouno.unochoice.DynamicReferenceParameter plugin="uno-choice@2.8.3">
+          <name>EXAMPLE_MEMORY_MB</name>
+          <randomName>choice-parameter-108997464504044</randomName>
+        </org.biouno.unochoice.DynamicReferenceParameter>
+        <jenkins.plugins.parameter__separator.ParameterSeparatorDefinition plugin="parameter-separator@1.3">
+          <name>separator-d45a9f41-b001-4c08-80ab-a23bdc5ccb96</name>
+        </jenkins.plugins.parameter__separator.ParameterSeparatorDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+</project>

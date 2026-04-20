@@ -1,0 +1,43 @@
+<project>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@5.2.1">
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>git@example.invalid:platform/backend-service.git</url>
+        <credentialsId>git-reader-main</credentialsId>
+        <name>origin-enterprise</name>
+        <refspec>+refs/heads/release/0123456789abcdef0123456789abcdef:refs/remotes/origin/release/0123456789abcdef0123456789abcdef</refspec>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>refs/heads/release/0123456789abcdef0123456789abcdef</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+  </scm>
+  <properties>
+    <org.csanchez.jenkins.plugins.kubernetes.KubernetesPodTemplateProperty>
+      <templates>
+        <org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+          <containers>
+            <org.csanchez.jenkins.plugins.kubernetes.ContainerTemplate>
+              <envVars>
+                <org.csanchez.jenkins.plugins.kubernetes.model.SecretEnvVar>
+                  <key>SERVICE_API_TOKEN</key>
+                  <secretName>service-api-token-prod</secretName>
+                  <secretKey>token</secretKey>
+                </org.csanchez.jenkins.plugins.kubernetes.model.SecretEnvVar>
+              </envVars>
+            </org.csanchez.jenkins.plugins.kubernetes.ContainerTemplate>
+          </containers>
+        </org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+      </templates>
+    </org.csanchez.jenkins.plugins.kubernetes.KubernetesPodTemplateProperty>
+  </properties>
+  <publishers>
+    <io.example.SecretAwarePublisher>
+      <secretName>artifact-service-token-prod</secretName>
+      <secretKey>token</secretKey>
+      <credentialsName>artifact-deploy-reader</credentialsName>
+    </io.example.SecretAwarePublisher>
+  </publishers>
+</project>

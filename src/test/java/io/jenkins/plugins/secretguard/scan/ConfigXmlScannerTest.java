@@ -784,6 +784,57 @@ class ConfigXmlScannerTest {
         assertFalse(result.hasFindings());
     }
 
+    @Test
+    void doesNotFlagCuratedParameterMetadataFixture() {
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(
+                context("FreeStyleProject"),
+                TestResourceLoader.load(
+                        "/io/jenkins/plugins/secretguard/fixtures/false-positives/common-parameter-metadata-config.xml"));
+
+        assertFalse(result.hasFindings());
+    }
+
+    @Test
+    void doesNotFlagCuratedPluginReferenceFixture() {
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(
+                context("FreeStyleProject"),
+                TestResourceLoader.load(
+                        "/io/jenkins/plugins/secretguard/fixtures/false-positives/common-plugin-reference-config.xml"));
+
+        assertFalse(result.hasFindings());
+        assertTrue(result.hasNotes());
+        assertTrue(result.getNotes().stream().anyMatch(note -> note.contains("Adapter: skipped Git branch metadata")));
+        assertTrue(result.getNotes().stream().anyMatch(note -> note.contains("Adapter: skipped Git refspec metadata")));
+        assertTrue(result.getNotes().stream()
+                .anyMatch(note -> note.contains("Adapter: skipped Kubernetes secret-backed")));
+        assertTrue(result.getNotes().stream().anyMatch(note -> note.contains("Adapter: skipped common plugin")));
+    }
+
+    @Test
+    void detectsCuratedPluginSecretConfigFixture() {
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(
+                context("FreeStyleProject"),
+                TestResourceLoader.load(
+                        "/io/jenkins/plugins/secretguard/fixtures/true-positives/common-plugin-secret-job-config.xml"));
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("github-token")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")
+                        && finding.getFieldName().equals("password")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-unmasked-header-secret")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getFieldName().equals("X-Request-ID")));
+    }
+
     private ScanContext context(String targetType) {
         return new ScanContext(
                 "folder/job",
