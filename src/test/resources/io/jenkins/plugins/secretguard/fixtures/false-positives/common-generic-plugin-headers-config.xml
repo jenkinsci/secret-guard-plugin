@@ -1,0 +1,24 @@
+<project>
+  <publishers>
+    <io.example.NotificationPublisher>
+      <requestHeaders>
+        <io.example.NameValueHeader>
+          <headerName>X-Request-ID</headerName>
+          <headerValue>0af7651916cd43dd8448eb211c80319c</headerValue>
+          <maskValue>false</maskValue>
+        </io.example.NameValueHeader>
+        <io.example.NameValueHeader>
+          <headerName>X-Correlation-ID</headerName>
+          <headerValue>QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l</headerValue>
+          <maskValue>false</maskValue>
+        </io.example.NameValueHeader>
+        <io.example.NameValueHeader>
+          <headerName>Authorization</headerName>
+          <headerValue>${SERVICE_TOKEN}</headerValue>
+          <maskValue>true</maskValue>
+        </io.example.NameValueHeader>
+      </requestHeaders>
+      <customHeaders>[[name: 'Authorization', value: 'Bearer ' + params.SERVICE_TOKEN, maskValue: true]]</customHeaders>
+    </io.example.NotificationPublisher>
+  </publishers>
+</project>

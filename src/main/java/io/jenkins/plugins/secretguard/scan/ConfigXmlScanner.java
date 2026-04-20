@@ -32,6 +32,7 @@ public class ConfigXmlScanner implements SecretScanner {
         this.pipelineScriptScanner = new PipelineScriptScanner(ruleSet);
         this.configAdapters = List.of(
                 new HttpRequestPluginConfigAdapter(),
+                new GenericHeaderPluginConfigAdapter(),
                 new GitPluginConfigAdapter(),
                 new KubernetesPluginConfigAdapter(),
                 new CommonPluginReferenceConfigAdapter());

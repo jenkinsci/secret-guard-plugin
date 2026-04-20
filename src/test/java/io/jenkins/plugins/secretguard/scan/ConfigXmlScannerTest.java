@@ -835,6 +835,38 @@ class ConfigXmlScannerTest {
                 .anyMatch(finding -> finding.getFieldName().equals("X-Request-ID")));
     }
 
+    @Test
+    void doesNotFlagCuratedGenericPluginHeadersFixture() {
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(
+                context("FreeStyleProject"),
+                TestResourceLoader.load(
+                        "/io/jenkins/plugins/secretguard/fixtures/false-positives/common-generic-plugin-headers-config.xml"));
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().startsWith("http-request-")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+        assertTrue(result.getNotes().stream()
+                .anyMatch(note -> note.contains("Adapter: parsed generic plugin header configuration")));
+    }
+
+    @Test
+    void detectsCuratedGenericPluginHeaderSecretFixture() {
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(
+                context("FreeStyleProject"),
+                TestResourceLoader.load(
+                        "/io/jenkins/plugins/secretguard/fixtures/true-positives/common-generic-plugin-header-secret-config.xml"));
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-unmasked-header-secret")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getFieldName().equals("X-Request-ID")));
+    }
+
     private ScanContext context(String targetType) {
         return new ScanContext(
                 "folder/job",
