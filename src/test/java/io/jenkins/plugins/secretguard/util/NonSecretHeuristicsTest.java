@@ -28,6 +28,9 @@ class NonSecretHeuristicsTest {
         assertTrue(NonSecretHeuristics.isRuntimeSecretReference("params['SERVICE_API_TOKEN'] ?: ''"));
         assertTrue(NonSecretHeuristics.isRuntimeSecretReference("env?.SERVICE_API_TOKEN?.trim()"));
         assertTrue(NonSecretHeuristics.isRuntimeSecretReference("params?.get('SERVICE_API_TOKEN')?.trim()"));
+        assertTrue(NonSecretHeuristics.isRuntimeSecretReference("helper(env?.SERVICE_API_TOKEN?.trim())"));
+        assertTrue(NonSecretHeuristics.isRuntimeSecretReference(
+                "helper([token: env?.SERVICE_API_TOKEN?.trim(), meta: [source: 'jenkins']])"));
         assertTrue(NonSecretHeuristics.isRuntimeSecretReference(
                 "params.SERVICE_API_TOKEN ? params.SERVICE_API_TOKEN : ''"));
         assertTrue(NonSecretHeuristics.isRuntimeSecretReference("'Bearer ' + (params['SERVICE_API_TOKEN'] ?: '')"));
@@ -119,6 +122,12 @@ class NonSecretHeuristicsTest {
                         "Example: http://jenkins.example.invalid:8080/job/example-service/job/build-test/80",
                         "description",
                         "8080/job/example-service/job/build-test/80"));
+        assertNotEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "httpRequest customHeaders: [[\"name\": \"X-Correlation-ID\", \"value\": \"QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l\", \"maskValue\": false]]",
+                        "",
+                        "QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l"));
         assertNotEquals(
                 "",
                 NonSecretHeuristics.nonSecretHighEntropyReason(

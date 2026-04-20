@@ -13,7 +13,8 @@ public final class NonSecretHeuristics {
             Pattern.compile("(?i)(?:[a-z0-9.-]+(?::[0-9]+)?/)?[a-z0-9._-]+(?:/[a-z0-9._-]+)+(?::[a-z0-9._-]+)?");
     private static final Pattern UUID =
             Pattern.compile("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
-    private static final Pattern HEADER_NAME_IN_LINE = Pattern.compile("\\bname\\s*:\\s*['\"]([^'\"]+)['\"]");
+    private static final Pattern HEADER_NAME_IN_LINE =
+            Pattern.compile("(?:['\"])?name(?:['\"])?\\s*:\\s*['\"]([^'\"]+)['\"]");
     private static final Pattern DIRECT_RUNTIME_REFERENCE = Pattern.compile("\\$[A-Za-z_][A-Za-z0-9_]*"
             + "|(?:env|params)(?:\\?)?\\.[A-Za-z_][A-Za-z0-9_]*(?:(?:\\?)?\\.[A-Za-z_][A-Za-z0-9_]*(?:\\([^\\r\\n]*\\))?)*"
             + "|(?:env|params)\\[['\"][A-Za-z_][A-Za-z0-9_.-]*['\"]\\](?:(?:\\?)?\\.[A-Za-z_][A-Za-z0-9_]*(?:\\([^\\r\\n]*\\))?)*"
@@ -48,7 +49,8 @@ public final class NonSecretHeuristics {
                 || DIRECT_RUNTIME_REFERENCE.matcher(trimmed).matches()
                 || looksLikeRuntimeConcatenation(trimmed)
                 || looksLikeRuntimeFallbackExpression(trimmed)
-                || looksLikeRuntimeConditionalExpression(trimmed);
+                || looksLikeRuntimeConditionalExpression(trimmed)
+                || looksLikeRuntimeWrapperExpression(trimmed);
     }
 
     public static boolean looksLikeSafeReference(String value) {
@@ -436,6 +438,11 @@ public final class NonSecretHeuristics {
                 && containsRuntimeReference(condition)
                 && isSafeConditionalBranch(whenTrue)
                 && isSafeConditionalBranch(whenFalse);
+    }
+
+    private static boolean looksLikeRuntimeWrapperExpression(String value) {
+        String trimmed = stripBalancedParens(value.trim());
+        return trimmed.contains("(") && trimmed.endsWith(")") && containsRuntimeReference(trimmed);
     }
 
     private static boolean isRuntimeExpressionToken(String value) {

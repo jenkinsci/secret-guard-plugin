@@ -535,6 +535,47 @@ class PipelineScriptScannerTest {
         assertFalse(result.hasFindings());
     }
 
+    @Test
+    void doesNotFlagCuratedRuntimePatternsFixture() {
+        SecretScanResult result = scanner.scan(
+                context(),
+                TestResourceLoader.load(
+                        "/io/jenkins/plugins/secretguard/fixtures/false-positives/common-runtime-patterns.Jenkinsfile"));
+
+        assertFalse(result.hasFindings());
+    }
+
+    @Test
+    void doesNotFlagCuratedHttpRequestCustomHeadersFixture() {
+        SecretScanResult result = scanner.scan(
+                context(),
+                TestResourceLoader.load(
+                        "/io/jenkins/plugins/secretguard/fixtures/false-positives/common-http-request-custom-headers.Jenkinsfile"));
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().startsWith("http-request-")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
+    void detectsCuratedHardcodedHttpRequestCustomHeadersFixture() {
+        SecretScanResult result = scanner.scan(
+                context(),
+                TestResourceLoader.load(
+                        "/io/jenkins/plugins/secretguard/fixtures/true-positives/hardcoded-http-request-custom-headers.Jenkinsfile"));
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-unmasked-header-secret")));
+        assertFalse(result.getFindings().stream()
+                .filter(finding -> finding.getRuleId().startsWith("http-request-"))
+                .anyMatch(finding -> finding.getFieldName().equals("x-safe-token")));
+    }
+
     private ScanContext context() {
         return new ScanContext(
                 "folder/job",
