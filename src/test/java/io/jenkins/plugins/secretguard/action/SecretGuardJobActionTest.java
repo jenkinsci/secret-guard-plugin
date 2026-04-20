@@ -81,6 +81,25 @@ class SecretGuardJobActionTest {
     }
 
     @Test
+    void labelsSuppressionNotesAsWhySuppressed() {
+        SecretFinding finding = finding("example-source", Severity.MEDIUM)
+                .withAnalysisNote("Suppressed generic finding(s) for the same value: high-entropy-string.");
+
+        assertEquals("Synthetic finding", action.getWhyFlagged(finding));
+        assertTrue(action.hasWhyAdjusted(finding));
+        assertEquals("Why suppressed", action.getWhyAdjustedLabel(finding));
+    }
+
+    @Test
+    void labelsNonSuppressionNotesAsWhyAdjusted() {
+        SecretFinding finding = finding("example-source", Severity.LOW)
+                .withAnalysisNote(
+                        "Downgraded because the value looks like a redaction placeholder instead of a real secret.");
+
+        assertEquals("Why adjusted", action.getWhyAdjustedLabel(finding));
+    }
+
+    @Test
     @WithJenkins
     void rendersFindingsGroupedBySeverityOnJobPage(JenkinsRule jenkinsRule) throws Exception {
         FreeStyleProject project = jenkinsRule.createFreeStyleProject("example-job");
@@ -90,7 +109,9 @@ class SecretGuardJobActionTest {
                         project.getClass().getSimpleName(),
                         List.of(
                                 finding("low-source", Severity.LOW),
-                                finding("high-source", Severity.HIGH),
+                                finding("high-source", Severity.HIGH)
+                                        .withAnalysisNote(
+                                                "Suppressed generic finding(s) for the same value: high-entropy-string."),
                                 finding("medium-source", Severity.MEDIUM)),
                         false));
 
@@ -103,6 +124,8 @@ class SecretGuardJobActionTest {
         assertTrue(content.contains("LOW"));
         assertFalse(content.contains("Scan notes"));
         assertTrue(content.contains("1 finding(s)"));
+        assertTrue(content.contains("Why flagged:"));
+        assertTrue(content.contains("Why suppressed:"));
         assertTrue(content.indexOf("high-source") < content.indexOf("medium-source"));
         assertTrue(content.indexOf("medium-source") < content.indexOf("low-source"));
     }

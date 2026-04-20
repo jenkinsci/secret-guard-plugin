@@ -1,5 +1,6 @@
 package io.jenkins.plugins.secretguard.action;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import hudson.util.XStream2;
@@ -12,6 +13,30 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class SecretGuardRunActionTest {
+    @Test
+    void labelsSuppressionNotesOnRunFindings() {
+        SecretGuardRunAction action = new SecretGuardRunAction(new SecretScanResult(
+                "folder/job",
+                "WorkflowJob",
+                List.of(new SecretFinding(
+                        "high-entropy-string",
+                        "High entropy string may be a secret",
+                        Severity.MEDIUM,
+                        FindingLocationType.COMMAND_STEP,
+                        "folder/job",
+                        "Pipeline script",
+                        9,
+                        "description",
+                        "Exa…DEF",
+                        "Move the plaintext secret to Jenkins Credentials and inject it only at runtime.",
+                        "Suppressed generic finding(s) for the same value: bearer-token.")),
+                false));
+
+        SecretFinding finding = action.getFindings().get(0);
+        assertEquals("High entropy string may be a secret", action.getWhyFlagged(finding));
+        assertEquals("Why suppressed", action.getWhyAdjustedLabel(finding));
+    }
+
     @Test
     void showsRunActionWhenScanHasNotesWithoutFindings() {
         SecretGuardRunAction action = new SecretGuardRunAction(new SecretScanResult(

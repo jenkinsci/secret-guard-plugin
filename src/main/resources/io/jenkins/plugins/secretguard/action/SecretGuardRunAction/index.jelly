@@ -25,7 +25,7 @@
                                 <th>Line</th>
                                 <th>Masked snippet</th>
                                 <th>Recommendation</th>
-                                <th>Analysis</th>
+                                <th>Why</th>
                                 <th>Exempted</th>
                             </tr>
                         </thead>
@@ -41,8 +41,20 @@
                                     <td>${finding.sourceName}</td>
                                     <td>${finding.lineNumber}</td>
                                     <td>${finding.maskedSnippet}</td>
-                                    <td>${finding.recommendation}</td>
-                                    <td>${finding.analysisNote}</td>
+                                    <td class="secret-guard-cell-wrap-md">${finding.recommendation}</td>
+                                    <td class="secret-guard-cell-wrap-md">
+                                        <div class="secret-guard-why-list">
+                                            <div class="secret-guard-why-item">
+                                                <strong>Why flagged:</strong> ${it.getWhyFlagged(finding)}
+                                            </div>
+                                            <j:if test="${it.hasWhyAdjusted(finding)}">
+                                                <div class="secret-guard-why-item">
+                                                    <strong>${it.getWhyAdjustedLabel(finding)}:</strong>
+                                                    ${it.getWhyAdjusted(finding)}
+                                                </div>
+                                            </j:if>
+                                        </div>
+                                    </td>
                                     <td>${finding.exempted}</td>
                                 </tr>
                             </j:forEach>

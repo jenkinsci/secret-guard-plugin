@@ -24,7 +24,8 @@ import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
-public class SecretGuardJobAction implements Action, SeverityBadgeSupport, ScanTimeDisplaySupport {
+public class SecretGuardJobAction
+        implements Action, SeverityBadgeSupport, ScanTimeDisplaySupport, FindingExplanationSupport {
     private static final Logger LOGGER = Logger.getLogger(SecretGuardJobAction.class.getName());
     private static final String LOG_PREFIX = "[Secret Guard][Manual Scan] ";
     private static final String BRANCH_JOB_PROPERTY_CLASS =

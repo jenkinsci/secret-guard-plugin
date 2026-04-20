@@ -5,7 +5,7 @@ import io.jenkins.plugins.secretguard.model.SecretFinding;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import java.util.List;
 
-public class SecretGuardRunAction implements Action, SeverityBadgeSupport {
+public class SecretGuardRunAction implements Action, SeverityBadgeSupport, FindingExplanationSupport {
     private final SecretScanResult result;
 
     public SecretGuardRunAction(SecretScanResult result) {
