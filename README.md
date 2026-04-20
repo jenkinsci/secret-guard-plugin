@@ -17,6 +17,21 @@ Current capabilities:
 - masked latest-result persistence
 - plugin-aware false-positive reduction for common Jenkins patterns
 
+## Why this plugin exists
+
+Secret Guard is built around leakage patterns that repeatedly show up in publicly documented Jenkins and Jenkins-plugin usage:
+
+- plaintext tokens, passwords, or API keys placed directly in Job `config.xml`
+- secret-looking build parameter default values that become visible in saved Job configuration
+- inline Pipeline literals such as `Authorization: Bearer ...`
+- webhook or notifier URLs that carry secrets in query parameters like `?token=...`, `?key=...`, or `?signature=...`
+- webhook-style endpoints that embed a token directly in the URL path
+- plugin configuration fields that look like ordinary integration URLs, but actually persist a secret-bearing endpoint
+
+This plugin intentionally focuses on those deterministic, repeatedly observed shapes.
+It does not try to guess intent from arbitrary code, and it does not need raw secret samples to justify the rule set.
+The goal is simple: catch the common ways Jenkins jobs accidentally persist or expose credentials before they spread through Job configuration, Pipeline text, logs, or copied jobs.
+
 ## Getting started
 
 Configure the plugin from **Manage Jenkins → Jenkins Secret Guard**.

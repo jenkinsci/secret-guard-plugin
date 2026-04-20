@@ -18,6 +18,24 @@ The implementation is intentionally deterministic:
 - no generic code-quality rules
 - no broad governance workflows
 
+## Why this plugin exists
+
+The plugin scope comes from recurring, publicly documented Jenkins leakage shapes rather than hypothetical secret hunting.
+Across Jenkinsfiles, Job XML, and plugin configuration examples, the same families keep appearing:
+
+- credentials copied directly into Job fields such as `token`, `password`, `secret`, or `apiKey`
+- parameter defaults or environment definitions that persist plaintext secrets in `config.xml`
+- inline Pipeline header literals such as `Authorization: Bearer ...`
+- notifier or webhook URLs whose query string carries a secret like `token`, `key`, `signature`, or similar variants
+- integration endpoints that look like normal URLs but embed a token directly in the path
+
+That history explains the architecture choices:
+
+- text and XML scanning are enough for the highest-value cases
+- deterministic rules are preferred over broad inference
+- URL, header, and sensitive-field handling are first-class because those are common leak carriers
+- false-positive reduction matters because many Jenkins jobs also store readable endpoints, identifiers, and references that are not secrets
+
 The core flow is:
 
 ```mermaid
