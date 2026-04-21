@@ -14,7 +14,8 @@ The current implementation includes:
 - save-time extraction and scanning of inline Pipeline `<script>` content from Job XML
 - inline Pipeline script scanner
 - hardcoded `httpRequest customHeaders` detection, including `maskValue: false`
-- URL query secret detection for webhook-style `?key=` / `?token=` patterns
+- URL query secret detection for webhook-style `?key=`, `?token=`, `?signature=`, and similar patterns
+- notifier and webhook URL path token detection
 - false-positive heuristics for credential IDs, hashes, public certificates, tracking headers, paths, and Docker images
 - priority-based duplicate suppression for generic fallback rules
 - save-time job config filter interception
@@ -24,6 +25,7 @@ The current implementation includes:
 - disk-backed latest-result store under `$JENKINS_HOME/secret-guard/results/`
 - Job, Run, root, and administrative report surfaces
 - unit and JenkinsRule tests for rules, scanners, masking, service policy, save blocking, build scanning, manual scanning, and Pipeline-from-SCM and multibranch coverage
+- a detection coverage matrix in `docs/detection-coverage.md`
 
 Known limitations:
 
@@ -31,7 +33,7 @@ Known limitations:
 - multibranch-specific indexing integration is not implemented
 - scan history is not retained beyond the latest result
 - no export, trend, or history view exists
-- plugin-specific adapters cover common `HTTP Request`, Git, Kubernetes, and generic reference-like fields, but coverage is intentionally not exhaustive for every Jenkins plugin
+- plugin-specific adapters cover common `HTTP Request`, generic plugin headers, Git, Kubernetes, and generic reference-like fields, but coverage is intentionally not exhaustive for every Jenkins plugin
 
 ## Release Strategy
 
@@ -128,7 +130,7 @@ Implementation notes:
 
 Priority: `P1`
 
-Status: regression coverage now includes placeholders plus anonymized Jenkinsfile and `config.xml` fixtures for public certificates, artifact metadata, and tracking-header cases, but the broader curated corpus is still incomplete.
+Status: regression coverage now includes placeholders plus anonymized Jenkinsfile and `config.xml` fixtures for public certificates, artifact metadata, tracking-header cases, generic plugin headers, and notifier/webhook URL cases, but the broader curated corpus is still incomplete.
 
 Tasks:
 
@@ -136,6 +138,7 @@ Tasks:
 - [x] add regression cases for placeholder/mock/test values
 - [x] add regression cases for public certificates and artifact metadata
 - [x] add regression cases for common request/trace/correlation headers
+- [x] add regression cases for generic plugin headers and notifier/webhook URL patterns
 - [ ] expand realistic Jenkinsfile false-positive corpus for broader Pipeline patterns
 
 Acceptance criteria:
@@ -148,7 +151,7 @@ Acceptance criteria:
 
 Priority: `P1`
 
-Status: started. Runtime-reference detection and Jenkins credential-binding coverage now include bracket-index fallbacks, ternary guards, and safe-navigation method chains; `httpRequest customHeaders` parsing now handles parenthesized and cast list layouts plus quoted map keys, while broader realistic Pipeline fixtures and any still-unseen header layouts remain open.
+Status: started. Runtime-reference detection and Jenkins credential-binding coverage now include bracket-index fallbacks, ternary guards, and safe-navigation method chains; `httpRequest customHeaders` parsing now handles parenthesized and cast list layouts plus quoted map keys; notifier/webhook URL query and path-token patterns are covered, while broader realistic Pipeline fixtures and any still-unseen header layouts remain open.
 
 Tasks:
 

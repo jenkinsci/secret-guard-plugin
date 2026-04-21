@@ -3,6 +3,7 @@
 ## Purpose
 
 This document explains how the current implementation works, how the main classes collaborate, and where to add future functionality safely.
+For a rule-by-rule coverage summary, see [`detection-coverage.md`](detection-coverage.md).
 
 ## Package Layout
 
@@ -129,6 +130,7 @@ When adding a new rule:
 - runs plugin-specific `ConfigXmlScanAdapter` implementations before generic XML value scanning so high-confidence plugin semantics can skip or replace generic traversal
 - records deduplicated `Adapter:` decision notes when plugin-specific semantics skip or replace generic traversal; notes name the adapter decision but never include raw field values
 - recognizes `HTTP Request`-style `config.xml` sections so credentials-backed `authentication` references and `customHeaders` values can be interpreted with plugin-specific semantics
+- recognizes generic plugin header configurations under common plugin config sections
 - recognizes Git SCM metadata such as branch specs, refspecs, and remote names so readable repository metadata does not trigger generic secret heuristics
 - recognizes Kubernetes secret-backed environment variables as references while still scanning plaintext key/value environment variables
 - recognizes common publisher/build-wrapper reference fields such as external `secretName`, paired `secretKey`, and credential names when values look like readable references rather than high-confidence secret literals
@@ -147,7 +149,8 @@ When adding a new rule:
   - HTTP-style authorization lines
 - parses literal `httpRequest customHeaders` lists into per-header entries before scanning
 - detects hardcoded custom header literals and separately reports `maskValue: false`
-- detects hardcoded secrets embedded in URL query parameters such as `?key=...` and `?token=...`
+- detects hardcoded secrets embedded in URL query parameters such as `?key=...`, `?token=...`, and `?signature=...`
+- detects notifier or webhook URLs with token-like path segments
 - supports mixed single-line and multi-line header layouts, multiple headers in one request, parenthesized or cast header lists, quoted map keys, and nested Groovy expressions inside header values
 - passes header names into generic rules only for parsed header `value:` entries, so later non-header lines in the same `httpRequest` block do not inherit the header context
 - treats runtime header references such as `"$TOKEN"`, `"${TOKEN}"`, `env.TOKEN`, `params.TOKEN`, `env['TOKEN']`, `env.get('TOKEN')`, `params.get('TOKEN')`, `params['TOKEN'] ?: ''`, ternary guards, safe-navigation chains, simple GString/concatenation forms, uppercase credential variable method chains, and common `withCredentials`-bound variable combinations as non-plaintext values through shared `NonSecretHeuristics` helpers
@@ -328,19 +331,21 @@ Representative test coverage is intentionally focused on the deterministic core:
   - entropy findings
   - common false-positive guard for UUID
   - false-positive guards for credential IDs, hashes, public certificates, paths, and Docker images
-  - URL query secret detection for webhook-style URLs
+  - URL query secret detection for webhook/notifier URLs, including signature-style variants
+  - notifier or webhook URL path-token detection
 - `ConfigXmlScannerTest`
   - parameter default detection
   - sensitive config fields
   - whole inline Pipeline script scanning from `config.xml`
-  - fixture-based false-positive coverage for stored artifact metadata, request headers, and public certificates
+  - fixture-based false-positive coverage for stored artifact metadata, request headers, generic plugin headers, notifier URLs, and public certificates
 - `PipelineScriptScannerTest`
   - environment block detection
   - command step detection
   - hardcoded `httpRequest customHeaders` detection
-  - webhook URL query secret detection
+  - webhook/notifier URL query secret detection
+  - notifier or webhook URL path-token detection
   - benign tracking header false-positive guards
-  - fixture-based false-positive coverage for artifact publishing Pipelines
+  - fixture-based false-positive coverage for artifact publishing, runtime-pattern, and HTTP-header Pipelines
   - `withCredentials` examples for string, username/password, file, SSH private key, Git username/password, and username-colon-password bindings do not escalate to `HIGH`
 - `NonSecretHeuristicsTest`
   - runtime-reference detection

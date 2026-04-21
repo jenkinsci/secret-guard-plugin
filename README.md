@@ -7,30 +7,27 @@
 Jenkins Secret Guard detects hardcoded secret leakage risks in Jenkins jobs and Pipeline definitions.
 It focuses only on high-risk secret exposure patterns, not general code style or broad security governance.
 
-Current capabilities:
+Key capabilities:
 
 - save-time enforcement
 - build-time scanning
-- manual Job scans
-- global `Scan All Jobs` reporting
+- Job-level `Scan Now`
+- global `Scan All Jobs`
 - lightweight Pipeline-from-SCM and multibranch Jenkinsfile reads
 - masked latest-result persistence
 - plugin-aware false-positive reduction for common Jenkins patterns
 
 ## Why this plugin exists
 
-Secret Guard is built around leakage patterns that repeatedly show up in publicly documented Jenkins and Jenkins-plugin usage:
+Secret Guard is built around leakage patterns that repeatedly show up in Jenkins and Jenkins-plugin usage:
 
 - plaintext tokens, passwords, or API keys placed directly in Job `config.xml`
-- secret-looking build parameter default values that become visible in saved Job configuration
+- parameter defaults or environment values that persist secrets in Job configuration
 - inline Pipeline literals such as `Authorization: Bearer ...`
-- webhook or notifier URLs that carry secrets in query parameters like `?token=...`, `?key=...`, or `?signature=...`
-- webhook-style endpoints that embed a token directly in the URL path
-- plugin configuration fields that look like ordinary integration URLs, but actually persist a secret-bearing endpoint
+- webhook or notifier URLs that carry secrets in query parameters or path segments
 
 This plugin intentionally focuses on those deterministic, repeatedly observed shapes.
-It does not try to guess intent from arbitrary code, and it does not need raw secret samples to justify the rule set.
-The goal is simple: catch the common ways Jenkins jobs accidentally persist or expose credentials before they spread through Job configuration, Pipeline text, logs, or copied jobs.
+It does not try to infer arbitrary intent from general Groovy or XML content.
 
 ## Getting started
 
@@ -97,32 +94,27 @@ The global configuration page validates exemption lines and warns when the reaso
 
 Typical remediation guidance:
 
-- Move plaintext tokens, passwords, and keys to Jenkins Credentials.
-- Use `withCredentials` to inject secrets at runtime.
-- Do not use secrets as build parameter default values.
-- Do not persist secrets in Job configuration.
-- Do not embed secrets in URLs or command-line arguments.
+- Move plaintext secrets to Jenkins Credentials.
+- Use `withCredentials` to inject them at runtime.
+- Avoid storing secrets in parameter defaults, Job configuration, URLs, or command lines.
 
-## Manual Scan
+## Scanning
 
-- Entry: each Job page has a `Secret Guard` side-panel entry with `Scan Now`.
-- Scope: re-checks the current Job configuration, including inline Pipeline script content stored in `config.xml`, and Pipeline-from-SCM Jenkinsfile content when lightweight SCM access is available.
-- Effect: refreshes the latest report for that Job only.
-- Does not do: does not block the manual-scan action, does not block later saves, and does not change build results.
-- Blocked field: the refreshed report still shows whether the current enforcement policy would classify the findings as blocked.
+- **Job scan**
+  - Entry: each Job page has a `Secret Guard` side-panel entry with `Scan Now`.
+  - Scope: re-checks the current Job configuration, including inline Pipeline content and Pipeline-from-SCM Jenkinsfile content when lightweight SCM access is available.
+  - Effect: refreshes the latest report for that Job only.
+  - Behavior: report-only; it does not block the scan action or change build results, but the report still shows whether findings would be blocked by current policy.
 
 ![Secret Guard Job Action Page](docs/assets/secret-guard-job-action-page-screenshot.png)
 
-## Global Scan
-
-- Entry: users with `Manage Jenkins` permission can open the global `Secret Guard` page and click `Scan All Jobs`.
-- Scope: re-scans all Jenkins jobs in report-only mode, using the same latest-result refresh flow as Job-level manual scans.
-- Effect: refreshes the latest persisted result for each scanned job.
-- Does not do: does not block saves and does not change build results.
-- Blocked field: each refreshed result still records whether the current enforcement policy would classify it as blocked.
-- Page summary: shows cards for unexempted high findings, blocked jobs, jobs with findings, total findings, and scanned jobs.
-- Result list: sorts by risk, supports `All`, `High`, `Blocked`, `With Findings`, `With Exemptions`, and `With Notes` filters, shows exempted-count badges, highlights blocked rows, and links to each job-level `Secret Guard` report.
-- Storage: only masked latest-result data is persisted under `$JENKINS_HOME/secret-guard/results/`; raw scanned content and raw secret values are not stored.
+- **Global scan**
+  - Entry: users with `Manage Jenkins` permission can open the global `Secret Guard` page and click `Scan All Jobs`.
+  - Scope: re-scans all Jenkins jobs in report-only mode using the same latest-result refresh flow.
+  - Effect: refreshes the latest persisted result for each scanned job.
+  - Behavior: does not block saves or change build results; the page still records whether current policy would classify findings as blocked.
+  - UI: shows summary cards, filterable results, exempted-count badges, blocked-row highlighting, and links to each Job report.
+  - Storage: only masked latest-result data is persisted under `$JENKINS_HOME/secret-guard/results/`; raw scanned content and raw secret values are not stored.
 
 ![Secret Guard Root Action Page](docs/assets/secret-guard-root-action-page-screenshot.png)
 
@@ -139,6 +131,7 @@ Common log areas:
 ## Documentation
 
 - Architecture: [`docs/architecture.md`](docs/architecture.md)
+- Detection coverage: [`docs/detection-coverage.md`](docs/detection-coverage.md)
 - Implementation guide: [`docs/implementation.md`](docs/implementation.md)
 - Development plan: [`docs/development-plan.md`](docs/development-plan.md)
 

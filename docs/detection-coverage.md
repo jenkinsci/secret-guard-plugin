@@ -1,0 +1,40 @@
+# Jenkins Secret Guard Detection Coverage
+
+## Purpose
+
+This matrix tracks which deterministic secret-leakage shapes are intentionally covered, which rule or adapter owns the behavior, and where regression coverage lives.
+It is meant to keep future rule changes focused: every new detection should have a matching false-positive guard when the surrounding Jenkins pattern has common benign forms.
+
+## Coverage Matrix
+
+| Scenario | Example Shape | Rule / Adapter | Sources | Positive Regression | False-Positive Guard | Status |
+| --- | --- | --- | --- | --- | --- | --- |
+| Sensitive field plaintext | `<token>literal-value</token>`, `API_TOKEN = 'literal-value'` | `sensitive-field-name` | `config.xml`, Pipeline environment, parameter defaults | `BuiltInSecretRuleSetTest`, `ConfigXmlScannerTest`, `PipelineScriptScannerTest` | credential IDs, runtime references, placeholders, file references, readable endpoint URLs | Covered |
+| Placeholder or redacted sensitive values | `__REDACTED__`, `****`, `__MASKED__` | `sensitive-field-name` with `LOW` severity | `config.xml`, Pipeline environment, headers | `BuiltInSecretRuleSetTest`, `PipelineScriptScannerTest` | `NonSecretHeuristics.looksLikePlaceholderValue` | Covered |
+| High-confidence token formats | JWT, GitHub token, AWS access key, AWS secret key, PEM private key | `jwt-token`, `github-token`, `aws-access-key`, `aws-secret-key`, `pem-private-key` | `config.xml`, Pipeline, Jenkinsfile, command text | `BuiltInSecretRuleSetTest`, `ConfigXmlScannerTest` | credential ID fields, safe runtime references, public certificate guard | Covered |
+| Bearer token literal | `Authorization: Bearer literal-token` | `bearer-token` | Pipeline, Jenkinsfile, command text, headers | `PipelineScriptScannerTest`, `BuiltInSecretRuleSetTest` | runtime references and `withCredentials`-backed values | Covered |
+| URL user-info credential | `https://user:password@host/path` | `url-embedded-secret` | `config.xml`, Pipeline, Jenkinsfile, command text | `BuiltInSecretRuleSetTest` | readable endpoint URL guard does not suppress credentialed authorities | Covered |
+| URL query secret | `?token=...`, `?key=...`, `?signature=...`, `?access_token=...` | `url-query-secret` | `config.xml`, Pipeline, Jenkinsfile, command text | `BuiltInSecretRuleSetTest`, `ConfigXmlScannerTest`, `PipelineScriptScannerTest`, `common-plugin-secret-job-config.xml`, `common-notifier-secret-job-config.xml` | runtime interpolation and short query values are skipped; readable URL false-positive tests keep non-secret endpoints quiet | Covered |
+| Notifier or webhook path token | `/services/team/channel/token`, `/webhook/token` | `notifier-url-secret` | `config.xml`, Pipeline, Jenkinsfile, command text | `BuiltInSecretRuleSetTest`, `ConfigXmlScannerTest`, `PipelineScriptScannerTest`, `common-notifier-secret-job-config.xml` | `common-notifier-urls-config.xml`, readable notifier URL tests | Covered |
+| `httpRequest customHeaders` hardcoded secret | `customHeaders: [[name: 'Authorization', value: 'Bearer literal']]` | `HttpRequestHeaderSupport`, `PipelineScriptScanner`, `HttpRequestPluginConfigAdapter` | Pipeline, inline Pipeline in `config.xml`, HTTP Request plugin config | `PipelineScriptScannerTest`, `ConfigXmlScannerTest`, `hardcoded-http-request-custom-headers.Jenkinsfile`, `common-generic-plugin-header-secret-config.xml` | runtime header references, placeholders, tracking headers, mixed-layout parser tests | Covered |
+| `httpRequest customHeaders` with `maskValue: false` | `maskValue: false` on a hardcoded secret header | `http-request-unmasked-header-secret` | Pipeline, inline Pipeline in `config.xml`, HTTP Request plugin config | `PipelineScriptScannerTest`, `ConfigXmlScannerTest`, header fixtures | runtime references and non-sensitive tracking headers do not report unmasked-secret findings | Covered |
+| Generic plugin header config | `<headers><name>Authorization</name><value>Bearer literal</value></headers>` | `GenericHeaderPluginConfigAdapter` | plugin `publishers`, `builders`, `buildWrappers`, `properties` | `ConfigXmlScannerTest`, `common-generic-plugin-header-secret-config.xml` | `common-generic-plugin-headers-config.xml` | Covered |
+| HTTP Request plugin authentication reference | `<authentication>credential-id</authentication>` | `HttpRequestPluginConfigAdapter` | HTTP Request plugin config | `ConfigXmlScannerTest` | adapter note verifies reference semantics without storing raw values | Covered |
+| Kubernetes secret-backed env var | `SecretEnvVar` with `secretName` / `secretKey` | `KubernetesPluginConfigAdapter` | Kubernetes plugin config | `ConfigXmlScannerTest` | plaintext `KeyValueEnvVar` remains detectable | Covered |
+| Git plugin metadata | branch specs, refspecs, remote names | `GitPluginConfigAdapter` | Git plugin config | `ConfigXmlScannerTest`, `common-plugin-reference-config.xml` | adapter notes omit raw metadata and skip high-entropy branch/ref strings | Covered |
+| Common plugin secret references | `secretName`, paired `secretKey`, `credentialsName` | `CommonPluginReferenceConfigAdapter` | plugin `publishers`, `builders`, `buildWrappers` | `ConfigXmlScannerTest`, `common-plugin-reference-config.xml` | high-confidence literals in the same fields still report | Covered |
+| Generic high-entropy fallback | long opaque strings without stronger context | `high-entropy-string` | `config.xml`, Pipeline, Jenkinsfile, command text | `BuiltInSecretRuleSetTest`, `ConfigXmlScannerTest` | paths, Docker images, storage URIs, JDBC options, identifiers, hashes, public certs, tracking headers | Covered |
+| Build parameter default secrets | `<defaultValue>literal-token</defaultValue>` | generic rules plus `PARAMETER_DEFAULT` classification | Job `config.xml` | `ConfigXmlScannerTest`, curated config fixtures | parameter metadata and generated names are covered as false positives | Covered |
+| Inline Pipeline inside Job XML | `<script><![CDATA[pipeline { ... }]]></script>` | `ConfigXmlScanner` delegates to `PipelineScriptScanner` | Pipeline Job `config.xml` | `ConfigXmlScannerTest` | avoids scanning recognized Pipeline script as ordinary XML text | Covered |
+| Pipeline-from-SCM and multibranch Jenkinsfiles | configured Jenkinsfile content read through lightweight SCM access | `PipelineDefinitionExtractor`, `ScmJenkinsfileReader`, `MultibranchJenkinsfileReader` | Pipeline-from-SCM, multibranch | `SecretGuardEnforcementIntegrationTest` | unavailable reads become scan notes instead of hard failures | Covered |
+| Save-time, build-time, manual-scan policy | `AUDIT`, `WARN`, `BLOCK` processing | `SecretScanService`, listeners, actions | Job saves, builds, manual scans, global scans | `SecretScanServiceTest`, `SecretGuardEnforcementIntegrationTest` | allow lists, exemptions, and duplicate suppression tests | Covered |
+| Complex Pipeline header layouts | reused header variables, deeper Groovy object construction, non-literal helper builders | `PipelineScriptScanner`, `HttpRequestHeaderSupport` | Pipeline, Jenkinsfile | partial mixed-layout and nested-expression tests | broader realistic Jenkinsfile corpus remains open | Partial |
+| Historical trend or export evidence | bounded history, CSV or JSON export | planned service/UI layer | reports | none | raw secret export constraints documented in backlog | Planned |
+
+## Maintenance Rules
+
+- Add a positive regression whenever a new rule reports a new shape.
+- Add a false-positive regression whenever a benign Jenkins shape is intentionally suppressed.
+- Use sanitized fixtures only: `example.invalid`, generic job names, and synthetic token shapes.
+- Do not store or expose raw scanned content or raw secret values in tests, fixtures, persisted reports, or documentation.
+- Keep broad governance features out of this matrix unless they directly affect secret detection or reporting.

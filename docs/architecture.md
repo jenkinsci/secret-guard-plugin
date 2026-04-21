@@ -26,7 +26,7 @@ Across Jenkinsfiles, Job XML, and plugin configuration examples, the same famili
 - credentials copied directly into Job fields such as `token`, `password`, `secret`, or `apiKey`
 - parameter defaults or environment definitions that persist plaintext secrets in `config.xml`
 - inline Pipeline header literals such as `Authorization: Bearer ...`
-- notifier or webhook URLs whose query string carries a secret like `token`, `key`, `signature`, or similar variants
+- notifier or webhook URLs whose query parameters carry a secret like `token`, `key`, `signature`, or similar variants
 - integration endpoints that look like normal URLs but embed a token directly in the path
 
 That history explains the architecture choices:
@@ -109,7 +109,8 @@ Built-in rules cover:
 - bearer tokens
 - PEM private keys
 - credentials embedded in URLs
-- secret-bearing URL query parameters such as webhook `?key=` and `?token=`
+- secret-bearing URL query parameters such as webhook `?key=`, `?token=`, and `?signature=`
+- notifier or webhook URLs with token-like path segments
 - hardcoded `httpRequest customHeaders` values, including `maskValue: false`
 - high-entropy candidate strings
 
@@ -130,7 +131,8 @@ Two scanners implement `SecretScanner`:
   - tracks `environment {}` scope
   - classifies command steps and HTTP-style secret usage
   - parses literal `httpRequest customHeaders` lists into per-header entries so `name`, `value`, and `maskValue` are evaluated together across single-line and multi-line layouts
-  - detects URL query secrets in shell commands and other script strings, such as webhook URLs with hardcoded `key` or `token` parameters
+  - detects URL query secrets in shell commands and other script strings, such as webhook URLs with hardcoded `key`, `token`, or `signature` parameters
+  - detects notifier or webhook URLs with token-like path segments
   - avoids heavy Groovy parsing by design
 
 Pipeline definitions are extracted through `PipelineDefinitionExtractor`:
