@@ -1,5 +1,7 @@
 # Jenkins Secret Guard Plugin
 
+[![codecov](https://codecov.io/github/jenkinsci/secret-guard-plugin/graph/badge.svg)](https://app.codecov.io/github/jenkinsci/secret-guard-plugin)
+
 ![Jenkins Secret Guard cover](docs/assets/secret-guard-cover-jenkins-shield.svg)
 
 ## Introduction
