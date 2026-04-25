@@ -40,9 +40,10 @@ public class SecretGuardItemListener extends ItemListener {
 
     @Override
     public void onCheckCopy(Item src, hudson.model.ItemGroup parent) throws Failure {
-        if (!(src instanceof Job<?, ?> job) || !(src instanceof AbstractItem abstractItem)) {
+        if (!(src instanceof Job<?, ?> job)) {
             return;
         }
+        AbstractItem abstractItem = job;
         try {
             SecretScanResult result =
                     enforcementService.scan(job, abstractItem.getConfigFile().asString(), ScanPhase.SAVE);
@@ -68,9 +69,10 @@ public class SecretGuardItemListener extends ItemListener {
         if (JobConfigSaveScanGuard.isFilterManagedSave()) {
             return;
         }
-        if (!(item instanceof Job<?, ?> job) || !(item instanceof AbstractItem abstractItem)) {
+        if (!(item instanceof Job<?, ?> job)) {
             return;
         }
+        AbstractItem abstractItem = job;
         try {
             enforcementService.scan(job, abstractItem.getConfigFile().asString(), ScanPhase.SAVE);
         } catch (IOException e) {
