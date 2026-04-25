@@ -1,6 +1,10 @@
 # Jenkins Secret Guard Plugin
 
+[![GitHub release](https://img.shields.io/github/v/release/jenkinsci/secret-guard-plugin?sort=semver)](https://github.com/jenkinsci/secret-guard-plugin/releases)
+[![Jenkins Plugin Site](https://img.shields.io/badge/Jenkins-Plugin%20Site-D24939?logo=jenkins&logoColor=white)](https://plugins.jenkins.io/secret-guard)
+[![Jenkins Security Scan](https://github.com/jenkinsci/secret-guard-plugin/actions/workflows/jenkins-security-scan.yml/badge.svg)](https://github.com/jenkinsci/secret-guard-plugin/actions/workflows/jenkins-security-scan.yml)
 [![codecov](https://codecov.io/github/jenkinsci/secret-guard-plugin/graph/badge.svg)](https://app.codecov.io/github/jenkinsci/secret-guard-plugin)
+[![License](https://img.shields.io/github/license/jenkinsci/secret-guard-plugin)](LICENSE.md)
 
 ![Jenkins Secret Guard cover](docs/assets/secret-guard-cover-jenkins-shield.svg)
 
