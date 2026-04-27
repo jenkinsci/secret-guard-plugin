@@ -1,0 +1,23 @@
+src/main/java/io/jenkins/plugins/secretguard/listener/SecretGuardJobConfigFilter.java
+  bdace71ddf6fe1cf 51-53,104-106,271-277,450-452
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "896e58a9fa3e782d46ecc9db3a94fdc3bec9396c",
+  "prompts": {
+    "bdace71ddf6fe1cf": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019dcdf3-239b-7f41-8461-fcff72972317",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui",
+      "messages": [],
+      "total_additions": 269,
+      "total_deletions": 11,
+      "accepted_lines": 266,
+      "overriden_lines": 0
+    }
+  }
+}
