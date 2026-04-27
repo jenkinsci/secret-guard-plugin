@@ -15,9 +15,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class PipelineScriptScanner implements SecretScanner {
-    private static final Pattern ASSIGNMENT =
-            Pattern.compile("\\b([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*['\"]([^'\"]+)['\"]");
-    private static final Pattern COMMAND_STEP = Pattern.compile("\\b(sh|bat|powershell)\\s*(?:\\(|['\"])");
+    private static final Pattern ASSIGNMENT = Pattern.compile("\\b([A-Za-z_]\\w*)\\s*=\\s*['\"]([^'\"]+)['\"]");
+    private static final Pattern COMMAND_STEP = Pattern.compile("\\b(sh|bat|powershell)\\s*[('\"]");
     private static final Pattern HTTP_REQUEST = Pattern.compile("\\bhttpRequest\\b");
     private static final Pattern CUSTOM_HEADERS = Pattern.compile("\\bcustomHeaders\\s*:");
 
@@ -42,53 +41,92 @@ public class PipelineScriptScanner implements SecretScanner {
                 parseCustomHeadersByLine(lines);
         int environmentDepth = 0;
         for (int index = 0; index < lines.length; index++) {
-            String line = lines[index];
-            String trimmed = line.trim();
-            if (trimmed.startsWith("//") || trimmed.startsWith("#")) {
-                continue;
-            }
-            boolean opensEnvironment = trimmed.matches(".*\\benvironment\\s*\\{.*");
-            if (opensEnvironment && environmentDepth == 0) {
-                environmentDepth = 1;
-            }
-            FindingLocationType locationType = classifyLine(trimmed, environmentDepth > 0, context.getLocationType());
-            ScanContext locationContext = context.withLocationType(locationType);
-            List<HttpRequestHeaderSupport.ParsedCustomHeader> parsedHeaders = customHeadersByLine.get(index + 1);
-            String genericLine = trimToNull(
-                    parsedHeaders == null || parsedHeaders.isEmpty()
-                            ? trimmed
-                            : sanitizeLineForGenericRuleScan(trimmed, parsedHeaders));
-            String fieldName = extractFieldName(genericLine == null ? "" : genericLine);
-            if (parsedHeaders != null && !parsedHeaders.isEmpty()) {
-                ScanContext headerContext = context.withLocationType(FindingLocationType.COMMAND_STEP);
-                for (HttpRequestHeaderSupport.ParsedCustomHeader parsedHeader : parsedHeaders) {
-                    if (shouldScanWithGenericRules(parsedHeader)) {
-                        for (SecretRule rule : ruleSet.getRules()) {
-                            findings.addAll(rule.scan(
-                                    headerContext,
-                                    context.getSourceName(),
-                                    parsedHeader.lineNumber(),
-                                    parsedHeader.name(),
-                                    parsedHeader.valueExpression()));
-                        }
-                    }
-                    findings.addAll(HttpRequestHeaderSupport.scanHardcodedCustomHeader(
-                            headerContext,
-                            parsedHeader.lineNumber(),
-                            parsedHeader.name(),
-                            parsedHeader.valueExpression(),
-                            parsedHeader.maskValueFalse()));
-                }
-            }
-            if (genericLine != null) {
-                for (SecretRule rule : ruleSet.getRules()) {
-                    findings.addAll(
-                            rule.scan(locationContext, context.getSourceName(), index + 1, fieldName, genericLine));
-                }
-            }
-            environmentDepth = updateEnvironmentDepth(trimmed, environmentDepth, opensEnvironment);
+            environmentDepth =
+                    scanLine(context, findings, customHeadersByLine, lines[index], index + 1, environmentDepth);
         }
         return new SecretScanResult(context.getJobFullName(), context.getTargetType(), findings, false);
+    }
+
+    private int scanLine(
+            ScanContext context,
+            List<SecretFinding> findings,
+            Map<Integer, List<HttpRequestHeaderSupport.ParsedCustomHeader>> customHeadersByLine,
+            String line,
+            int lineNumber,
+            int environmentDepth) {
+        String trimmed = line.trim();
+        if (trimmed.startsWith("//") || trimmed.startsWith("#")) {
+            return environmentDepth;
+        }
+        boolean opensEnvironment = trimmed.matches(".*\\benvironment\\s*\\{.*");
+        int scopedEnvironmentDepth = opensEnvironment && environmentDepth == 0 ? 1 : environmentDepth;
+        ScanContext locationContext =
+                context.withLocationType(classifyLine(trimmed, scopedEnvironmentDepth > 0, context.getLocationType()));
+        List<HttpRequestHeaderSupport.ParsedCustomHeader> parsedHeaders = customHeadersByLine.get(lineNumber);
+        scanParsedHeaders(context, findings, parsedHeaders);
+        scanGenericRules(context, locationContext, findings, lineNumber, trimmed, parsedHeaders);
+        return updateEnvironmentDepth(trimmed, scopedEnvironmentDepth, opensEnvironment);
+    }
+
+    private void scanParsedHeaders(
+            ScanContext context,
+            List<SecretFinding> findings,
+            List<HttpRequestHeaderSupport.ParsedCustomHeader> parsedHeaders) {
+        if (parsedHeaders == null || parsedHeaders.isEmpty()) {
+            return;
+        }
+        ScanContext headerContext = context.withLocationType(FindingLocationType.COMMAND_STEP);
+        for (HttpRequestHeaderSupport.ParsedCustomHeader parsedHeader : parsedHeaders) {
+            scanHeaderWithGenericRules(context, headerContext, findings, parsedHeader);
+            findings.addAll(HttpRequestHeaderSupport.scanHardcodedCustomHeader(
+                    headerContext,
+                    parsedHeader.lineNumber(),
+                    parsedHeader.name(),
+                    parsedHeader.valueExpression(),
+                    parsedHeader.maskValueFalse()));
+        }
+    }
+
+    private void scanHeaderWithGenericRules(
+            ScanContext context,
+            ScanContext headerContext,
+            List<SecretFinding> findings,
+            HttpRequestHeaderSupport.ParsedCustomHeader parsedHeader) {
+        if (!shouldScanWithGenericRules(parsedHeader)) {
+            return;
+        }
+        for (SecretRule rule : ruleSet.getRules()) {
+            findings.addAll(rule.scan(
+                    headerContext,
+                    context.getSourceName(),
+                    parsedHeader.lineNumber(),
+                    parsedHeader.name(),
+                    parsedHeader.valueExpression()));
+        }
+    }
+
+    private void scanGenericRules(
+            ScanContext context,
+            ScanContext locationContext,
+            List<SecretFinding> findings,
+            int lineNumber,
+            String trimmed,
+            List<HttpRequestHeaderSupport.ParsedCustomHeader> parsedHeaders) {
+        String genericLine = genericLine(trimmed, parsedHeaders);
+        if (genericLine == null) {
+            return;
+        }
+        String fieldName = extractFieldName(genericLine);
+        for (SecretRule rule : ruleSet.getRules()) {
+            findings.addAll(rule.scan(locationContext, context.getSourceName(), lineNumber, fieldName, genericLine));
+        }
+    }
+
+    private String genericLine(String trimmed, List<HttpRequestHeaderSupport.ParsedCustomHeader> parsedHeaders) {
+        return trimToNull(
+                parsedHeaders == null || parsedHeaders.isEmpty()
+                        ? trimmed
+                        : sanitizeLineForGenericRuleScan(trimmed, parsedHeaders));
     }
 
     private boolean shouldScanWithGenericRules(HttpRequestHeaderSupport.ParsedCustomHeader header) {
