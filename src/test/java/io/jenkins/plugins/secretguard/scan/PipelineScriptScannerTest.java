@@ -41,6 +41,29 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void detectsBasicAuthAndProviderWebhookSecretsInPipelineScript() {
+        String script = """
+                pipeline {
+                  agent any
+                  stages {
+                    stage('Notify') {
+                      steps {
+                        sh 'curl -H "Authorization: Basic QWxhZGRpbjpPcGVuU2VzYW1l" https://example.invalid'
+                        echo '%s'
+                      }
+                    }
+                  }
+                }
+                """.formatted(slackWebhookUrl());
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("basic-auth-header")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("slack-webhook-url")));
+    }
+
+    @Test
     void doesNotFlagWithCredentialsExampleAsHighRisk() {
         String script = """
                 pipeline {
@@ -639,5 +662,15 @@ class PipelineScriptScannerTest {
                 ScanPhase.BUILD,
                 EnforcementMode.BLOCK,
                 Severity.HIGH);
+    }
+
+    private String slackWebhookUrl() {
+        return "https://hooks.slack.com"
+                + "/services/"
+                + "T00000000"
+                + "/"
+                + "B00000000"
+                + "/"
+                + "Nr8YkL2Pm5Qx7Vd1Hs4Jt6Ua";
     }
 }

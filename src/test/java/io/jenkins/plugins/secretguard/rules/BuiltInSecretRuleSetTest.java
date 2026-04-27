@@ -25,6 +25,14 @@ class BuiltInSecretRuleSetTest {
     }
 
     @Test
+    void detectsHardcodedBasicAuthHeader() {
+        List<SecretFinding> findings = scan("Authorization", "Authorization: Basic QWxhZGRpbjpPcGVuU2VzYW1l");
+
+        assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("basic-auth-header")));
+        assertTrue(findings.stream().anyMatch(finding -> finding.getSeverity() == Severity.HIGH));
+    }
+
+    @Test
     void detectsHighEntropyStringsButNotAsHigh() {
         List<SecretFinding> findings = scan("", "QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l");
         assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
@@ -210,10 +218,33 @@ class BuiltInSecretRuleSetTest {
     }
 
     @Test
+    void detectsProviderSpecificWebhookUrls() {
+        assertTrue(scan("webhookUrl", slackWebhookUrl()).stream()
+                .anyMatch(finding -> finding.getRuleId().equals("slack-webhook-url")));
+        assertTrue(scan(
+                        "webhookUrl",
+                        "https://outlook.office.com/webhook/11111111-2222-3333-4444-555555555555@66666666-7777-8888-9999-aaaaaaaaaaaa/IncomingWebhook/Nr8YkL2Pm5Qx7Vd1Hs4Jt6Ua/bbbbbbbb-cccc-dddd-eeee-ffffffffffff")
+                .stream()
+                .anyMatch(finding -> finding.getRuleId().equals("teams-webhook-url")));
+        assertTrue(scan("webhookUrl", "https://hooks.zapier.com/hooks/catch/123456/Nr8YkL2Pm5Qx7Vd1Hs4Jt6Ua/").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("zapier-webhook-url")));
+    }
+
+    @Test
+    void doesNotDoubleReportKnownProviderWebhookUrlsAsGenericNotifierUrls() {
+        List<SecretFinding> findings = scan("webhookUrl", slackWebhookUrl());
+
+        assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("slack-webhook-url")));
+        assertFalse(findings.stream().anyMatch(finding -> finding.getRuleId().equals("notifier-url-secret")));
+    }
+
+    @Test
     void doesNotTreatReadableNotifierUrlsAsSecrets() {
         assertTrue(scan("webhookUrl", "https://hooks.example.invalid/services/release-events/build-status")
                 .isEmpty());
         assertTrue(scan("notifyUrl", "https://notify.example.invalid/api/callback/release-created")
+                .isEmpty());
+        assertTrue(scan("chatWebhookDocs", "https://hooks.slack.com/services/T00000000/B00000000")
                 .isEmpty());
     }
 
@@ -235,5 +266,15 @@ class BuiltInSecretRuleSetTest {
             findings.addAll(rule.scan(context, sourceName, 1, fieldName, value));
         }
         return findings;
+    }
+
+    private String slackWebhookUrl() {
+        return "https://hooks.slack.com"
+                + "/services/"
+                + "T00000000"
+                + "/"
+                + "B00000000"
+                + "/"
+                + "Nr8YkL2Pm5Qx7Vd1Hs4Jt6Ua";
     }
 }

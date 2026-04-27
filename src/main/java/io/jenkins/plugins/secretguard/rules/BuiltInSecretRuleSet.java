@@ -6,7 +6,9 @@ import io.jenkins.plugins.secretguard.model.Severity;
 import io.jenkins.plugins.secretguard.util.NonSecretHeuristics;
 import io.jenkins.plugins.secretguard.util.SecretMasker;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -58,6 +60,7 @@ public class BuiltInSecretRuleSet {
                 Pattern.compile("(?i)\\bBearer\\s+([A-Za-z0-9._~+/=-]{12,})"),
                 Recommendations.NO_COMMAND_LINE_SECRET,
                 1));
+        builtIns.add(new BasicAuthHeaderRule());
         builtIns.add(new PatternSecretRule(
                 "pem-private-key",
                 "PEM private key is hardcoded",
@@ -70,6 +73,22 @@ public class BuiltInSecretRuleSet {
                 Severity.HIGH,
                 Pattern.compile("(?i)https?://[^\\s:/@'\"<>]+:[^\\s/@'\"<>]{6,}@[^\\s'\"<>]+"),
                 Recommendations.NO_URL_SECRET));
+        builtIns.add(new ProviderWebhookUrlRule(
+                "slack-webhook-url",
+                "Slack webhook URL is hardcoded",
+                Pattern.compile("https://hooks\\.slack\\.com/services/[^\\s'\"<>]{40,}", Pattern.CASE_INSENSITIVE)));
+        builtIns.add(new ProviderWebhookUrlRule(
+                "teams-webhook-url",
+                "Microsoft Teams webhook URL is hardcoded",
+                Pattern.compile(
+                        "https://(?:[^/]+\\.)?(?:webhook\\.office\\.com|outlook\\.office(?:365)?\\.com)/(?:webhook|webhookb2)/[^\\s'\"<>]*/IncomingWebhook/[^\\s'\"<>]{12,}",
+                        Pattern.CASE_INSENSITIVE)));
+        builtIns.add(new ProviderWebhookUrlRule(
+                "zapier-webhook-url",
+                "Zapier webhook URL is hardcoded",
+                Pattern.compile(
+                        "https://hooks\\.zapier\\.com/hooks/catch/\\d+/[A-Za-z0-9]{6,}(?:/[^\\s'\"<>]*)?",
+                        Pattern.CASE_INSENSITIVE)));
         builtIns.add(new UrlQuerySecretRule());
         builtIns.add(new NotifierUrlSecretRule());
         builtIns.add(new HighEntropyRule());
@@ -225,6 +244,95 @@ public class BuiltInSecretRuleSet {
         }
     }
 
+    private static final class BasicAuthHeaderRule implements SecretRule {
+        private static final Pattern BASIC_AUTH_LITERAL = Pattern.compile("(?i)\\bBasic\\s+([A-Za-z0-9+/=]{8,})");
+
+        @Override
+        public String getId() {
+            return "basic-auth-header";
+        }
+
+        @Override
+        public List<SecretFinding> scan(
+                ScanContext context, String sourceName, int lineNumber, String fieldName, String value) {
+            if (value == null
+                    || value.isBlank()
+                    || NonSecretHeuristics.isCredentialIdField(fieldName)
+                    || looksLikeSafeReference(value)) {
+                return Collections.emptyList();
+            }
+            Matcher matcher = BASIC_AUTH_LITERAL.matcher(value);
+            List<SecretFinding> findings = new ArrayList<>();
+            while (matcher.find()) {
+                String token = matcher.group(1);
+                if (!looksLikeBasicAuthCredential(token)) {
+                    continue;
+                }
+                findings.add(finding(
+                        getId(),
+                        "HTTP Basic authentication credential is hardcoded",
+                        Severity.HIGH,
+                        context,
+                        sourceName,
+                        lineNumber,
+                        fieldName,
+                        token,
+                        Recommendations.NO_COMMAND_LINE_SECRET));
+            }
+            return findings;
+        }
+
+        private boolean looksLikeBasicAuthCredential(String token) {
+            try {
+                String decoded = new String(Base64.getDecoder().decode(token), StandardCharsets.UTF_8);
+                int separator = decoded.indexOf(':');
+                return separator > 0 && separator < decoded.length();
+            } catch (IllegalArgumentException ignored) {
+                return false;
+            }
+        }
+    }
+
+    private static final class ProviderWebhookUrlRule implements SecretRule {
+        private final String id;
+        private final String title;
+        private final Pattern pattern;
+
+        private ProviderWebhookUrlRule(String id, String title, Pattern pattern) {
+            this.id = id;
+            this.title = title;
+            this.pattern = pattern;
+        }
+
+        @Override
+        public String getId() {
+            return id;
+        }
+
+        @Override
+        public List<SecretFinding> scan(
+                ScanContext context, String sourceName, int lineNumber, String fieldName, String value) {
+            if (value == null || value.isBlank() || looksLikeSafeReference(value)) {
+                return Collections.emptyList();
+            }
+            Matcher matcher = pattern.matcher(value);
+            List<SecretFinding> findings = new ArrayList<>();
+            while (matcher.find()) {
+                findings.add(finding(
+                        id,
+                        title,
+                        Severity.HIGH,
+                        context,
+                        sourceName,
+                        lineNumber,
+                        fieldName,
+                        matcher.group(),
+                        Recommendations.NO_NOTIFIER_URL_SECRET));
+            }
+            return findings;
+        }
+    }
+
     private static final class HighEntropyRule implements SecretRule {
         private static final Pattern CANDIDATE = Pattern.compile("\\b[A-Za-z0-9+/=_-]{32,}\\b");
 
@@ -352,6 +460,9 @@ public class BuiltInSecretRuleSet {
         }
 
         private String findEmbeddedNotifierSecret(String url) {
+            if (looksLikeKnownProviderWebhookUrl(url)) {
+                return "";
+            }
             URI uri;
             try {
                 uri = URI.create(url);
@@ -452,6 +563,19 @@ public class BuiltInSecretRuleSet {
         private String nullToEmpty(String value) {
             return value == null ? "" : value;
         }
+    }
+
+    private static boolean looksLikeKnownProviderWebhookUrl(String url) {
+        String candidate = nullToEmpty(url);
+        return candidate.matches("(?i)https://hooks\\.slack\\.com/services/[^\\s'\"<>]{40,}")
+                || candidate.matches(
+                        "(?i)https://(?:[^/]+\\.)?(?:webhook\\.office\\.com|outlook\\.office(?:365)?\\.com)/(?:webhook|webhookb2)/[^\\s'\"<>]*/IncomingWebhook/[^\\s'\"<>]{12,}")
+                || candidate.matches(
+                        "(?i)https://hooks\\.zapier\\.com/hooks/catch/\\d+/[A-Za-z0-9]{6,}(?:/[^\\s'\"<>]*)?");
+    }
+
+    private static String nullToEmpty(String value) {
+        return value == null ? "" : value;
     }
 
     private static final class Recommendations {

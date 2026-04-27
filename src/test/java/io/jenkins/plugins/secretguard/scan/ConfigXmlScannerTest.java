@@ -93,6 +93,27 @@ class ConfigXmlScannerTest {
     }
 
     @Test
+    void detectsBasicAuthAndProviderWebhookSecretsFromConfigXml() {
+        String xml = """
+                <project>
+                  <publishers>
+                    <notificationEndpoint>https://hooks.zapier.com/hooks/catch/123456/Nr8YkL2Pm5Qx7Vd1Hs4Jt6Ua/</notificationEndpoint>
+                    <customHeaders>
+                      <header>Authorization: Basic QWxhZGRpbjpPcGVuU2VzYW1l</header>
+                    </customHeaders>
+                  </publishers>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("basic-auth-header")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("zapier-webhook-url")));
+    }
+
+    @Test
     void doesNotFlagRuntimeReferencesFromConfigXmlOrInlinePipeline() {
         String xml = """
                 <flow-definition>
