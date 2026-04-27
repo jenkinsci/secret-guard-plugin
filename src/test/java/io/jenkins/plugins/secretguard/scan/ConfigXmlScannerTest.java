@@ -93,6 +93,74 @@ class ConfigXmlScannerTest {
     }
 
     @Test
+    void detectsBasicAuthAndProviderWebhookSecretsFromConfigXml() {
+        String xml = """
+                <project>
+                  <publishers>
+                    <notificationEndpoint>https://hooks.zapier.com/hooks/catch/123456/Nr8YkL2Pm5Qx7Vd1Hs4Jt6Ua/</notificationEndpoint>
+                    <customHeaders>
+                      <header>Authorization: Basic QWxhZGRpbjpPcGVuU2VzYW1l</header>
+                    </customHeaders>
+                  </publishers>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("basic-auth-header")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("zapier-webhook-url")));
+    }
+
+    @Test
+    void detectsCommonCicdProviderTokensAndAuthContextsFromConfigXml() {
+        String xml = """
+                <project>
+                  <publishers>
+                    <slackToken>%s</slackToken>
+                    <pypiToken>%s</pypiToken>
+                    <gitlabToken>%s</gitlabToken>
+                    <npmConfig>//registry.npmjs.org/:_authToken=%s</npmConfig>
+                    <jfrogCli>jf c add build-tools --access-token %s</jfrogCli>
+                  </publishers>
+                </project>
+                """.formatted(slackBotToken(), pypiApiToken(), gitlabToken(), npmAuthToken(), jfrogAccessToken());
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("slack-bot-token")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("pypi-api-token")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("gitlab-token")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("npm-auth-token-context")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("jfrog-access-token-context")));
+    }
+
+    @Test
+    void doesNotFlagRuntimeNpmAndJfrogContextsFromConfigXml() {
+        String xml = """
+                <project>
+                  <publishers>
+                    <npmConfig>//registry.npmjs.org/:_authToken=${NPM_TOKEN}</npmConfig>
+                    <jfrogCli>jf c add build-tools --access-token ${JFROG_CLI_ACCESS_TOKEN}</jfrogCli>
+                  </publishers>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("npm-auth-token-context")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("jfrog-access-token-context")));
+    }
+
+    @Test
     void doesNotFlagRuntimeReferencesFromConfigXmlOrInlinePipeline() {
         String xml = """
                 <flow-definition>
@@ -932,6 +1000,28 @@ class ConfigXmlScannerTest {
                 .anyMatch(finding -> finding.getRuleId().equals("notifier-url-secret")));
         assertTrue(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")));
+    }
+
+    private String slackBotToken() {
+        return "xoxb-" + "123456789012" + "-" + "123456789013" + "-" + "abcdefghijklmnopqrstuvwxyz123456";
+    }
+
+    private String pypiApiToken() {
+        return "pypi-" + "AgENdGVzdC5weXBpLm9yZwIkMDAwMDAwMDA"
+                + "tMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwAA"
+                + "IzWmFrZVB5cGlUb2tlblZhbHVlMDEyMzQ1Njc4OTA";
+    }
+
+    private String gitlabToken() {
+        return "glpat-" + "abcdefghijklmnopqrstuvwxyz012345";
+    }
+
+    private String npmAuthToken() {
+        return "0123456789abcdef0123456789abcdef";
+    }
+
+    private String jfrogAccessToken() {
+        return "cmVmLXRva2VuLTAxMjM0NTY3ODlhYmNkZWY";
     }
 
     private ScanContext context(String targetType) {

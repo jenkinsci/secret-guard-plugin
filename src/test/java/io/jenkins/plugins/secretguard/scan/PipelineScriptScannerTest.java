@@ -41,6 +41,87 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void detectsBasicAuthAndProviderWebhookSecretsInPipelineScript() {
+        String script = """
+                pipeline {
+                  agent any
+                  stages {
+                    stage('Notify') {
+                      steps {
+                        sh 'curl -H "Authorization: Basic QWxhZGRpbjpPcGVuU2VzYW1l" https://example.invalid'
+                        echo '%s'
+                      }
+                    }
+                  }
+                }
+                """.formatted(slackWebhookUrl());
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("basic-auth-header")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("slack-webhook-url")));
+    }
+
+    @Test
+    void detectsCommonCicdProviderTokensAndAuthContextsInPipelineScript() {
+        String script =
+                """
+                pipeline {
+                  agent any
+                  environment {
+                    PYPI_API_TOKEN = '%s'
+                    GITLAB_TOKEN = '%s'
+                  }
+                  stages {
+                    stage('Publish') {
+                      steps {
+                        echo '%s'
+                        sh 'npm config set //registry.npmjs.org/:_authToken %s'
+                        sh 'jf c add build-tools --access-token %s'
+                      }
+                    }
+                  }
+                }
+                """.formatted(pypiApiToken(), gitlabToken(), slackBotToken(), npmAuthToken(), jfrogAccessToken());
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("slack-bot-token")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("pypi-api-token")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("gitlab-token")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("npm-auth-token-context")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("jfrog-access-token-context")));
+    }
+
+    @Test
+    void doesNotFlagRuntimeNpmAndJfrogContextsInPipelineScript() {
+        String script = """
+                pipeline {
+                  agent any
+                  stages {
+                    stage('Publish') {
+                      steps {
+                        sh 'npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"'
+                        sh 'jf c add build-tools --access-token "$JFROG_CLI_ACCESS_TOKEN"'
+                      }
+                    }
+                  }
+                }
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("npm-auth-token-context")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("jfrog-access-token-context")));
+    }
+
+    @Test
     void doesNotFlagWithCredentialsExampleAsHighRisk() {
         String script = """
                 pipeline {
@@ -639,5 +720,37 @@ class PipelineScriptScannerTest {
                 ScanPhase.BUILD,
                 EnforcementMode.BLOCK,
                 Severity.HIGH);
+    }
+
+    private String slackWebhookUrl() {
+        return "https://hooks.slack.com"
+                + "/services/"
+                + "T00000000"
+                + "/"
+                + "B00000000"
+                + "/"
+                + "Nr8YkL2Pm5Qx7Vd1Hs4Jt6Ua";
+    }
+
+    private String slackBotToken() {
+        return "xoxb-" + "123456789012" + "-" + "123456789013" + "-" + "abcdefghijklmnopqrstuvwxyz123456";
+    }
+
+    private String pypiApiToken() {
+        return "pypi-" + "AgENdGVzdC5weXBpLm9yZwIkMDAwMDAwMDA"
+                + "tMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwAA"
+                + "IzWmFrZVB5cGlUb2tlblZhbHVlMDEyMzQ1Njc4OTA";
+    }
+
+    private String gitlabToken() {
+        return "glpat-" + "abcdefghijklmnopqrstuvwxyz012345";
+    }
+
+    private String npmAuthToken() {
+        return "0123456789abcdef0123456789abcdef";
+    }
+
+    private String jfrogAccessToken() {
+        return "cmVmLXRva2VuLTAxMjM0NTY3ODlhYmNkZWY";
     }
 }
