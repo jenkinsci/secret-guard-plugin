@@ -1,0 +1,31 @@
+src/test/java/io/jenkins/plugins/secretguard/scan/PipelineScriptScannerTest.java
+  fb30c239f2dda6ba 67-123,734-754
+src/main/java/io/jenkins/plugins/secretguard/rules/BuiltInSecretRuleSet.java
+  fb30c239f2dda6ba 63-81,83-84,317-457,743-753
+src/test/java/io/jenkins/plugins/secretguard/rules/BuiltInSecretRuleSetTest.java
+  fb30c239f2dda6ba 36-65,311-335
+docs/detection-coverage.md
+  fb30c239f2dda6ba 15,18
+src/test/java/io/jenkins/plugins/secretguard/scan/ConfigXmlScannerTest.java
+  fb30c239f2dda6ba 117-162,1005-1024
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "e73568953c42198ae8ef658f30f560d7a29fae15",
+  "prompts": {
+    "fb30c239f2dda6ba": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019dce54-b182-7b63-8167-5fb92ff79be2",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui",
+      "messages": [],
+      "total_additions": 1731,
+      "total_deletions": 0,
+      "accepted_lines": 2832,
+      "overriden_lines": 0
+    }
+  }
+}
