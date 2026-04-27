@@ -33,6 +33,37 @@ class BuiltInSecretRuleSetTest {
     }
 
     @Test
+    void detectsCommonCicdProviderTokens() {
+        assertTrue(scan("slackToken", slackBotToken()).stream()
+                .anyMatch(finding -> finding.getRuleId().equals("slack-bot-token")));
+        assertTrue(scan("pypiToken", pypiApiToken()).stream()
+                .anyMatch(finding -> finding.getRuleId().equals("pypi-api-token")));
+        assertTrue(scan("gitlabToken", gitlabToken()).stream()
+                .anyMatch(finding -> finding.getRuleId().equals("gitlab-token")));
+    }
+
+    @Test
+    void detectsNpmAndJfrogSecretsFromOperationalContexts() {
+        assertTrue(scan("", npmAuthTokenConfig()).stream()
+                .anyMatch(finding -> finding.getRuleId().equals("npm-auth-token-context")));
+        assertTrue(scan("", jfrogCliCommand()).stream()
+                .anyMatch(finding -> finding.getRuleId().equals("jfrog-access-token-context")));
+        assertTrue(scan("", jfrogApiHeader()).stream()
+                .anyMatch(finding -> finding.getRuleId().equals("jfrog-access-token-context")));
+    }
+
+    @Test
+    void doesNotFlagRuntimeReferencesInNpmAndJfrogContexts() {
+        assertTrue(scan("", "//registry.npmjs.org/:_authToken=${NPM_TOKEN}").isEmpty());
+        assertTrue(scan("", "npm config set //registry.npmjs.org/:_authToken \"$NPM_TOKEN\"")
+                .isEmpty());
+        assertTrue(scan("", "JFROG_CLI_ACCESS_TOKEN = credentials('jfrog-cli-token')")
+                .isEmpty());
+        assertTrue(scan("", "jf c add example --access-token $JFROG_CLI_ACCESS_TOKEN")
+                .isEmpty());
+    }
+
+    @Test
     void detectsHighEntropyStringsButNotAsHigh() {
         List<SecretFinding> findings = scan("", "QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l");
         assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
@@ -276,5 +307,31 @@ class BuiltInSecretRuleSetTest {
                 + "B00000000"
                 + "/"
                 + "Nr8YkL2Pm5Qx7Vd1Hs4Jt6Ua";
+    }
+
+    private String slackBotToken() {
+        return "xoxb-" + "123456789012" + "-" + "123456789013" + "-" + "abcdefghijklmnopqrstuvwxyz123456";
+    }
+
+    private String pypiApiToken() {
+        return "pypi-" + "AgENdGVzdC5weXBpLm9yZwIkMDAwMDAwMDA"
+                + "tMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwAA"
+                + "IzWmFrZVB5cGlUb2tlblZhbHVlMDEyMzQ1Njc4OTA";
+    }
+
+    private String gitlabToken() {
+        return "glpat-" + "abcdefghijklmnopqrstuvwxyz012345";
+    }
+
+    private String npmAuthTokenConfig() {
+        return "//registry.npmjs.org/:_authToken=" + "0123456789abcdef0123456789abcdef";
+    }
+
+    private String jfrogCliCommand() {
+        return "jf c add build-tools --access-token " + "cmVmLXRva2VuLTAxMjM0NTY3ODlhYmNkZWY";
+    }
+
+    private String jfrogApiHeader() {
+        return "X-JFrog-Art-Api: " + "AKCpExampleJfrogApiToken0123456789";
     }
 }

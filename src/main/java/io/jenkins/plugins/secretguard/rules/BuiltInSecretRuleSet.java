@@ -60,7 +60,28 @@ public class BuiltInSecretRuleSet {
                 Pattern.compile("(?i)\\bBearer\\s+([A-Za-z0-9._~+/=-]{12,})"),
                 Recommendations.NO_COMMAND_LINE_SECRET,
                 1));
+        builtIns.add(new PatternSecretRule(
+                "slack-bot-token",
+                "Slack bot token is hardcoded",
+                Severity.HIGH,
+                Pattern.compile("\\bxoxb-[0-9]{8,}(?:-[0-9]{8,})?-[A-Za-z0-9-]{20,}\\b"),
+                Recommendations.CREDENTIALS));
+        builtIns.add(new PatternSecretRule(
+                "pypi-api-token",
+                "PyPI API token is hardcoded",
+                Severity.HIGH,
+                Pattern.compile("\\bpypi-[A-Za-z0-9_-]{60,}\\b"),
+                Recommendations.CREDENTIALS));
+        builtIns.add(new PatternSecretRule(
+                "gitlab-token",
+                "GitLab token is hardcoded",
+                Severity.HIGH,
+                Pattern.compile(
+                        "\\b(?:glpat|gloas|gldt|glrt|glrtr|glcbt|glptt|glft|glimt|glagent|glwt|glsoat|glffct)-[A-Za-z0-9_-]{20,}\\b"),
+                Recommendations.CREDENTIALS));
         builtIns.add(new BasicAuthHeaderRule());
+        builtIns.add(new NpmAuthTokenContextRule());
+        builtIns.add(new JfrogAccessTokenContextRule());
         builtIns.add(new PatternSecretRule(
                 "pem-private-key",
                 "PEM private key is hardcoded",
@@ -290,6 +311,147 @@ public class BuiltInSecretRuleSet {
             } catch (IllegalArgumentException ignored) {
                 return false;
             }
+        }
+    }
+
+    private static final class NpmAuthTokenContextRule implements SecretRule {
+        private static final Pattern ASSIGNED_AUTH_TOKEN = Pattern.compile(
+                "(?i)(?:^|\\s)(?:(?://[^\\s'\"=]+/)?:_authToken|_authToken)\\s*[=:]\\s*(['\"]?)([^\\s'\"}]+)\\1");
+        private static final Pattern CONFIG_SET_AUTH_TOKEN =
+                Pattern.compile("(?i)\\bnpm\\s+config\\s+set\\s+//[^\\s]+/:_authToken\\s+(['\"]?)([^\\s'\"\\\\]+)\\1");
+
+        @Override
+        public String getId() {
+            return "npm-auth-token-context";
+        }
+
+        @Override
+        public List<SecretFinding> scan(
+                ScanContext context, String sourceName, int lineNumber, String fieldName, String value) {
+            if (value == null || value.isBlank()) {
+                return Collections.emptyList();
+            }
+            List<SecretFinding> findings = new ArrayList<>();
+            collectContextFindings(context, sourceName, lineNumber, fieldName, value, ASSIGNED_AUTH_TOKEN, findings);
+            collectContextFindings(context, sourceName, lineNumber, fieldName, value, CONFIG_SET_AUTH_TOKEN, findings);
+            return findings;
+        }
+
+        private void collectContextFindings(
+                ScanContext context,
+                String sourceName,
+                int lineNumber,
+                String fieldName,
+                String value,
+                Pattern pattern,
+                List<SecretFinding> findings) {
+            Matcher matcher = pattern.matcher(value);
+            while (matcher.find()) {
+                String token = matcher.group(2);
+                if (shouldSkipContextLiteral(token)) {
+                    continue;
+                }
+                findings.add(finding(
+                        getId(),
+                        "npm registry auth token is hardcoded",
+                        Severity.HIGH,
+                        context,
+                        sourceName,
+                        lineNumber,
+                        fieldName.isBlank() ? "_authToken" : fieldName,
+                        token,
+                        Recommendations.CREDENTIALS));
+            }
+        }
+    }
+
+    private static final class JfrogAccessTokenContextRule implements SecretRule {
+        private static final Pattern CLI_ACCESS_TOKEN_ARGUMENT =
+                Pattern.compile("(?i)--access-token(?:=|\\s+)(['\"]?)([^\\s'\"\\\\]+)\\1");
+        private static final Pattern JFROG_CLI_ACCESS_TOKEN_ASSIGNMENT =
+                Pattern.compile("(?i)\\bJFROG_CLI_ACCESS_TOKEN\\s*[=:]\\s*(['\"]?)([^\\s'\";]+)\\1");
+        private static final Pattern JFROG_API_KEY_HEADER =
+                Pattern.compile("(?i)X-JFrog-Art-Api\\s*[:=]\\s*(['\"]?)([^\\s'\";]+)\\1");
+
+        @Override
+        public String getId() {
+            return "jfrog-access-token-context";
+        }
+
+        @Override
+        public List<SecretFinding> scan(
+                ScanContext context, String sourceName, int lineNumber, String fieldName, String value) {
+            if (value == null || value.isBlank()) {
+                return Collections.emptyList();
+            }
+            List<SecretFinding> findings = new ArrayList<>();
+            collectContextFindings(
+                    context,
+                    sourceName,
+                    lineNumber,
+                    fieldName,
+                    value,
+                    JFROG_CLI_ACCESS_TOKEN_ASSIGNMENT,
+                    findings,
+                    "JFROG_CLI_ACCESS_TOKEN");
+            collectContextFindings(
+                    context,
+                    sourceName,
+                    lineNumber,
+                    fieldName,
+                    value,
+                    JFROG_API_KEY_HEADER,
+                    findings,
+                    "X-JFrog-Art-Api");
+            if (looksLikeJfrogCommandContext(value)) {
+                collectContextFindings(
+                        context,
+                        sourceName,
+                        lineNumber,
+                        fieldName,
+                        value,
+                        CLI_ACCESS_TOKEN_ARGUMENT,
+                        findings,
+                        fieldName);
+            }
+            return findings;
+        }
+
+        private void collectContextFindings(
+                ScanContext context,
+                String sourceName,
+                int lineNumber,
+                String fieldName,
+                String value,
+                Pattern pattern,
+                List<SecretFinding> findings,
+                String fallbackFieldName) {
+            Matcher matcher = pattern.matcher(value);
+            while (matcher.find()) {
+                String token = matcher.group(2);
+                if (shouldSkipContextLiteral(token)) {
+                    continue;
+                }
+                findings.add(finding(
+                        getId(),
+                        "JFrog access token or API key is hardcoded",
+                        Severity.HIGH,
+                        context,
+                        sourceName,
+                        lineNumber,
+                        fieldName.isBlank() ? fallbackFieldName : fieldName,
+                        token,
+                        Recommendations.CREDENTIALS));
+            }
+        }
+
+        private boolean looksLikeJfrogCommandContext(String value) {
+            String lower = value.toLowerCase(Locale.ENGLISH);
+            return lower.contains("jf ")
+                    || lower.contains("jfrog ")
+                    || lower.contains("artifactory")
+                    || lower.contains("jf c ")
+                    || lower.contains("jf rt ");
         }
     }
 
@@ -576,6 +738,19 @@ public class BuiltInSecretRuleSet {
 
     private static String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private static boolean shouldSkipContextLiteral(String token) {
+        if (token == null) {
+            return true;
+        }
+        String trimmed = token.trim();
+        return trimmed.isEmpty()
+                || trimmed.length() < 8
+                || trimmed.contains("$")
+                || trimmed.contains("credentials(")
+                || NonSecretHeuristics.isRuntimeSecretReference(trimmed)
+                || NonSecretHeuristics.looksLikePlaceholderValue(trimmed);
     }
 
     private static final class Recommendations {
