@@ -48,7 +48,9 @@ public class SecretGuardJobConfigFilter implements Filter {
     }
 
     @Override
-    public void init(FilterConfig filterConfig) {}
+    public void init(FilterConfig filterConfig) {
+        // No initialization is required for this filter.
+    }
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -99,7 +101,9 @@ public class SecretGuardJobConfigFilter implements Filter {
     }
 
     @Override
-    public void destroy() {}
+    public void destroy() {
+        // No explicit teardown is required for this filter.
+    }
 
     private Snapshot captureSnapshot(RequestTarget target) throws IOException {
         Job<?, ?> existingJob = target.resolveJob();
@@ -264,12 +268,14 @@ public class SecretGuardJobConfigFilter implements Filter {
         static String fullNameFromJobPath(String path) {
             List<String> segments = new ArrayList<>();
             String[] tokens = path.split("/");
-            for (int index = 0; index < tokens.length - 1; index++) {
-                if (!"job".equals(tokens[index])) {
-                    continue;
+            int index = 0;
+            while (index < tokens.length - 1) {
+                if ("job".equals(tokens[index])) {
+                    segments.add(URLDecoder.decode(tokens[index + 1], StandardCharsets.UTF_8));
+                    index += 2;
+                } else {
+                    index++;
                 }
-                segments.add(URLDecoder.decode(tokens[index + 1], StandardCharsets.UTF_8));
-                index++;
             }
             if (segments.isEmpty()) {
                 return null;
@@ -441,6 +447,8 @@ public class SecretGuardJobConfigFilter implements Filter {
         }
 
         @Override
-        public void setWriteListener(WriteListener writeListener) {}
+        public void setWriteListener(WriteListener writeListener) {
+            // Async writes are not used by this buffering output stream.
+        }
     }
 }

@@ -1,4 +1,5 @@
 target
+.DS_Store
 
 # mvn hpi:run
 work
