@@ -13,6 +13,15 @@ import org.junit.jupiter.api.Test;
 
 class SecretGuardJobConfigFilterTest {
     @Test
+    void ignoresPathsWithoutJobSegments() throws Exception {
+        SecretGuardJobConfigFilter filter = new SecretGuardJobConfigFilter();
+
+        filter.init(null);
+        assertEquals(null, SecretGuardJobConfigFilter.RequestTarget.fullNameFromJobPath("/jenkins/manage"));
+        filter.destroy();
+    }
+
+    @Test
     void extractsNestedJobFullNameFromRequestPath() {
         String fullName = SecretGuardJobConfigFilter.RequestTarget.fullNameFromJobPath(
                 "/jenkins/job/team/job/folder/job/demo%20job/configSubmit");

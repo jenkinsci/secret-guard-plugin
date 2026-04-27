@@ -110,6 +110,33 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void ignoresHashCommentsAndBlankLines() {
+        String script = """
+                #!/usr/bin/env groovy
+
+                # a shell-style comment
+                // a groovy comment
+
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertTrue(result.getFindings().isEmpty());
+    }
+
+    @Test
+    void ignoresEmptyCustomHeadersBlocks() {
+        String script = """
+                httpRequest(
+                  url: "https://example.invalid",
+                  customHeaders:
+                )
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertTrue(result.getFindings().isEmpty());
+    }
+
+    @Test
     void detectsHardcodedHttpRequestCustomHeaderSecret() {
         String script = """
                 def sonarServer = "http://security.example.invalid/qa_auth"
