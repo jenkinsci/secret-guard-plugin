@@ -178,6 +178,33 @@ class BuiltInSecretRuleSetTest {
     }
 
     @Test
+    void detectsHardcodedDatabaseConnectionStringPasswords() {
+        assertTrue(scan(
+                        "defaultValue",
+                        "jdbc:mysql://db.example.invalid:3306/example_metadata?user=build_user&password=PlainSecret42")
+                .stream()
+                .anyMatch(finding -> finding.getRuleId().equals("mysql-connection-url")));
+        assertTrue(
+                scan("databaseUrl", "postgresql://build_user:PlainSecret42@db.example.invalid:5432/example_metadata")
+                        .stream()
+                        .anyMatch(finding -> finding.getRuleId().equals("postgres-connection-string")));
+    }
+
+    @Test
+    void doesNotFlagRuntimeReferencedDatabaseConnectionStringPasswords() {
+        assertTrue(scan(
+                        "defaultValue",
+                        "jdbc:mysql://db.example.invalid:3306/example_metadata?user=build_user&password=${DB_PASSWORD}")
+                .isEmpty());
+        assertTrue(scan("databaseUrl", "postgresql://build_user:$DB_PASSWORD@db.example.invalid:5432/example_metadata")
+                .isEmpty());
+        assertTrue(scan(
+                        "defaultValue",
+                        "jdbc:postgresql://db.example.invalid:5432/example_metadata?user=build_user&password=short")
+                .isEmpty());
+    }
+
+    @Test
     void doesNotTreatGeneratedRandomNamesAsHighEntropySecrets() {
         assertTrue(scan("randomName", "choice-parameter-108997464504044").isEmpty());
     }
@@ -200,11 +227,12 @@ class BuiltInSecretRuleSetTest {
     }
 
     @Test
-    void stillDetectsSensitiveJdbcParametersAsHighEntropySecrets() {
+    void reportsSensitiveJdbcParametersWithSpecificConnectionStringRules() {
         List<SecretFinding> findings = scan(
                 "defaultValue",
-                "jdbc:mysql://db.example.invalid:3306/example_metadata?password=QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l");
+                "jdbc:mysql://db.example.invalid:3306/example_metadata?user=build_user&password=QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l");
 
+        assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("mysql-connection-url")));
         assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
     }
 
