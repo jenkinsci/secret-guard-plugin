@@ -50,6 +50,21 @@ class BuiltInSecretRuleSetTest {
                 .anyMatch(finding -> finding.getRuleId().equals("jfrog-access-token-context")));
         assertTrue(scan("", jfrogApiHeader()).stream()
                 .anyMatch(finding -> finding.getRuleId().equals("jfrog-access-token-context")));
+        assertTrue(scan("", "curl --user build-user:PlainSecret42 https://example.invalid").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("command-user-password-argument")));
+        assertTrue(
+                scan("", "wget --user build-user --password PlainSecret42 https://example.invalid/archive.tgz").stream()
+                        .anyMatch(finding -> finding.getRuleId().equals("command-user-password-argument")));
+        assertTrue(
+                scan("", "docker login --username build-user --password PlainSecret42 registry.example.invalid")
+                        .stream()
+                        .anyMatch(finding -> finding.getRuleId().equals("command-user-password-argument")));
+        assertTrue(scan("", "sshpass -p PlainSecret42 ssh build-user@example.invalid true").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("command-user-password-argument")));
+        assertTrue(scan("", "kubectl create secret generic example-secret --from-literal=token=PlainSecret42").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("kubernetes-secret-from-literal")));
+        assertTrue(scan("", "oc create secret generic example-secret --from-literal password=PlainSecret42").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("kubernetes-secret-from-literal")));
     }
 
     @Test
@@ -60,6 +75,20 @@ class BuiltInSecretRuleSetTest {
         assertTrue(scan("", "JFROG_CLI_ACCESS_TOKEN = credentials('jfrog-cli-token')")
                 .isEmpty());
         assertTrue(scan("", "jf c add example --access-token $JFROG_CLI_ACCESS_TOKEN")
+                .isEmpty());
+        assertTrue(scan("", "curl -u \"$SERVICE_USER:$SERVICE_PASS\" https://example.invalid")
+                .isEmpty());
+        assertTrue(scan("", "wget --user \"$SERVICE_USER\" --password \"$SERVICE_PASS\" https://example.invalid")
+                .isEmpty());
+        assertTrue(scan(
+                        "",
+                        "docker login --username \"$REGISTRY_USER\" --password \"$REGISTRY_PASSWORD\" registry.example.invalid")
+                .isEmpty());
+        assertTrue(scan("", "sshpass -p \"$SSH_PASSWORD\" ssh build-user@example.invalid true")
+                .isEmpty());
+        assertTrue(scan("", "kubectl create secret generic example-secret --from-literal=token=$SERVICE_TOKEN")
+                .isEmpty());
+        assertTrue(scan("", "oc create secret generic example-secret --from-literal password=${SERVICE_PASSWORD}")
                 .isEmpty());
     }
 

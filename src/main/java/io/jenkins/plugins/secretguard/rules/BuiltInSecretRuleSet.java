@@ -82,6 +82,8 @@ public class BuiltInSecretRuleSet {
         builtIns.add(new BasicAuthHeaderRule());
         builtIns.add(new NpmAuthTokenContextRule());
         builtIns.add(new JfrogAccessTokenContextRule());
+        builtIns.add(new CommandUserPasswordContextRule());
+        builtIns.add(new KubernetesSecretLiteralContextRule());
         builtIns.add(new PatternSecretRule(
                 "pem-private-key",
                 "PEM private key is hardcoded",
@@ -452,6 +454,138 @@ public class BuiltInSecretRuleSet {
                     || lower.contains("artifactory")
                     || lower.contains("jf c ")
                     || lower.contains("jf rt ");
+        }
+    }
+
+    private static final class CommandUserPasswordContextRule implements SecretRule {
+        private static final Pattern CURL_USER_ARGUMENT =
+                Pattern.compile("(?i)\\bcurl\\b[^\\r\\n]*?(?:\\s-u|\\s--user)(?:=|\\s+)(['\"]?)([^\\s'\"\\\\]+)\\1");
+        private static final Pattern DOCKER_PASSWORD_ARGUMENT = Pattern.compile(
+                "(?i)\\bdocker\\b[^\\r\\n]*?\\blogin\\b[^\\r\\n]*?(?:\\s-p|\\s--password)(?:=|\\s+)(['\"]?)([^\\s'\"\\\\]+)\\1");
+        private static final Pattern SSHPASS_PASSWORD_ARGUMENT =
+                Pattern.compile("(?i)\\bsshpass\\b[^\\r\\n]*?\\s-p(?:\\s+)?(['\"]?)([^\\s'\"\\\\]+)\\1");
+        private static final Pattern WGET_PASSWORD_ARGUMENT =
+                Pattern.compile("(?i)\\bwget\\b[^\\r\\n]*?\\s--password(?:=|\\s+)(['\"]?)([^\\s'\"\\\\]+)\\1");
+
+        @Override
+        public String getId() {
+            return "command-user-password-argument";
+        }
+
+        @Override
+        public List<SecretFinding> scan(
+                ScanContext context, String sourceName, int lineNumber, String fieldName, String value) {
+            if (value == null || value.isBlank()) {
+                return Collections.emptyList();
+            }
+            List<SecretFinding> findings = new ArrayList<>();
+            collectCurlFindings(context, sourceName, lineNumber, fieldName, value, findings);
+            collectContextFindings(
+                    context,
+                    sourceName,
+                    lineNumber,
+                    fieldName,
+                    value,
+                    DOCKER_PASSWORD_ARGUMENT,
+                    findings,
+                    "--password");
+            collectContextFindings(
+                    context, sourceName, lineNumber, fieldName, value, SSHPASS_PASSWORD_ARGUMENT, findings, "-p");
+            collectContextFindings(
+                    context, sourceName, lineNumber, fieldName, value, WGET_PASSWORD_ARGUMENT, findings, "--password");
+            return findings;
+        }
+
+        private void collectCurlFindings(
+                ScanContext context,
+                String sourceName,
+                int lineNumber,
+                String fieldName,
+                String value,
+                List<SecretFinding> findings) {
+            Matcher matcher = CURL_USER_ARGUMENT.matcher(value);
+            while (matcher.find()) {
+                String token = matcher.group(2);
+                if (shouldSkipContextLiteral(token) || !token.contains(":")) {
+                    continue;
+                }
+                findings.add(finding(
+                        getId(),
+                        "Command line basic authentication credential is hardcoded",
+                        Severity.HIGH,
+                        context,
+                        sourceName,
+                        lineNumber,
+                        fieldName.isBlank() ? "--user" : fieldName,
+                        token,
+                        Recommendations.NO_COMMAND_LINE_SECRET));
+            }
+        }
+
+        private void collectContextFindings(
+                ScanContext context,
+                String sourceName,
+                int lineNumber,
+                String fieldName,
+                String value,
+                Pattern pattern,
+                List<SecretFinding> findings,
+                String fallbackFieldName) {
+            Matcher matcher = pattern.matcher(value);
+            while (matcher.find()) {
+                String token = matcher.group(2);
+                if (shouldSkipContextLiteral(token)) {
+                    continue;
+                }
+                findings.add(finding(
+                        getId(),
+                        "Command line password argument is hardcoded",
+                        Severity.HIGH,
+                        context,
+                        sourceName,
+                        lineNumber,
+                        fieldName.isBlank() ? fallbackFieldName : fieldName,
+                        token,
+                        Recommendations.NO_COMMAND_LINE_SECRET));
+            }
+        }
+    }
+
+    private static final class KubernetesSecretLiteralContextRule implements SecretRule {
+        private static final Pattern SECRET_FROM_LITERAL = Pattern.compile(
+                "(?i)\\b(?:kubectl|oc)\\b[^\\r\\n]*?\\bcreate\\s+secret\\b[^\\r\\n]*?--from-literal(?:=|\\s+)([A-Za-z0-9_.-]+)=(['\"]?)([^\\s'\"\\\\]+)\\2");
+
+        @Override
+        public String getId() {
+            return "kubernetes-secret-from-literal";
+        }
+
+        @Override
+        public List<SecretFinding> scan(
+                ScanContext context, String sourceName, int lineNumber, String fieldName, String value) {
+            if (value == null || value.isBlank()) {
+                return Collections.emptyList();
+            }
+            Matcher matcher = SECRET_FROM_LITERAL.matcher(value);
+            List<SecretFinding> findings = new ArrayList<>();
+            while (matcher.find()) {
+                String literalFieldName = matcher.group(1);
+                String token = matcher.group(3);
+                if (shouldSkipContextLiteral(token)) {
+                    continue;
+                }
+                findings.add(finding(
+                        getId(),
+                        "Kubernetes secret literal is hardcoded on the command line",
+                        Severity.HIGH,
+                        context,
+                        sourceName,
+                        lineNumber,
+                        literalFieldName,
+                        token,
+                        Recommendations.NO_COMMAND_LINE_SECRET));
+            }
+            return findings;
         }
     }
 
