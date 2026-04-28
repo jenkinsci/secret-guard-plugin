@@ -22,6 +22,8 @@ public class SecretScanService {
             "bearer-token",
             "pem-private-key",
             "url-embedded-secret",
+            "mysql-connection-url",
+            "postgres-connection-string",
             "url-query-secret",
             "http-request-hardcoded-header-secret",
             "http-request-unmasked-header-secret");

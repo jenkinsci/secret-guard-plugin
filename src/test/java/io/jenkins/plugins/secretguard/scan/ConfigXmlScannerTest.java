@@ -919,6 +919,29 @@ password = ${TWINE_PASSWORD}
     }
 
     @Test
+    void detectsHardcodedJdbcDefaultValuePasswords() {
+        String xml = """
+                <project>
+                  <properties>
+                    <hudson.model.ParametersDefinitionProperty>
+                      <parameterDefinitions>
+                        <hudson.model.StringParameterDefinition>
+                          <name>EXAMPLE_DATABASE_URL</name>
+                          <defaultValue>jdbc:postgresql://db.example.invalid:5432/example_metadata?user=build_user&amp;password=PlainSecret42</defaultValue>
+                        </hudson.model.StringParameterDefinition>
+                      </parameterDefinitions>
+                    </hudson.model.ParametersDefinitionProperty>
+                  </properties>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("postgres-connection-string")));
+    }
+
+    @Test
     void doesNotFlagGeneratedParameterRandomNamesAsHighEntropySecrets() {
         String xml = """
                 <project>
