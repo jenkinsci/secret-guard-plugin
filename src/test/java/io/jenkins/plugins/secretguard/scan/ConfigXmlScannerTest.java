@@ -249,6 +249,30 @@ password = ${TWINE_PASSWORD}
     }
 
     @Test
+    void detectsPassphraseFieldsWithoutFlaggingVariableDeclarationsFromConfigXml() {
+        String xml = """
+                <project>
+                  <publishers>
+                    <somePublisher>
+                      <deployPassphrase>PlainSecret42</deployPassphrase>
+                      <passphraseVariable>SSH_PASSPHRASE</passphraseVariable>
+                      <privateKeyPassphraseVariable>DEPLOY_KEY_PASSPHRASE</privateKeyPassphraseVariable>
+                    </somePublisher>
+                  </publishers>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+        assertFalse(
+                result.getFindings().stream().anyMatch(finding -> "passphraseVariable".equals(finding.getFieldName())));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> "privateKeyPassphraseVariable".equals(finding.getFieldName())));
+    }
+
+    @Test
     void downgradesPlaceholderValuesFromConfigXml() {
         String xml = """
                 <project>

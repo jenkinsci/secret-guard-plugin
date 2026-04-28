@@ -61,6 +61,17 @@ class NonSecretHeuristicsTest {
     }
 
     @Test
+    void detectsCredentialBindingVariableReferencesWithoutHidingPlaintextValues() {
+        assertTrue(NonSecretHeuristics.looksLikeCredentialBindingVariableReference(
+                "passphraseVariable", "SSH_PASSPHRASE"));
+        assertTrue(NonSecretHeuristics.looksLikeCredentialBindingVariableReference(
+                "privateKeyPassphraseVariable", "DEPLOY_KEY_PASSPHRASE"));
+        assertFalse(
+                NonSecretHeuristics.looksLikeCredentialBindingVariableReference("passphraseVariable", "PlainSecret42"));
+        assertFalse(NonSecretHeuristics.looksLikeCredentialBindingVariableReference("passphrase", "SSH_PASSPHRASE"));
+    }
+
+    @Test
     void detectsNonSecretUrlsWithoutHidingUrlSecrets() {
         assertTrue(NonSecretHeuristics.looksLikeNonSecretUrl(
                 "Example: http://jenkins.example.invalid:8080/job/example-service/job/build-test/80",
