@@ -81,8 +81,11 @@ public class BuiltInSecretRuleSet {
                 Recommendations.CREDENTIALS));
         builtIns.add(new BasicAuthHeaderRule());
         builtIns.add(new NpmAuthTokenContextRule());
+        builtIns.add(new NpmLegacyAuthContextRule());
         builtIns.add(new JfrogAccessTokenContextRule());
         builtIns.add(new CommandUserPasswordContextRule());
+        builtIns.add(new DockerPasswordStdinContextRule());
+        builtIns.add(new PyPiPasswordContextRule());
         builtIns.add(new KubernetesSecretLiteralContextRule());
         builtIns.add(new PatternSecretRule(
                 "pem-private-key",
@@ -457,6 +460,67 @@ public class BuiltInSecretRuleSet {
         }
     }
 
+    private static final class NpmLegacyAuthContextRule implements SecretRule {
+        private static final Pattern ASSIGNED_AUTH =
+                Pattern.compile("(?i)(?:^|\\s)(?:(?://[^\\s'\"=]+/)?:_auth|_auth)\\s*[=:]\\s*(['\"]?)([^\\s'\"}]+)\\1");
+        private static final Pattern ASSIGNED_PASSWORD = Pattern.compile(
+                "(?i)(?:^|\\s)(?:(?://[^\\s'\"=]+/)?:_password|_password)\\s*[=:]\\s*(['\"]?)([^\\s'\"}]+)\\1");
+        private static final Pattern CONFIG_SET_AUTH =
+                Pattern.compile("(?i)\\bnpm\\s+config\\s+set\\s+(?://[^\\s]+/:)?_auth\\s+(['\"]?)([^\\s'\"\\\\]+)\\1");
+        private static final Pattern CONFIG_SET_PASSWORD = Pattern.compile(
+                "(?i)\\bnpm\\s+config\\s+set\\s+(?://[^\\s]+/:)?_password\\s+(['\"]?)([^\\s'\"\\\\]+)\\1");
+
+        @Override
+        public String getId() {
+            return "npm-legacy-auth-context";
+        }
+
+        @Override
+        public List<SecretFinding> scan(
+                ScanContext context, String sourceName, int lineNumber, String fieldName, String value) {
+            if (value == null || value.isBlank()) {
+                return Collections.emptyList();
+            }
+            List<SecretFinding> findings = new ArrayList<>();
+            collectContextFindings(context, sourceName, lineNumber, fieldName, value, ASSIGNED_AUTH, findings, "_auth");
+            collectContextFindings(
+                    context, sourceName, lineNumber, fieldName, value, ASSIGNED_PASSWORD, findings, "_password");
+            collectContextFindings(
+                    context, sourceName, lineNumber, fieldName, value, CONFIG_SET_AUTH, findings, "_auth");
+            collectContextFindings(
+                    context, sourceName, lineNumber, fieldName, value, CONFIG_SET_PASSWORD, findings, "_password");
+            return findings;
+        }
+
+        private void collectContextFindings(
+                ScanContext context,
+                String sourceName,
+                int lineNumber,
+                String fieldName,
+                String value,
+                Pattern pattern,
+                List<SecretFinding> findings,
+                String fallbackFieldName) {
+            Matcher matcher = pattern.matcher(value);
+            while (matcher.find()) {
+                String token = matcher.group(2);
+                if (shouldSkipContextLiteral(token)) {
+                    continue;
+                }
+                findings.add(finding(
+                        getId(),
+                        "npm legacy auth credential is hardcoded",
+                        Severity.HIGH,
+                        context,
+                        sourceName,
+                        lineNumber,
+                        fieldName.isBlank() ? fallbackFieldName : fieldName,
+                        token,
+                        Recommendations.CREDENTIALS));
+            }
+        }
+    }
+
     private static final class CommandUserPasswordContextRule implements SecretRule {
         private static final Pattern CURL_USER_ARGUMENT =
                 Pattern.compile("(?i)\\bcurl\\b[^\\r\\n]*?(?:\\s-u|\\s--user)(?:=|\\s+)(['\"]?)([^\\s'\"\\\\]+)\\1");
@@ -548,6 +612,120 @@ public class BuiltInSecretRuleSet {
                         token,
                         Recommendations.NO_COMMAND_LINE_SECRET));
             }
+        }
+    }
+
+    private static final class DockerPasswordStdinContextRule implements SecretRule {
+        private static final Pattern ECHO_PASSWORD_STDIN = Pattern.compile(
+                "(?i)\\becho\\b\\s+(['\"]?)([^\\s'\"\\\\|]+)\\1\\s*\\|\\s*docker\\b[^\\r\\n]*?\\blogin\\b[^\\r\\n]*?\\s--password-stdin(?:\\s|$)");
+
+        @Override
+        public String getId() {
+            return "docker-password-stdin-secret";
+        }
+
+        @Override
+        public List<SecretFinding> scan(
+                ScanContext context, String sourceName, int lineNumber, String fieldName, String value) {
+            if (value == null || value.isBlank()) {
+                return Collections.emptyList();
+            }
+            Matcher matcher = ECHO_PASSWORD_STDIN.matcher(value);
+            List<SecretFinding> findings = new ArrayList<>();
+            while (matcher.find()) {
+                String token = matcher.group(2);
+                if (shouldSkipContextLiteral(token)) {
+                    continue;
+                }
+                findings.add(finding(
+                        getId(),
+                        "docker login password-stdin secret is hardcoded",
+                        Severity.HIGH,
+                        context,
+                        sourceName,
+                        lineNumber,
+                        fieldName.isBlank() ? "--password-stdin" : fieldName,
+                        token,
+                        Recommendations.NO_COMMAND_LINE_SECRET));
+            }
+            return findings;
+        }
+    }
+
+    private static final class PyPiPasswordContextRule implements SecretRule {
+        private static final Pattern TWINE_PASSWORD_ASSIGNMENT =
+                Pattern.compile("(?i)\\bTWINE_PASSWORD\\s*[=:]\\s*(['\"]?)([^\\s'\";]+)\\1");
+        private static final Pattern TWINE_PASSWORD_ARGUMENT = Pattern.compile(
+                "(?i)\\btwine\\s+upload\\b[^\\r\\n]*?(?:\\s-p|\\s--password)(?:=|\\s+)(['\"]?)([^\\s'\"\\\\]+)\\1");
+        private static final Pattern PYPIRC_PASSWORD_LINE =
+                Pattern.compile("(?im)^\\s*password\\s*=\\s*(['\"]?)([^\\s'\"#;]+)\\1");
+
+        @Override
+        public String getId() {
+            return "pypi-password-context";
+        }
+
+        @Override
+        public List<SecretFinding> scan(
+                ScanContext context, String sourceName, int lineNumber, String fieldName, String value) {
+            if (value == null || value.isBlank()) {
+                return Collections.emptyList();
+            }
+            List<SecretFinding> findings = new ArrayList<>();
+            collectContextFindings(
+                    context,
+                    sourceName,
+                    lineNumber,
+                    fieldName,
+                    value,
+                    TWINE_PASSWORD_ASSIGNMENT,
+                    findings,
+                    "TWINE_PASSWORD");
+            collectContextFindings(
+                    context, sourceName, lineNumber, fieldName, value, TWINE_PASSWORD_ARGUMENT, findings, "--password");
+            if (looksLikePypircContext(fieldName, value)) {
+                collectContextFindings(
+                        context, sourceName, lineNumber, fieldName, value, PYPIRC_PASSWORD_LINE, findings, "password");
+            }
+            return findings;
+        }
+
+        private void collectContextFindings(
+                ScanContext context,
+                String sourceName,
+                int lineNumber,
+                String fieldName,
+                String value,
+                Pattern pattern,
+                List<SecretFinding> findings,
+                String fallbackFieldName) {
+            Matcher matcher = pattern.matcher(value);
+            while (matcher.find()) {
+                String token = matcher.group(2);
+                if (shouldSkipContextLiteral(token)) {
+                    continue;
+                }
+                findings.add(finding(
+                        getId(),
+                        "PyPI or Twine password is hardcoded",
+                        Severity.HIGH,
+                        context,
+                        sourceName,
+                        lineNumber,
+                        fieldName.isBlank() ? fallbackFieldName : fieldName,
+                        token,
+                        Recommendations.CREDENTIALS));
+            }
+        }
+
+        private boolean looksLikePypircContext(String fieldName, String value) {
+            String lowerFieldName = nullToEmpty(fieldName).toLowerCase(Locale.ENGLISH);
+            String lowerValue = nullToEmpty(value).toLowerCase(Locale.ENGLISH);
+            return lowerFieldName.contains("pypirc")
+                    || lowerValue.contains("[distutils]")
+                    || lowerValue.contains("index-servers")
+                    || lowerValue.contains("[pypi]")
+                    || lowerValue.contains("repository:");
         }
     }
 
