@@ -216,6 +216,18 @@ class BuiltInSecretRuleSetTest {
     }
 
     @Test
+    void detectsPassphraseFieldsWithoutFlaggingBindingVariableNames() {
+        assertTrue(scan("passphrase", "PlainSecret42").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+        assertTrue(scan("privateKeyPassphrase", "AnotherSecret42").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+        assertTrue(scan("keyPassphrase", "ThirdSecret42").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+        assertTrue(scan("passphraseVariable", "SSH_PASSPHRASE").isEmpty());
+        assertTrue(scan("privateKeyPassphraseVariable", "DEPLOY_KEY_PASSPHRASE").isEmpty());
+    }
+
+    @Test
     void downgradesSensitivePlaceholderValues() {
         List<SecretFinding> findings = scan("serviceApiToken", "__REDACTED__");
 

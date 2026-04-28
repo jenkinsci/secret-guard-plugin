@@ -19,8 +19,8 @@ import java.util.regex.Pattern;
 
 public class BuiltInSecretRuleSet {
     private static final Logger LOGGER = Logger.getLogger(BuiltInSecretRuleSet.class.getName());
-    private static final Pattern SENSITIVE_FIELD =
-            Pattern.compile("(?i)(token|password|secret|api[_-]?key|apikey|access[_-]?key|accessKey|clientSecret)");
+    private static final Pattern SENSITIVE_FIELD = Pattern.compile(
+            "(?i)(token|password|passphrase|secret|api[_-]?key|apikey|access[_-]?key|accessKey|clientSecret)");
 
     private final List<SecretRule> rules;
 
@@ -182,6 +182,9 @@ public class BuiltInSecretRuleSet {
         public List<SecretFinding> scan(
                 ScanContext context, String sourceName, int lineNumber, String fieldName, String value) {
             if (!isSensitiveField(fieldName) || NonSecretHeuristics.isCredentialIdField(fieldName)) {
+                return Collections.emptyList();
+            }
+            if (NonSecretHeuristics.looksLikeCredentialBindingVariableReference(fieldName, value)) {
                 return Collections.emptyList();
             }
             if (NonSecretHeuristics.looksLikeSensitiveFileReference(fieldName, value)) {

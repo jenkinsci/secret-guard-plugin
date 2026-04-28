@@ -102,7 +102,7 @@ This model keeps scanners, listeners, and UI layers loosely coupled.
 
 Built-in rules cover:
 
-- sensitive field names such as `token`, `password`, `secret`, `apikey`, `accessKey`, `clientSecret`
+- sensitive field names such as `token`, `password`, `passphrase`, `secret`, `apikey`, `accessKey`, `clientSecret`
 - JWTs
 - GitHub tokens
 - AWS access keys and common secret key patterns

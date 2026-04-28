@@ -33,6 +33,7 @@ public final class NonSecretHeuristics {
     private static final Pattern NETWORK_URL = Pattern.compile("(?i)\\b(?:https?|ftp|sftp)://[^\\s'\"<>]+");
     private static final Pattern SENSITIVE_URL_NAME = Pattern.compile(
             "(?i).*(password|passwd|pwd|token|secret|api[_-]?key|apikey|access[_-]?key|accesskey|client[_-]?secret|credential|auth|webhook|signature|sig).*");
+    private static final Pattern UPPER_SNAKE_IDENTIFIER = Pattern.compile("[A-Z][A-Z0-9_]{2,}");
 
     private NonSecretHeuristics() {}
 
@@ -154,6 +155,18 @@ public final class NonSecretHeuristics {
     public static boolean isCredentialIdField(String fieldName) {
         String normalized = normalize(fieldName);
         return normalized.contains("credentialid") || normalized.contains("credentialsid");
+    }
+
+    public static boolean looksLikeCredentialBindingVariableReference(String fieldName, String value) {
+        String normalizedFieldName = normalize(fieldName);
+        if (!normalizedFieldName.contains("variable")) {
+            return false;
+        }
+        String trimmed = nullToEmpty(value).trim();
+        if (trimmed.isEmpty() || isRuntimeSecretReference(trimmed) || looksLikePlaceholderValue(trimmed)) {
+            return false;
+        }
+        return UPPER_SNAKE_IDENTIFIER.matcher(trimmed).matches();
     }
 
     public static boolean isHashOrDigestContext(String fieldName, String value) {

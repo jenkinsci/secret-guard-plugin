@@ -205,6 +205,31 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void detectsPassphraseEnvironmentValues() {
+        String script = """
+                pipeline {
+                  agent any
+                  environment {
+                    DEPLOY_KEY_PASSPHRASE = 'PlainSecret42'
+                  }
+                  stages {
+                    stage('noop') {
+                      steps {
+                        echo 'deploy'
+                      }
+                    }
+                  }
+                }
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getLocationType() == FindingLocationType.ENVIRONMENT));
+    }
+
+    @Test
     void doesNotFlagSensitiveEnvironmentFileReferences() {
         String script = """
                 pipeline {
