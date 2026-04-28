@@ -1,0 +1,29 @@
+src/main/java/io/jenkins/plugins/secretguard/rules/BuiltInSecretRuleSet.java
+  3a402de836c95f89 85-86,460-588
+src/test/java/io/jenkins/plugins/secretguard/scan/PipelineScriptScannerTest.java
+  3a402de836c95f89 82-86,104-107,120-124,136-139
+src/test/java/io/jenkins/plugins/secretguard/rules/BuiltInSecretRuleSetTest.java
+  3a402de836c95f89 53-67,79-91
+docs/detection-coverage.md
+  3a402de836c95f89 19-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "76313cb3909d79fbeafa592901e08850ebd1856d",
+  "prompts": {
+    "3a402de836c95f89": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019dce46-4449-72f3-94f5-e3c6b4155e82",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui",
+      "messages": [],
+      "total_additions": 4033,
+      "total_deletions": 0,
+      "accepted_lines": 4033,
+      "overriden_lines": 0
+    }
+  }
+}
