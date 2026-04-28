@@ -46,10 +46,27 @@ class BuiltInSecretRuleSetTest {
     void detectsNpmAndJfrogSecretsFromOperationalContexts() {
         assertTrue(scan("", npmAuthTokenConfig()).stream()
                 .anyMatch(finding -> finding.getRuleId().equals("npm-auth-token-context")));
+        assertTrue(scan("", "//registry.npmjs.org/:_auth=QWxhZGRpbjpPcGVuU2VzYW1l").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("npm-legacy-auth-context")));
+        assertTrue(scan("", "npm config set _password QWxhZGRpbjpPcGVuU2VzYW1l").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("npm-legacy-auth-context")));
         assertTrue(scan("", jfrogCliCommand()).stream()
                 .anyMatch(finding -> finding.getRuleId().equals("jfrog-access-token-context")));
         assertTrue(scan("", jfrogApiHeader()).stream()
                 .anyMatch(finding -> finding.getRuleId().equals("jfrog-access-token-context")));
+        assertTrue(scan("", "TWINE_PASSWORD=PlainSecret42").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("pypi-password-context")));
+        assertTrue(scan("", "twine upload -u build-user -p PlainSecret42 dist/*").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("pypi-password-context")));
+        assertTrue(scan("pypirc", """
+                        [distutils]
+                        index-servers = pypi
+
+                        [pypi]
+                        username = build-user
+                        password = PlainSecret42
+                        """).stream()
+                .anyMatch(finding -> finding.getRuleId().equals("pypi-password-context")));
         assertTrue(scan("", "curl --user build-user:PlainSecret42 https://example.invalid").stream()
                 .anyMatch(finding -> finding.getRuleId().equals("command-user-password-argument")));
         assertTrue(
@@ -59,6 +76,11 @@ class BuiltInSecretRuleSetTest {
                 scan("", "docker login --username build-user --password PlainSecret42 registry.example.invalid")
                         .stream()
                         .anyMatch(finding -> finding.getRuleId().equals("command-user-password-argument")));
+        assertTrue(scan(
+                        "",
+                        "echo PlainSecret42 | docker login --username build-user --password-stdin registry.example.invalid")
+                .stream()
+                .anyMatch(finding -> finding.getRuleId().equals("docker-password-stdin-secret")));
         assertTrue(scan("", "sshpass -p PlainSecret42 ssh build-user@example.invalid true").stream()
                 .anyMatch(finding -> finding.getRuleId().equals("command-user-password-argument")));
         assertTrue(scan("", "kubectl create secret generic example-secret --from-literal=token=PlainSecret42").stream()
@@ -70,12 +92,25 @@ class BuiltInSecretRuleSetTest {
     @Test
     void doesNotFlagRuntimeReferencesInNpmAndJfrogContexts() {
         assertTrue(scan("", "//registry.npmjs.org/:_authToken=${NPM_TOKEN}").isEmpty());
+        assertTrue(scan("", "_auth=${NPM_BASIC_AUTH}").isEmpty());
+        assertTrue(scan("", "npm config set _password \"$NPM_PASSWORD\"").isEmpty());
         assertTrue(scan("", "npm config set //registry.npmjs.org/:_authToken \"$NPM_TOKEN\"")
                 .isEmpty());
         assertTrue(scan("", "JFROG_CLI_ACCESS_TOKEN = credentials('jfrog-cli-token')")
                 .isEmpty());
         assertTrue(scan("", "jf c add example --access-token $JFROG_CLI_ACCESS_TOKEN")
                 .isEmpty());
+        assertTrue(scan("", "TWINE_PASSWORD=${TWINE_PASSWORD}").isEmpty());
+        assertTrue(scan("", "twine upload -u build-user -p \"$TWINE_PASSWORD\" dist/*")
+                .isEmpty());
+        assertTrue(scan("pypirc", """
+                        [distutils]
+                        index-servers = pypi
+
+                        [pypi]
+                        username = build-user
+                        password = ${TWINE_PASSWORD}
+                        """).isEmpty());
         assertTrue(scan("", "curl -u \"$SERVICE_USER:$SERVICE_PASS\" https://example.invalid")
                 .isEmpty());
         assertTrue(scan("", "wget --user \"$SERVICE_USER\" --password \"$SERVICE_PASS\" https://example.invalid")
@@ -83,6 +118,10 @@ class BuiltInSecretRuleSetTest {
         assertTrue(scan(
                         "",
                         "docker login --username \"$REGISTRY_USER\" --password \"$REGISTRY_PASSWORD\" registry.example.invalid")
+                .isEmpty());
+        assertTrue(scan(
+                        "",
+                        "echo \"$REGISTRY_PASSWORD\" | docker login --username build-user --password-stdin registry.example.invalid")
                 .isEmpty());
         assertTrue(scan("", "sshpass -p \"$SSH_PASSWORD\" ssh build-user@example.invalid true")
                 .isEmpty());

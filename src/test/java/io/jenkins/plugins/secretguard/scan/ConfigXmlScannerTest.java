@@ -122,7 +122,18 @@ class ConfigXmlScannerTest {
                     <pypiToken>%s</pypiToken>
                     <gitlabToken>%s</gitlabToken>
                     <npmConfig>//registry.npmjs.org/:_authToken=%s</npmConfig>
+                    <npmLegacyAuth>//registry.npmjs.org/:_auth=QWxhZGRpbjpPcGVuU2VzYW1l</npmLegacyAuth>
+                    <npmLegacyPassword>npm config set _password QWxhZGRpbjpPcGVuU2VzYW1l</npmLegacyPassword>
                     <jfrogCli>jf c add build-tools --access-token %s</jfrogCli>
+                    <twineCommand>TWINE_PASSWORD=PlainSecret42 twine upload -u build-user -p PlainSecret42 dist/*</twineCommand>
+                    <pypirc>[distutils]
+index-servers = pypi
+
+[pypi]
+username = build-user
+password = PlainSecret42
+                    </pypirc>
+                    <dockerCommand>echo PlainSecret42 | docker login --username build-user --password-stdin registry.example.invalid</dockerCommand>
                   </publishers>
                 </project>
                 """.formatted(slackBotToken(), pypiApiToken(), gitlabToken(), npmAuthToken(), jfrogAccessToken());
@@ -138,7 +149,13 @@ class ConfigXmlScannerTest {
         assertTrue(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("npm-auth-token-context")));
         assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("npm-legacy-auth-context")));
+        assertTrue(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("jfrog-access-token-context")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("pypi-password-context")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("docker-password-stdin-secret")));
     }
 
     @Test
@@ -147,7 +164,18 @@ class ConfigXmlScannerTest {
                 <project>
                   <publishers>
                     <npmConfig>//registry.npmjs.org/:_authToken=${NPM_TOKEN}</npmConfig>
+                    <npmLegacyAuth>//registry.npmjs.org/:_auth=${NPM_BASIC_AUTH}</npmLegacyAuth>
+                    <npmLegacyPassword>npm config set _password ${NPM_PASSWORD}</npmLegacyPassword>
                     <jfrogCli>jf c add build-tools --access-token ${JFROG_CLI_ACCESS_TOKEN}</jfrogCli>
+                    <twineCommand>TWINE_PASSWORD=${TWINE_PASSWORD} twine upload -u build-user -p ${TWINE_PASSWORD} dist/*</twineCommand>
+                    <pypirc>[distutils]
+index-servers = pypi
+
+[pypi]
+username = build-user
+password = ${TWINE_PASSWORD}
+                    </pypirc>
+                    <dockerCommand>echo ${REGISTRY_PASSWORD} | docker login --username build-user --password-stdin registry.example.invalid</dockerCommand>
                   </publishers>
                 </project>
                 """;
@@ -157,7 +185,13 @@ class ConfigXmlScannerTest {
         assertFalse(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("npm-auth-token-context")));
         assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("npm-legacy-auth-context")));
+        assertFalse(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("jfrog-access-token-context")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("pypi-password-context")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("docker-password-stdin-secret")));
     }
 
     @Test

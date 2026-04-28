@@ -78,10 +78,14 @@ class PipelineScriptScannerTest {
                       steps {
                         echo '%s'
                         sh 'npm config set //registry.npmjs.org/:_authToken %s'
+                        sh 'npm config set _auth QWxhZGRpbjpPcGVuU2VzYW1l'
+                        sh 'npm config set _password QWxhZGRpbjpPcGVuU2VzYW1l'
                         sh 'jf c add build-tools --access-token %s'
+                        sh 'TWINE_PASSWORD=PlainSecret42 twine upload -u build-user -p PlainSecret42 dist/*'
                         sh 'curl --user build-user:PlainSecret42 https://example.invalid/runtime/check'
                         sh 'wget --user build-user --password PlainSecret42 https://example.invalid/archive.tgz'
                         sh 'docker login --username build-user --password PlainSecret42 registry.example.invalid'
+                        sh 'echo PlainSecret42 | docker login --username build-user --password-stdin registry.example.invalid'
                         sh 'sshpass -p PlainSecret42 ssh build-user@example.invalid true'
                         sh 'kubectl create secret generic example-secret --from-literal=token=PlainSecret42'
                       }
@@ -100,9 +104,15 @@ class PipelineScriptScannerTest {
         assertTrue(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("npm-auth-token-context")));
         assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("npm-legacy-auth-context")));
+        assertTrue(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("jfrog-access-token-context")));
         assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("pypi-password-context")));
+        assertTrue(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("command-user-password-argument")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("docker-password-stdin-secret")));
         assertTrue(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("kubernetes-secret-from-literal")));
     }
@@ -116,10 +126,14 @@ class PipelineScriptScannerTest {
                     stage('Publish') {
                       steps {
                         sh 'npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"'
+                        sh 'npm config set _auth "$NPM_BASIC_AUTH"'
+                        sh 'npm config set _password "$NPM_PASSWORD"'
                         sh 'jf c add build-tools --access-token "$JFROG_CLI_ACCESS_TOKEN"'
+                        sh 'TWINE_PASSWORD="$TWINE_PASSWORD" twine upload -u build-user -p "$TWINE_PASSWORD" dist/*'
                         sh 'curl -u "$SERVICE_USER:$SERVICE_PASS" https://example.invalid/runtime/check'
                         sh 'wget --user "$SERVICE_USER" --password "$SERVICE_PASS" https://example.invalid/archive.tgz'
                         sh 'docker login --username "$REGISTRY_USER" --password "$REGISTRY_PASSWORD" registry.example.invalid'
+                        sh 'echo "$REGISTRY_PASSWORD" | docker login --username build-user --password-stdin registry.example.invalid'
                         sh 'sshpass -p "$SSH_PASSWORD" ssh build-user@example.invalid true'
                         sh 'kubectl create secret generic example-secret --from-literal=token=$SERVICE_TOKEN'
                       }
@@ -132,9 +146,15 @@ class PipelineScriptScannerTest {
         assertFalse(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("npm-auth-token-context")));
         assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("npm-legacy-auth-context")));
+        assertFalse(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("jfrog-access-token-context")));
         assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("pypi-password-context")));
+        assertFalse(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("command-user-password-argument")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("docker-password-stdin-secret")));
         assertFalse(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("kubernetes-secret-from-literal")));
     }
