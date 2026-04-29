@@ -16,6 +16,7 @@ public class SecretFinding {
     private final String analysisNote;
     private final boolean exempted;
     private final String exemptionReason;
+    private final transient String evidenceKey;
 
     public SecretFinding(
             String ruleId,
@@ -41,6 +42,7 @@ public class SecretFinding {
                 recommendation,
                 "",
                 false,
+                "",
                 "");
     }
 
@@ -69,6 +71,7 @@ public class SecretFinding {
                 recommendation,
                 analysisNote,
                 false,
+                "",
                 "");
     }
 
@@ -85,7 +88,8 @@ public class SecretFinding {
             String recommendation,
             String analysisNote,
             boolean exempted,
-            String exemptionReason) {
+            String exemptionReason,
+            String evidenceKey) {
         this.ruleId = Objects.requireNonNull(ruleId);
         this.title = Objects.requireNonNull(title);
         this.severity = Objects.requireNonNull(severity);
@@ -99,6 +103,7 @@ public class SecretFinding {
         this.analysisNote = nullToEmpty(analysisNote);
         this.exempted = exempted;
         this.exemptionReason = nullToEmpty(exemptionReason);
+        this.evidenceKey = nullToEmpty(evidenceKey);
     }
 
     public SecretFinding withExemption(String reason) {
@@ -115,7 +120,8 @@ public class SecretFinding {
                 recommendation,
                 analysisNote,
                 true,
-                reason);
+                reason,
+                evidenceKey);
     }
 
     public SecretFinding withAnalysisNote(String note) {
@@ -132,7 +138,34 @@ public class SecretFinding {
                 recommendation,
                 appendNote(analysisNote, note),
                 exempted,
-                exemptionReason);
+                exemptionReason,
+                evidenceKey);
+    }
+
+    public SecretFinding withEvidenceKeyFromValue(String rawValue) {
+        return withEvidenceKey(normalizeEvidenceKey(rawValue));
+    }
+
+    public SecretFinding withEvidenceKey(String key) {
+        String normalizedKey = nullToEmpty(key);
+        if (evidenceKey.equals(normalizedKey)) {
+            return this;
+        }
+        return new SecretFinding(
+                ruleId,
+                title,
+                severity,
+                locationType,
+                jobFullName,
+                sourceName,
+                lineNumber,
+                fieldName,
+                maskedSnippet,
+                recommendation,
+                analysisNote,
+                exempted,
+                exemptionReason,
+                normalizedKey);
     }
 
     public String getRuleId() {
@@ -187,6 +220,10 @@ public class SecretFinding {
         return exemptionReason;
     }
 
+    public String getEvidenceKey() {
+        return evidenceKey;
+    }
+
     public boolean isActionable() {
         return !exempted;
     }
@@ -208,5 +245,25 @@ public class SecretFinding {
             return normalizedExisting;
         }
         return normalizedExisting + " " + normalizedAdditional;
+    }
+
+    private static String normalizeEvidenceKey(String value) {
+        String trimmed = nullToEmpty(value).trim();
+        if (trimmed.isEmpty()) {
+            return "";
+        }
+        java.util.regex.Matcher bearerMatcher = java.util.regex.Pattern.compile(
+                        "(?i)^Bearer\\s+([A-Za-z0-9._~+/=-]{12,})$")
+                .matcher(trimmed);
+        if (bearerMatcher.matches()) {
+            return bearerMatcher.group(1);
+        }
+        java.util.regex.Matcher queryMatcher = java.util.regex.Pattern.compile(
+                        "(?i)^(?:key|token|secret|password|access[_-]?token|access[_-]?key|api[_-]?key|auth(?:[_-]?token)?|webhook|client[_-]?secret|secret[_-]?key|signature|sig)=([^&#\\s'\"<>\\\\]+)$")
+                .matcher(trimmed);
+        if (queryMatcher.matches()) {
+            return queryMatcher.group(1);
+        }
+        return trimmed;
     }
 }

@@ -12,6 +12,7 @@ import io.jenkins.plugins.secretguard.model.SecretFinding;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import io.jenkins.plugins.secretguard.model.Severity;
 import io.jenkins.plugins.secretguard.scan.ConfigXmlScanner;
+import io.jenkins.plugins.secretguard.scan.PipelineScriptScanner;
 import io.jenkins.plugins.secretguard.scan.SecretScanner;
 import java.util.ArrayList;
 import java.util.List;
@@ -152,6 +153,91 @@ class SecretScanServiceTest {
                 .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
         assertTrue(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("http-request-unmasked-header-secret")));
+    }
+
+    @Test
+    void suppressesHighEntropyWhenUrlQueryRuleHitsSameConfigValue() {
+        String xml = """
+                <project>
+                  <publishers>
+                    <io.example.ChatNotifierPublisher>
+                      <notifyUrl>https://notify.example.invalid/api/webhook/deliver?signature=Nr8YkL2Pm5Qx7Vd1Hs4Jt6Ua</notifyUrl>
+                    </io.example.ChatNotifierPublisher>
+                  </publishers>
+                </project>
+                """;
+        SecretScanService service = new SecretScanService(new AllowListService(), new ExemptionService());
+        SecretScanResult result = service.scan(new ConfigXmlScanner(), context(EnforcementMode.BLOCK), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
+    void suppressesSensitiveFieldWhenSpecificTokenRuleHitsSamePipelineAssignment() {
+        String script = """
+                pipeline {
+                  agent any
+                  environment {
+                    API_TOKEN = 'ghp_012345678901234567890123456789012345'
+                  }
+                }
+                """;
+        SecretScanService service = new SecretScanService(new AllowListService(), new ExemptionService());
+        ScanContext context = new ScanContext(
+                "folder/job",
+                "Pipeline script",
+                "WorkflowJob",
+                FindingLocationType.JENKINSFILE,
+                ScanPhase.SAVE,
+                EnforcementMode.BLOCK,
+                Severity.HIGH);
+
+        SecretScanResult result = service.scan(new PipelineScriptScanner(), context, script);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("github-token")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
+    void suppressesBearerContextWhenJwtPatternHitsSameToken() {
+        String script = """
+                pipeline {
+                  agent any
+                  stages {
+                    stage('Call API') {
+                      steps {
+                        sh "curl -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJidWlsZC11c2VyIn0.c2lnbmF0dXJlMTIzNDU2Nzg5' https://example.invalid"
+                      }
+                    }
+                  }
+                }
+                """;
+        SecretScanService service = new SecretScanService(new AllowListService(), new ExemptionService());
+        ScanContext context = new ScanContext(
+                "folder/job",
+                "Pipeline script",
+                "WorkflowJob",
+                FindingLocationType.JENKINSFILE,
+                ScanPhase.SAVE,
+                EnforcementMode.BLOCK,
+                Severity.HIGH);
+
+        SecretScanResult result = service.scan(new PipelineScriptScanner(), context, script);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("jwt-token")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("bearer-token")));
+        assertTrue(result.getFindings().stream()
+                .filter(finding -> finding.getRuleId().equals("jwt-token"))
+                .map(SecretFinding::getAnalysisNote)
+                .anyMatch(note ->
+                        note.contains("Suppressed lower-priority finding(s) for the same value: bearer-token.")));
     }
 
     private SecretScanner scannerWith(SecretFinding finding) {

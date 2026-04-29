@@ -37,28 +37,30 @@ final class HttpRequestHeaderSupport {
         }
         List<SecretFinding> findings = new ArrayList<>();
         findings.add(new SecretFinding(
-                HTTP_HEADER_RULE_ID,
-                "Hardcoded custom header secret in httpRequest",
-                Severity.HIGH,
-                context.getLocationType(),
-                context.getJobFullName(),
-                context.getSourceName(),
-                lineNumber,
-                headerName.isBlank() ? "customHeader" : headerName,
-                SecretMasker.mask(headerValue),
-                HTTP_HEADER_REMEDIATION));
+                        HTTP_HEADER_RULE_ID,
+                        "Hardcoded custom header secret in httpRequest",
+                        Severity.HIGH,
+                        context.getLocationType(),
+                        context.getJobFullName(),
+                        context.getSourceName(),
+                        lineNumber,
+                        headerName.isBlank() ? "customHeader" : headerName,
+                        SecretMasker.mask(headerValue),
+                        HTTP_HEADER_REMEDIATION)
+                .withEvidenceKeyFromValue(headerValue));
         if (maskValueFalse) {
             findings.add(new SecretFinding(
-                    HTTP_HEADER_UNMASKED_RULE_ID,
-                    "Custom header secret is configured with maskValue: false",
-                    Severity.HIGH,
-                    context.getLocationType(),
-                    context.getJobFullName(),
-                    context.getSourceName(),
-                    lineNumber,
-                    headerName.isBlank() ? "customHeader" : headerName,
-                    SecretMasker.mask(headerValue),
-                    "Set maskValue to true and keep the header value in Jenkins Credentials."));
+                            HTTP_HEADER_UNMASKED_RULE_ID,
+                            "Custom header secret is configured with maskValue: false",
+                            Severity.HIGH,
+                            context.getLocationType(),
+                            context.getJobFullName(),
+                            context.getSourceName(),
+                            lineNumber,
+                            headerName.isBlank() ? "customHeader" : headerName,
+                            SecretMasker.mask(headerValue),
+                            "Set maskValue to true and keep the header value in Jenkins Credentials.")
+                    .withEvidenceKeyFromValue(headerValue));
         }
         return findings;
     }
