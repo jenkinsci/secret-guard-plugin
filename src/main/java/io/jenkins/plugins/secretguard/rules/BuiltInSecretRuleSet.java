@@ -22,6 +22,8 @@ public class BuiltInSecretRuleSet {
     private static final Logger LOGGER = Logger.getLogger(BuiltInSecretRuleSet.class.getName());
     private static final Pattern SENSITIVE_FIELD = Pattern.compile(
             "(?i)(token|password|passphrase|secret|api[_-]?key|apikey|access[_-]?key|accessKey|clientSecret)");
+    private static final Pattern SIMPLE_ASSIGNMENT_LITERAL =
+            Pattern.compile("\\b([A-Za-z_]\\w*)\\s*=\\s*(['\"])([^'\"]+)\\2");
 
     private final List<SecretRule> rules;
 
@@ -142,6 +144,17 @@ public class BuiltInSecretRuleSet {
         return NonSecretHeuristics.looksLikeSafeReference(value);
     }
 
+    private static String normalizeAssignedLiteralValue(String fieldName, String value) {
+        if (fieldName == null || fieldName.isBlank() || value == null || value.isBlank()) {
+            return value;
+        }
+        Matcher matcher = SIMPLE_ASSIGNMENT_LITERAL.matcher(value);
+        if (matcher.find() && fieldName.equals(matcher.group(1))) {
+            return matcher.group(3);
+        }
+        return value;
+    }
+
     private static SecretFinding finding(
             String ruleId,
             String title,
@@ -168,17 +181,18 @@ public class BuiltInSecretRuleSet {
             String recommendation,
             String analysisNote) {
         return new SecretFinding(
-                ruleId,
-                title,
-                severity,
-                context.getLocationType(),
-                context.getJobFullName(),
-                sourceName,
-                lineNumber,
-                fieldName,
-                SecretMasker.mask(matchedValue),
-                recommendation,
-                analysisNote);
+                        ruleId,
+                        title,
+                        severity,
+                        context.getLocationType(),
+                        context.getJobFullName(),
+                        sourceName,
+                        lineNumber,
+                        fieldName,
+                        SecretMasker.mask(matchedValue),
+                        recommendation,
+                        analysisNote)
+                .withEvidenceKeyFromValue(matchedValue);
     }
 
     private static final class SensitiveFieldRule implements SecretRule {
@@ -190,19 +204,20 @@ public class BuiltInSecretRuleSet {
         @Override
         public List<SecretFinding> scan(
                 ScanContext context, String sourceName, int lineNumber, String fieldName, String value) {
+            String normalizedValue = normalizeAssignedLiteralValue(fieldName, value);
             if (!isSensitiveField(fieldName) || NonSecretHeuristics.isCredentialIdField(fieldName)) {
                 return Collections.emptyList();
             }
-            if (NonSecretHeuristics.looksLikeCredentialBindingVariableReference(fieldName, value)) {
+            if (NonSecretHeuristics.looksLikeCredentialBindingVariableReference(fieldName, normalizedValue)) {
                 return Collections.emptyList();
             }
-            if (NonSecretHeuristics.looksLikeSensitiveFileReference(fieldName, value)) {
+            if (NonSecretHeuristics.looksLikeSensitiveFileReference(fieldName, normalizedValue)) {
                 return Collections.emptyList();
             }
-            if (NonSecretHeuristics.looksLikeReadableEndpointUrl(value)) {
+            if (NonSecretHeuristics.looksLikeReadableEndpointUrl(normalizedValue)) {
                 return Collections.emptyList();
             }
-            if (NonSecretHeuristics.looksLikePlaceholderValue(value)) {
+            if (NonSecretHeuristics.looksLikePlaceholderValue(normalizedValue)) {
                 return List.of(finding(
                         getId(),
                         "Sensitive field contains a placeholder-like value",
@@ -211,14 +226,14 @@ public class BuiltInSecretRuleSet {
                         sourceName,
                         lineNumber,
                         fieldName,
-                        value,
+                        normalizedValue,
                         Recommendations.PLACEHOLDER,
                         "Downgraded because the value looks like a redaction placeholder instead of a real secret."));
             }
-            if (looksLikeSafeReference(value)) {
+            if (looksLikeSafeReference(normalizedValue)) {
                 return Collections.emptyList();
             }
-            Severity severity = value.trim().length() >= 8 ? Severity.HIGH : Severity.LOW;
+            Severity severity = normalizedValue.trim().length() >= 8 ? Severity.HIGH : Severity.LOW;
             String recommendation = context.getLocationType().name().contains("CONFIG")
                     ? Recommendations.NO_CONFIG_SECRET
                     : Recommendations.CREDENTIALS;
@@ -230,7 +245,7 @@ public class BuiltInSecretRuleSet {
                     sourceName,
                     lineNumber,
                     fieldName,
-                    value,
+                    normalizedValue,
                     recommendation));
         }
     }

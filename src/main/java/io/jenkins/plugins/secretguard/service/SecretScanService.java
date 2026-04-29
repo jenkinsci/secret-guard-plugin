@@ -14,19 +14,38 @@ import java.util.Set;
 public class SecretScanService {
     private static final String HIGH_ENTROPY_RULE = "high-entropy-string";
     private static final String SENSITIVE_FIELD_RULE = "sensitive-field-name";
-    private static final Set<String> SPECIFIC_SECRET_RULES = Set.of(
+    private static final String BEARER_TOKEN_RULE = "bearer-token";
+    private static final Set<String> GENERIC_RULES = Set.of(HIGH_ENTROPY_RULE, SENSITIVE_FIELD_RULE);
+    private static final Set<String> GENERIC_SUPPRESSOR_RULES = Set.of(
             "jwt-token",
             "github-token",
             "aws-access-key",
             "aws-secret-key",
-            "bearer-token",
+            BEARER_TOKEN_RULE,
+            "slack-bot-token",
+            "pypi-api-token",
+            "gitlab-token",
+            "basic-auth-header",
             "pem-private-key",
             "url-embedded-secret",
             "mysql-connection-url",
             "postgres-connection-string",
             "url-query-secret",
+            "notifier-url-secret",
+            "slack-webhook-url",
+            "teams-webhook-url",
+            "zapier-webhook-url",
             "http-request-hardcoded-header-secret",
             "http-request-unmasked-header-secret");
+    private static final Set<String> FORMAT_SPECIFIC_RULES = Set.of(
+            "jwt-token",
+            "github-token",
+            "aws-access-key",
+            "aws-secret-key",
+            "slack-bot-token",
+            "pypi-api-token",
+            "gitlab-token",
+            "pem-private-key");
 
     private final AllowListService allowListService;
     private final ExemptionService exemptionService;
@@ -124,17 +143,23 @@ public class SecretScanService {
     }
 
     private boolean sameFindingScope(SecretFinding left, SecretFinding right) {
-        return left.getLineNumber() == right.getLineNumber()
-                && left.getFieldName().equals(right.getFieldName())
-                && left.getMaskedSnippet().equals(right.getMaskedSnippet())
-                && left.getSourceName().equals(right.getSourceName());
+        if (left.getLineNumber() != right.getLineNumber()
+                || left.getLocationType() != right.getLocationType()
+                || !left.getSourceName().equals(right.getSourceName())) {
+            return false;
+        }
+        if (!left.getEvidenceKey().isBlank() && !right.getEvidenceKey().isBlank()) {
+            return left.getEvidenceKey().equals(right.getEvidenceKey());
+        }
+        return left.getFieldName().equals(right.getFieldName())
+                && left.getMaskedSnippet().equals(right.getMaskedSnippet());
     }
 
     private boolean suppresses(String strongerRuleId, String weakerRuleId) {
-        if (SPECIFIC_SECRET_RULES.contains(strongerRuleId) && HIGH_ENTROPY_RULE.equals(weakerRuleId)) {
+        if (GENERIC_SUPPRESSOR_RULES.contains(strongerRuleId) && GENERIC_RULES.contains(weakerRuleId)) {
             return true;
         }
-        return SPECIFIC_SECRET_RULES.contains(strongerRuleId) && SENSITIVE_FIELD_RULE.equals(weakerRuleId);
+        return FORMAT_SPECIFIC_RULES.contains(strongerRuleId) && BEARER_TOKEN_RULE.equals(weakerRuleId);
     }
 
     private String buildSuppressionNote(List<SecretFinding> suppressedFindings) {
@@ -144,6 +169,10 @@ public class SecretScanService {
         Set<String> suppressedRuleIds = suppressedFindings.stream()
                 .map(SecretFinding::getRuleId)
                 .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
-        return "Suppressed generic finding(s) for the same value: " + String.join(", ", suppressedRuleIds) + ".";
+        boolean genericOnly = suppressedRuleIds.stream().allMatch(GENERIC_RULES::contains);
+        String prefix = genericOnly
+                ? "Suppressed generic finding(s) for the same value: "
+                : "Suppressed lower-priority finding(s) for the same value: ";
+        return prefix + String.join(", ", suppressedRuleIds) + ".";
     }
 }
