@@ -1,0 +1,31 @@
+src/main/java/io/jenkins/plugins/secretguard/model/SecretFinding.java
+  925478fb8e3f007e 19,45,74,91-92,106,123-124,141-168,223-226,249-267
+src/main/java/io/jenkins/plugins/secretguard/scan/HttpRequestHeaderSupport.java
+  925478fb8e3f007e 40-50,53-63
+src/main/java/io/jenkins/plugins/secretguard/service/SecretScanService.java
+  925478fb8e3f007e 17-19,24-28,34-37,40-48,146-155,159,162,172-176
+src/test/java/io/jenkins/plugins/secretguard/service/SecretScanServiceTest.java
+  925478fb8e3f007e 15,158-240
+src/main/java/io/jenkins/plugins/secretguard/rules/BuiltInSecretRuleSet.java
+  925478fb8e3f007e 25-26,147-157,184-195,207,211,214,217,220,229,233,236,248
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "f76e10a1e64d87c46fe7520b51d8020de37e2742",
+  "prompts": {
+    "925478fb8e3f007e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019dd707-7f9d-7491-8c96-b3df760e45e1",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui",
+      "messages": [],
+      "total_additions": 1458,
+      "total_deletions": 93,
+      "accepted_lines": 1435,
+      "overriden_lines": 1
+    }
+  }
+}
