@@ -2,16 +2,20 @@ package io.jenkins.plugins.secretguard.action;
 
 import hudson.Extension;
 import hudson.Util;
+import hudson.model.Job;
 import hudson.model.RootAction;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import io.jenkins.plugins.secretguard.model.Severity;
+import io.jenkins.plugins.secretguard.service.GlobalJobScanRequest;
 import io.jenkins.plugins.secretguard.service.GlobalJobScanService;
 import io.jenkins.plugins.secretguard.service.GlobalJobScanStatus;
 import io.jenkins.plugins.secretguard.service.ScanResultStore;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import jenkins.model.Jenkins;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
@@ -150,6 +154,24 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
         }
         Instant finishedAt = status.getFinishedAt() == null ? Instant.now() : status.getFinishedAt();
         return formatDuration(Duration.between(status.getStartedAt(), finishedAt));
+    }
+
+    public String getScanAllScopeText() {
+        GlobalJobScanStatus status = getScanAllStatus();
+        return status == null || status.getScanScopeDescription().isBlank()
+                ? "All jobs"
+                : status.getScanScopeDescription();
+    }
+
+    public List<JobTypeOption> getAvailableJobTypeOptions() {
+        Map<String, JobTypeOption> optionsByClassName = new LinkedHashMap<>();
+        for (Job<?, ?> job : Jenkins.get().allItems(Job.class)) {
+            optionsByClassName.putIfAbsent(
+                    job.getClass().getName(), new JobTypeOption(job.getClass().getName(), describeJobType(job)));
+        }
+        return optionsByClassName.values().stream()
+                .sorted(Comparator.comparing(JobTypeOption::getLabel, String.CASE_INSENSITIVE_ORDER))
+                .toList();
     }
 
     static String formatDuration(Duration duration) {
@@ -306,9 +328,14 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
     }
 
     @RequirePOST
-    public HttpResponse doScanAll() {
+    public HttpResponse doScanAll(StaplerRequest2 request) {
         Jenkins.get().checkPermission(Jenkins.MANAGE);
-        globalJobScanService.startScanAllJobs();
+        String jobTypeFilter = request == null ? null : request.getParameter("jobTypeFilter");
+        globalJobScanService.startScanAllJobs(new GlobalJobScanRequest(
+                jobTypeFilter,
+                resolveJobTypeFilterLabel(jobTypeFilter),
+                request == null ? null : request.getParameter("folderFilter"),
+                request == null ? null : request.getParameter("nameFilter")));
         return HttpResponses.redirectViaContextPath("secret-guard");
     }
 
@@ -458,5 +485,56 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
             case WITH_EXEMPTIONS -> result.hasExemptedFindings();
             case WITH_NOTES -> result.hasNotes();
         };
+    }
+
+    private String resolveJobTypeFilterLabel(String jobTypeFilter) {
+        if (jobTypeFilter == null || jobTypeFilter.isBlank()) {
+            return "";
+        }
+        for (JobTypeOption option : getAvailableJobTypeOptions()) {
+            if (option.getValue().equals(jobTypeFilter)) {
+                return option.getLabel();
+            }
+        }
+        return simplifyClassName(jobTypeFilter);
+    }
+
+    private static String describeJobType(Job<?, ?> job) {
+        @SuppressWarnings("unchecked")
+        Class<? extends hudson.model.Describable> jobTypeClass =
+                (Class<? extends hudson.model.Describable>) job.getClass();
+        var descriptor = Jenkins.get().getDescriptor(jobTypeClass);
+        String displayName = descriptor == null ? "" : descriptor.getDisplayName();
+        String simpleName = simplifyClassName(job.getClass().getName());
+        if (displayName == null || displayName.isBlank() || displayName.equals(simpleName)) {
+            return simpleName;
+        }
+        return displayName + " (" + simpleName + ")";
+    }
+
+    private static String simplifyClassName(String className) {
+        if (className == null || className.isBlank()) {
+            return "";
+        }
+        int separator = className.lastIndexOf('.');
+        return separator >= 0 ? className.substring(separator + 1) : className;
+    }
+
+    public static final class JobTypeOption {
+        private final String value;
+        private final String label;
+
+        private JobTypeOption(String value, String label) {
+            this.value = value;
+            this.label = label;
+        }
+
+        public String getValue() {
+            return value;
+        }
+
+        public String getLabel() {
+            return label;
+        }
     }
 }

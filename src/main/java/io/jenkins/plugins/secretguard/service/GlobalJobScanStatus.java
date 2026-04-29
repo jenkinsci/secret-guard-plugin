@@ -20,6 +20,7 @@ public class GlobalJobScanStatus {
     private final int jobsFailed;
     private final String currentJobFullName;
     private final String message;
+    private final String scanScopeDescription;
     private final Instant startedAt;
     private final Instant finishedAt;
     private final List<String> failedJobFullNames;
@@ -36,6 +37,34 @@ public class GlobalJobScanStatus {
             Instant startedAt,
             Instant finishedAt,
             List<String> failedJobFullNames) {
+        this(
+                state,
+                totalJobs,
+                jobsScanned,
+                jobsWithFindings,
+                jobsWithHighSeverity,
+                jobsFailed,
+                currentJobFullName,
+                message,
+                "",
+                startedAt,
+                finishedAt,
+                failedJobFullNames);
+    }
+
+    public GlobalJobScanStatus(
+            State state,
+            int totalJobs,
+            int jobsScanned,
+            int jobsWithFindings,
+            int jobsWithHighSeverity,
+            int jobsFailed,
+            String currentJobFullName,
+            String message,
+            String scanScopeDescription,
+            Instant startedAt,
+            Instant finishedAt,
+            List<String> failedJobFullNames) {
         this.state = state == null ? State.IDLE : state;
         this.totalJobs = totalJobs;
         this.jobsScanned = jobsScanned;
@@ -44,6 +73,7 @@ public class GlobalJobScanStatus {
         this.jobsFailed = jobsFailed;
         this.currentJobFullName = currentJobFullName;
         this.message = message;
+        this.scanScopeDescription = scanScopeDescription == null ? "" : scanScopeDescription;
         this.startedAt = startedAt;
         this.finishedAt = finishedAt;
         this.failedJobFullNames = failedJobFullNames == null ? List.of() : List.copyOf(failedJobFullNames);
@@ -83,6 +113,10 @@ public class GlobalJobScanStatus {
 
     public String getMessage() {
         return message;
+    }
+
+    public String getScanScopeDescription() {
+        return scanScopeDescription;
     }
 
     public Instant getStartedAt() {

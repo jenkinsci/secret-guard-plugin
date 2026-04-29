@@ -12,6 +12,7 @@ import io.jenkins.plugins.secretguard.model.FindingLocationType;
 import io.jenkins.plugins.secretguard.model.SecretFinding;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import io.jenkins.plugins.secretguard.model.Severity;
+import io.jenkins.plugins.secretguard.service.GlobalJobScanRequest;
 import io.jenkins.plugins.secretguard.service.GlobalJobScanService;
 import io.jenkins.plugins.secretguard.service.GlobalJobScanStatus;
 import io.jenkins.plugins.secretguard.service.ScanResultStore;
@@ -26,6 +27,7 @@ import jenkins.model.Jenkins;
 import org.htmlunit.HttpMethod;
 import org.htmlunit.Page;
 import org.htmlunit.WebRequest;
+import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
@@ -317,11 +319,102 @@ class SecretGuardRootActionTest {
     @Test
     @WithJenkins
     void filteredRootPageUsesAbsoluteScanActionTargets(JenkinsRule jenkinsRule) throws Exception {
+        jenkinsRule.createFreeStyleProject("freestyle-job");
+        jenkinsRule.createProject(WorkflowJob.class, "workflow-job");
+
         JenkinsRule.WebClient webClient = jenkinsRule.createWebClient();
         Page page = webClient.goTo("secret-guard?filter=high");
         String content = page.getWebResponse().getContentAsString();
 
+        assertTrue(content.contains("id=\"secret-guard-open-scan-all-dialog\""));
+        assertTrue(content.contains("id=\"secret-guard-scan-all-dialog\""));
         assertTrue(content.contains("action=\"/jenkins/secret-guard/scanAll\""));
+        assertTrue(content.contains("<option value=\"\">All</option>"));
+        assertTrue(content.contains("name=\"jobTypeFilter\""));
+        assertTrue(content.contains("value=\"" + WorkflowJob.class.getName() + "\""));
+        assertTrue(content.contains("Pipeline (WorkflowJob)"));
+        assertTrue(content.contains("name=\"folderFilter\""));
+        assertTrue(content.contains("name=\"nameFilter\""));
+        assertTrue(content.contains("Start Scan"));
+    }
+
+    @Test
+    @WithJenkins
+    void rootPageSubmitsScanFiltersToGlobalScanService(JenkinsRule jenkinsRule) throws Exception {
+        jenkinsRule.createProject(WorkflowJob.class, "workflow-job");
+
+        SecretGuardRootAction rootAction = jenkinsRule
+                .jenkins
+                .getExtensionList(SecretGuardRootAction.class)
+                .get(0);
+        CapturingGlobalJobScanService capturingService = new CapturingGlobalJobScanService();
+        setGlobalJobScanService(rootAction, capturingService);
+
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient();
+        WebRequest request = new WebRequest(
+                webClient.createCrumbedUrl("secret-guard/scanAll?jobTypeFilter=" + WorkflowJob.class.getName()
+                        + "&folderFilter=team/platform&nameFilter=release"),
+                HttpMethod.POST);
+        Page postResult = webClient.getPage(request);
+
+        assertEquals(200, postResult.getWebResponse().getStatusCode());
+        assertEquals(WorkflowJob.class.getName(), capturingService.lastRequest.getJobTypeFilter());
+        assertEquals("Pipeline (WorkflowJob)", capturingService.lastRequest.getJobTypeLabel());
+        assertEquals("team/platform", capturingService.lastRequest.getFolderFilter());
+        assertEquals("release", capturingService.lastRequest.getNameFilter());
+    }
+
+    @Test
+    @WithJenkins
+    void rootPageFallsBackToSimpleClassNameForUnknownJobTypeFilter(JenkinsRule jenkinsRule) throws Exception {
+        SecretGuardRootAction rootAction = jenkinsRule
+                .jenkins
+                .getExtensionList(SecretGuardRootAction.class)
+                .get(0);
+        CapturingGlobalJobScanService capturingService = new CapturingGlobalJobScanService();
+        setGlobalJobScanService(rootAction, capturingService);
+
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient();
+        String unknownJobType = "example.custom.CustomWorkflowJob";
+        WebRequest request = new WebRequest(
+                webClient.createCrumbedUrl("secret-guard/scanAll?jobTypeFilter=" + unknownJobType), HttpMethod.POST);
+        Page postResult = webClient.getPage(request);
+
+        assertEquals(200, postResult.getWebResponse().getStatusCode());
+        assertEquals(unknownJobType, capturingService.lastRequest.getJobTypeFilter());
+        assertEquals("CustomWorkflowJob", capturingService.lastRequest.getJobTypeLabel());
+        assertEquals("", capturingService.lastRequest.getFolderFilter());
+        assertEquals("", capturingService.lastRequest.getNameFilter());
+    }
+
+    @Test
+    @WithJenkins
+    void availableJobTypeOptionsAreUniqueAndSortedByLabel(JenkinsRule jenkinsRule) throws Exception {
+        jenkinsRule.createProject(WorkflowJob.class, "workflow-a");
+        jenkinsRule.createProject(WorkflowJob.class, "workflow-b");
+        jenkinsRule.createFreeStyleProject("freestyle-job");
+
+        SecretGuardRootAction rootAction = jenkinsRule
+                .jenkins
+                .getExtensionList(SecretGuardRootAction.class)
+                .get(0);
+        List<SecretGuardRootAction.JobTypeOption> options = rootAction.getAvailableJobTypeOptions();
+
+        assertEquals(2, options.size());
+        assertEquals(FreeStyleProject.class.getName(), options.get(0).getValue());
+        assertTrue(options.get(0).getLabel().endsWith("(FreeStyleProject)"));
+        assertEquals(WorkflowJob.class.getName(), options.get(1).getValue());
+        assertEquals("Pipeline (WorkflowJob)", options.get(1).getLabel());
+    }
+
+    @Test
+    void scanAllScopeTextFallsBackToAllJobsAndUsesStatusDescription() {
+        SecretGuardRootAction blankAction = new SecretGuardRootAction(new NullStatusGlobalJobScanService());
+        SecretGuardRootAction filteredAction =
+                new SecretGuardRootAction(new FixedStatusGlobalJobScanService("Folder: team/platform"));
+
+        assertEquals("All jobs", blankAction.getScanAllScopeText());
+        assertEquals("Folder: team/platform", filteredAction.getScanAllScopeText());
     }
 
     @Test
@@ -520,6 +613,47 @@ class SecretGuardRootActionTest {
                     Instant.parse("2026-04-19T02:24:50Z"),
                     Instant.parse("2026-04-19T02:25:00Z"),
                     List.of("folder/example-job"));
+        }
+    }
+
+    private static final class CapturingGlobalJobScanService extends GlobalJobScanService {
+        private GlobalJobScanRequest lastRequest;
+
+        @Override
+        public void startScanAllJobs(GlobalJobScanRequest request) {
+            this.lastRequest = request;
+        }
+    }
+
+    private static final class NullStatusGlobalJobScanService extends GlobalJobScanService {
+        @Override
+        public GlobalJobScanStatus getStatus() {
+            return null;
+        }
+    }
+
+    private static final class FixedStatusGlobalJobScanService extends GlobalJobScanService {
+        private final String scanScopeDescription;
+
+        private FixedStatusGlobalJobScanService(String scanScopeDescription) {
+            this.scanScopeDescription = scanScopeDescription;
+        }
+
+        @Override
+        public GlobalJobScanStatus getStatus() {
+            return new GlobalJobScanStatus(
+                    GlobalJobScanStatus.State.COMPLETED,
+                    2,
+                    2,
+                    0,
+                    0,
+                    0,
+                    null,
+                    "Global scan completed.",
+                    scanScopeDescription,
+                    Instant.now(),
+                    Instant.now(),
+                    List.of());
         }
     }
 }

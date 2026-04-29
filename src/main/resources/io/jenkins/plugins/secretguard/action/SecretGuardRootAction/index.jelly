@@ -29,20 +29,27 @@
                         </div>
                     </div>
                     <div class="secret-guard-layout-inline secret-guard-scan-actions">
-                        <f:form method="post" action="${rootURL}/secret-guard/scanAll" class="secret-guard-form-inline">
-                            <j:choose>
-                                <j:when test="${it.canScanAllNow()}">
-                                    <button class="jenkins-button jenkins-submit-button jenkins-button--primary" type="submit">
-                                        ${it.scanAllPrimaryButtonLabel}
-                                    </button>
-                                </j:when>
-                                <j:otherwise>
-                                    <button class="jenkins-button jenkins-submit-button jenkins-button--primary" type="submit" disabled="disabled">
-                                        ${it.scanAllPrimaryButtonLabel}
-                                    </button>
-                                </j:otherwise>
-                            </j:choose>
-                        </f:form>
+                        <j:choose>
+                            <j:when test="${it.canScanAllNow()}">
+                                <button
+                                    id="secret-guard-open-scan-all-dialog"
+                                    class="jenkins-button jenkins-submit-button jenkins-button--primary"
+                                    type="button"
+                                >
+                                    ${it.scanAllPrimaryButtonLabel}
+                                </button>
+                            </j:when>
+                            <j:otherwise>
+                                <button
+                                    id="secret-guard-open-scan-all-dialog"
+                                    class="jenkins-button jenkins-submit-button jenkins-button--primary"
+                                    type="button"
+                                    disabled="disabled"
+                                >
+                                    ${it.scanAllPrimaryButtonLabel}
+                                </button>
+                            </j:otherwise>
+                        </j:choose>
                         <j:if test="${scanRunning}">
                             <f:form method="post" action="${rootURL}/secret-guard/cancelScanAll" class="secret-guard-form-inline">
                                 <button class="jenkins-button jenkins-button--secondary" type="submit">Cancel</button>
@@ -77,6 +84,7 @@
                         <j:if test="${scanStatus.message != null}">
                             <div>${scanStatus.message}</div>
                         </j:if>
+                        <div>Scope: ${it.scanAllScopeText}</div>
                         <div>
                             Progress: ${scanStatus.jobsScanned} / ${scanStatus.totalJobs}
                             (${scanStatus.progressPercentage}%)
@@ -107,6 +115,60 @@
                     </div>
                 </j:if>
             </div>
+            <dialog id="secret-guard-scan-all-dialog" class="secret-guard-dialog">
+                <f:form method="post" action="${rootURL}/secret-guard/scanAll" class="secret-guard-form-inline secret-guard-scan-form">
+                    <div class="secret-guard-dialog-header">
+                        <h2 class="secret-guard-dialog-title">Scan All Jobs</h2>
+                        <p class="secret-guard-dialog-copy">
+                            Choose an optional scan scope, then start the global job scan.
+                        </p>
+                    </div>
+                    <div class="secret-guard-scan-filter-grid">
+                        <label class="secret-guard-scan-filter-field">
+                            <span>Job type</span>
+                            <select class="jenkins-input secret-guard-field-control" name="jobTypeFilter">
+                                <option value="">All</option>
+                                <j:forEach var="jobTypeOption" items="${it.availableJobTypeOptions}">
+                                    <option value="${jobTypeOption.value}">${jobTypeOption.label}</option>
+                                </j:forEach>
+                            </select>
+                        </label>
+                        <label class="secret-guard-scan-filter-field">
+                            <span>Folder prefix</span>
+                            <input
+                                class="jenkins-input secret-guard-field-control"
+                                type="text"
+                                name="folderFilter"
+                                placeholder="team/platform"
+                            />
+                        </label>
+                        <label class="secret-guard-scan-filter-field">
+                            <span>Job name contains</span>
+                            <input
+                                class="jenkins-input secret-guard-field-control"
+                                type="text"
+                                name="nameFilter"
+                                placeholder="release"
+                            />
+                        </label>
+                    </div>
+                    <div class="secret-guard-scan-helper">
+                        Filters are optional. Job type lists the job kinds currently present in this Jenkins.
+                    </div>
+                    <div class="secret-guard-dialog-actions">
+                        <button
+                            id="secret-guard-close-scan-all-dialog"
+                            class="jenkins-button jenkins-button--secondary"
+                            type="button"
+                        >
+                            Cancel
+                        </button>
+                        <button class="jenkins-button jenkins-submit-button jenkins-button--primary" type="submit">
+                            Start Scan
+                        </button>
+                    </div>
+                </f:form>
+            </dialog>
             <div class="secret-guard-summary-grid">
                 <div class="${it.highFindingsCardClass}">
                     <strong class="secret-guard-stat-value">${it.unexemptedHighCount}</strong>

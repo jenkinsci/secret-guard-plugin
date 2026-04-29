@@ -1,6 +1,7 @@
 package io.jenkins.plugins.secretguard.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
@@ -31,5 +32,17 @@ class GlobalJobScanStatusTest {
         assertEquals(1, status.getSummary().getJobsFailed());
         assertEquals(1, status.getFailedJobFullNames().size());
         assertTrue(status.isRunning());
+    }
+
+    @Test
+    void defaultsNullStateAndScopeToSafeValues() {
+        GlobalJobScanStatus status = new GlobalJobScanStatus(null, 1, 2, 0, 0, 0, null, null, null, null, null, null);
+
+        assertEquals(GlobalJobScanStatus.State.IDLE, status.getState());
+        assertEquals("", status.getScanScopeDescription());
+        assertEquals(List.of(), status.getFailedJobFullNames());
+        assertFalse(status.hasFailedJobs());
+        assertFalse(status.isTerminal());
+        assertEquals(100, status.getProgressPercentage());
     }
 }

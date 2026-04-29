@@ -1,6 +1,9 @@
 (function () {
     var DETAILS_PANEL_ID = "secret-guard-scan-all-details";
     var DETAILS_TOGGLE_ID = "secret-guard-scan-all-details-toggle";
+    var SCAN_DIALOG_ID = "secret-guard-scan-all-dialog";
+    var OPEN_SCAN_DIALOG_BUTTON_ID = "secret-guard-open-scan-all-dialog";
+    var CLOSE_SCAN_DIALOG_BUTTON_ID = "secret-guard-close-scan-all-dialog";
     var RESULTS_SECTION_ID = "secret-guard-results-section";
     var FILTER_LINK_CLASS = "secret-guard-filter-link";
     var STORAGE_KEY_SUFFIX = ":scan-all-details-open";
@@ -170,8 +173,53 @@
         });
     }
 
+    function showScanDialog(dialog) {
+        if (typeof dialog.showModal === "function") {
+            dialog.showModal();
+            return;
+        }
+
+        dialog.setAttribute("open", "open");
+    }
+
+    function closeScanDialog(dialog) {
+        if (typeof dialog.close === "function") {
+            dialog.close();
+            return;
+        }
+
+        dialog.removeAttribute("open");
+    }
+
+    function initializeScanDialog() {
+        var openButton = document.getElementById(OPEN_SCAN_DIALOG_BUTTON_ID);
+        var dialog = document.getElementById(SCAN_DIALOG_ID);
+        var closeButton = document.getElementById(CLOSE_SCAN_DIALOG_BUTTON_ID);
+        if (!openButton || !dialog || !closeButton) {
+            return;
+        }
+
+        openButton.addEventListener("click", function () {
+            if (openButton.disabled) {
+                return;
+            }
+
+            showScanDialog(dialog);
+            var firstInput = dialog.querySelector("input");
+            if (firstInput) {
+                firstInput.focus();
+            }
+        });
+
+        closeButton.addEventListener("click", function () {
+            closeScanDialog(dialog);
+            openButton.focus();
+        });
+    }
+
     function initialize() {
         initializeDetailsState();
+        initializeScanDialog();
         initializeFilterRefresh();
         scheduleRefresh();
     }

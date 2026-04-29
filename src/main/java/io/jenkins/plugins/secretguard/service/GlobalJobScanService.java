@@ -5,10 +5,13 @@ import hudson.security.ACL;
 import hudson.security.ACLContext;
 import io.jenkins.plugins.secretguard.model.Severity;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
+import java.util.concurrent.locks.LockSupport;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
@@ -17,25 +20,57 @@ import jenkins.util.Timer;
 public class GlobalJobScanService {
     private static final Logger LOGGER = Logger.getLogger(GlobalJobScanService.class.getName());
     private static final String LOG_PREFIX = "[Secret Guard][Global Scan] ";
+    private static final int DEFAULT_YIELD_AFTER_JOBS = 25;
+    private static final long DEFAULT_YIELD_NANOS = Duration.ofMillis(10).toNanos();
 
     private final ManualJobScanService manualJobScanService;
     private final Executor executor;
+    private final Supplier<List<Job<?, ?>>> jobSupplier;
+    private final int yieldAfterJobs;
+    private final Runnable yieldAction;
     private final Object lock = new Object();
 
     private GlobalJobScanStatus status = GlobalJobScanStatus.idle();
     private ScanExecution activeExecution;
 
     public GlobalJobScanService() {
-        this(new ManualJobScanService(), command -> Timer.get().submit(command));
+        this(
+                new ManualJobScanService(),
+                command -> Timer.get().submit(command),
+                GlobalJobScanService::loadAllJobs,
+                DEFAULT_YIELD_AFTER_JOBS,
+                GlobalJobScanService::yieldScheduling);
     }
 
     GlobalJobScanService(ManualJobScanService manualJobScanService) {
-        this(manualJobScanService, command -> Timer.get().submit(command));
+        this(
+                manualJobScanService,
+                command -> Timer.get().submit(command),
+                GlobalJobScanService::loadAllJobs,
+                DEFAULT_YIELD_AFTER_JOBS,
+                GlobalJobScanService::yieldScheduling);
     }
 
     GlobalJobScanService(ManualJobScanService manualJobScanService, Executor executor) {
+        this(
+                manualJobScanService,
+                executor,
+                GlobalJobScanService::loadAllJobs,
+                DEFAULT_YIELD_AFTER_JOBS,
+                GlobalJobScanService::yieldScheduling);
+    }
+
+    GlobalJobScanService(
+            ManualJobScanService manualJobScanService,
+            Executor executor,
+            Supplier<List<Job<?, ?>>> jobSupplier,
+            int yieldAfterJobs,
+            Runnable yieldAction) {
         this.manualJobScanService = manualJobScanService;
         this.executor = executor;
+        this.jobSupplier = jobSupplier;
+        this.yieldAfterJobs = Math.max(1, yieldAfterJobs);
+        this.yieldAction = yieldAction == null ? GlobalJobScanService::yieldScheduling : yieldAction;
     }
 
     public boolean canStartScanAllJobs() {
@@ -72,12 +107,16 @@ public class GlobalJobScanService {
     }
 
     public void startScanAllJobs() {
+        startScanAllJobs(GlobalJobScanRequest.all());
+    }
+
+    public void startScanAllJobs(GlobalJobScanRequest request) {
         ScanExecution execution;
         synchronized (lock) {
             if (activeExecution != null) {
                 return;
             }
-            execution = new ScanExecution();
+            execution = new ScanExecution(request == null ? GlobalJobScanRequest.all() : request);
             activeExecution = execution;
             status = execution.snapshot();
         }
@@ -87,13 +126,16 @@ public class GlobalJobScanService {
     private void runScan(ScanExecution execution) {
         try (ACLContext ignored = ACL.as2(ACL.SYSTEM2)) {
             List<Job<?, ?>> jobs = new ArrayList<>();
-            for (Job<?, ?> job : Jenkins.get().allItems(Job.class)) {
-                jobs.add(job);
+            for (Job<?, ?> job : jobSupplier.get()) {
+                if (execution.matches(job)) {
+                    jobs.add(job);
+                }
             }
             execution.markRunning(jobs.size());
             publish(execution);
 
-            for (Job<?, ?> job : jobs) {
+            for (int index = 0; index < jobs.size(); index++) {
+                Job<?, ?> job = jobs.get(index);
                 if (execution.isCancelRequested()) {
                     execution.markCancelled();
                     finish(execution);
@@ -110,6 +152,9 @@ public class GlobalJobScanService {
                     LOGGER.log(Level.WARNING, LOG_PREFIX + "Failed to scan job " + job.getFullName(), e);
                 }
                 publish(execution);
+                if ((index + 1) < jobs.size() && execution.shouldYield(yieldAfterJobs)) {
+                    yieldAction.run();
+                }
             }
 
             if (execution.isCancelRequested()) {
@@ -155,8 +200,21 @@ public class GlobalJobScanService {
         }
     }
 
+    private static List<Job<?, ?>> loadAllJobs() {
+        List<Job<?, ?>> jobs = new ArrayList<>();
+        for (Job<?, ?> job : Jenkins.get().allItems(Job.class)) {
+            jobs.add(job);
+        }
+        return jobs;
+    }
+
+    private static void yieldScheduling() {
+        LockSupport.parkNanos(DEFAULT_YIELD_NANOS);
+    }
+
     private static final class ScanExecution {
         private GlobalJobScanStatus.State state = GlobalJobScanStatus.State.RUNNING;
+        private final GlobalJobScanRequest request;
         private int totalJobs;
         private int jobsScanned;
         private int jobsWithFindings;
@@ -169,10 +227,16 @@ public class GlobalJobScanService {
         private Instant finishedAt;
         private final List<String> failedJobFullNames = new ArrayList<>();
 
+        private ScanExecution(GlobalJobScanRequest request) {
+            this.request = request == null ? GlobalJobScanRequest.all() : request;
+        }
+
         synchronized void markRunning(int totalJobs) {
             this.totalJobs = totalJobs;
             this.startedAt = Instant.now();
-            this.message = totalJobs == 0 ? "No jobs found to scan." : "Global scan is running.";
+            this.message = totalJobs == 0
+                    ? (request.hasFilters() ? "No jobs matched the selected scan filters." : "No jobs found to scan.")
+                    : "Global scan is running.";
         }
 
         synchronized void startJob(String jobFullName) {
@@ -213,6 +277,10 @@ public class GlobalJobScanService {
             return cancelRequested;
         }
 
+        synchronized boolean shouldYield(int everyNJobs) {
+            return jobsScanned > 0 && jobsScanned % Math.max(1, everyNJobs) == 0;
+        }
+
         synchronized void markCompleted() {
             state = GlobalJobScanStatus.State.COMPLETED;
             finishedAt = Instant.now();
@@ -236,6 +304,10 @@ public class GlobalJobScanService {
                     : "Global scan failed: " + errorMessage;
         }
 
+        boolean matches(Job<?, ?> job) {
+            return request.matches(job);
+        }
+
         synchronized GlobalJobScanStatus snapshot() {
             return new GlobalJobScanStatus(
                     state,
@@ -246,6 +318,7 @@ public class GlobalJobScanService {
                     jobsFailed,
                     currentJobFullName,
                     message,
+                    request.describeScope(),
                     startedAt,
                     finishedAt,
                     failedJobFullNames);
