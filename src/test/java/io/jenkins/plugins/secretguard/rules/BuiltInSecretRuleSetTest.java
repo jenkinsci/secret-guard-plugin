@@ -43,6 +43,18 @@ class BuiltInSecretRuleSetTest {
     }
 
     @Test
+    void detectsSpecificPrivateKeyFormats() {
+        assertTrue(scan("privateKey", opensshPrivateKey()).stream()
+                .anyMatch(finding -> finding.getRuleId().equals("openssh-private-key")));
+        assertTrue(scan("privateKey", rsaPrivateKey()).stream()
+                .anyMatch(finding -> finding.getRuleId().equals("rsa-private-key")));
+        assertTrue(scan("privateKey", ecPrivateKey()).stream()
+                .anyMatch(finding -> finding.getRuleId().equals("ec-private-key")));
+        assertTrue(scan("privateKey", pgpPrivateKey()).stream()
+                .anyMatch(finding -> finding.getRuleId().equals("pgp-private-key")));
+    }
+
+    @Test
     void detectsNpmAndJfrogSecretsFromOperationalContexts() {
         assertTrue(scan("", npmAuthTokenConfig()).stream()
                 .anyMatch(finding -> finding.getRuleId().equals("npm-auth-token-context")));
@@ -234,6 +246,14 @@ class BuiltInSecretRuleSetTest {
 
         assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("mysql-connection-url")));
         assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
+    void reportsSpecificAndGenericPrivateKeyRulesBeforePolicySuppression() {
+        List<SecretFinding> findings = scan("privateKey", rsaPrivateKey());
+
+        assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("rsa-private-key")));
+        assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("pem-private-key")));
     }
 
     @Test
@@ -441,5 +461,37 @@ class BuiltInSecretRuleSetTest {
 
     private String jfrogApiHeader() {
         return "X-JFrog-Art-Api: " + "AKCpExampleJfrogApiToken0123456789";
+    }
+
+    private String opensshPrivateKey() {
+        return """
+                -----BEGIN OPENSSH PRIVATE KEY-----
+                b3BlbnNzaC1rZXktdjEAAAABc2FuaXRpemVkLW9wZW5zc2gta2V5LWRhdGE=
+                -----END OPENSSH PRIVATE KEY-----
+                """;
+    }
+
+    private String rsaPrivateKey() {
+        return """
+                -----BEGIN RSA PRIVATE KEY-----
+                bW9ja1JzYVByaXZhdGVLZXlEYXRhMDEyMzQ1Njc4OQ==
+                -----END RSA PRIVATE KEY-----
+                """;
+    }
+
+    private String ecPrivateKey() {
+        return """
+                -----BEGIN EC PRIVATE KEY-----
+                bW9ja0VjUHJpdmF0ZUtleURhdGEwMTIzNDU2Nzg5
+                -----END EC PRIVATE KEY-----
+                """;
+    }
+
+    private String pgpPrivateKey() {
+        return """
+                -----BEGIN PGP PRIVATE KEY BLOCK-----
+                bW9ja1BncFByaXZhdGVLZXlCbG9ja0RhdGEwMTIzNDU2Nzg5
+                -----END PGP PRIVATE KEY BLOCK-----
+                """;
     }
 }

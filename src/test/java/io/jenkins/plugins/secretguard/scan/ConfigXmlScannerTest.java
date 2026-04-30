@@ -942,6 +942,31 @@ password = ${TWINE_PASSWORD}
     }
 
     @Test
+    void detectsSpecificPrivateKeyBlocksInConfigXml() {
+        String xml = """
+                <project>
+                  <properties>
+                    <hudson.model.ParametersDefinitionProperty>
+                      <parameterDefinitions>
+                        <hudson.model.TextParameterDefinition>
+                          <name>DEPLOY_PRIVATE_KEY</name>
+                          <defaultValue><![CDATA[-----BEGIN OPENSSH PRIVATE KEY-----
+                b3BlbnNzaC1rZXktdjEAAAABc2FuaXRpemVkLW9wZW5zc2gta2V5LWRhdGE=
+                -----END OPENSSH PRIVATE KEY-----]]></defaultValue>
+                        </hudson.model.TextParameterDefinition>
+                      </parameterDefinitions>
+                    </hudson.model.ParametersDefinitionProperty>
+                  </properties>
+                </project>
+                """;
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("openssh-private-key")));
+    }
+
+    @Test
     void doesNotFlagGeneratedParameterRandomNamesAsHighEntropySecrets() {
         String xml = """
                 <project>

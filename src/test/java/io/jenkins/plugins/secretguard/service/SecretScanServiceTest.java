@@ -156,6 +156,35 @@ class SecretScanServiceTest {
     }
 
     @Test
+    void suppressesHighEntropyForDatabaseConnectionStringPasswords() {
+        String xml = """
+                <project>
+                  <properties>
+                    <hudson.model.ParametersDefinitionProperty>
+                      <parameterDefinitions>
+                        <hudson.model.StringParameterDefinition>
+                          <name>EXAMPLE_DATABASE_URL</name>
+                          <defaultValue>jdbc:mysql://db.example.invalid:3306/example_metadata?user=build_user&amp;password=QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l</defaultValue>
+                        </hudson.model.StringParameterDefinition>
+                      </parameterDefinitions>
+                    </hudson.model.ParametersDefinitionProperty>
+                  </properties>
+                </project>
+                """;
+        SecretScanService service = new SecretScanService(new AllowListService(), new ExemptionService());
+        SecretScanResult result = service.scan(new ConfigXmlScanner(), context(EnforcementMode.BLOCK), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("mysql-connection-url")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+        assertTrue(result.getFindings().stream()
+                .filter(finding -> finding.getRuleId().equals("mysql-connection-url"))
+                .map(SecretFinding::getAnalysisNote)
+                .anyMatch(note -> note.contains("Suppressed generic finding(s)")));
+    }
+
+    @Test
     void suppressesHighEntropyWhenUrlQueryRuleHitsSameConfigValue() {
         String xml = """
                 <project>
@@ -238,6 +267,38 @@ class SecretScanServiceTest {
                 .map(SecretFinding::getAnalysisNote)
                 .anyMatch(note ->
                         note.contains("Suppressed lower-priority finding(s) for the same value: bearer-token.")));
+    }
+
+    @Test
+    void suppressesGenericPemRuleWhenSpecificPrivateKeyRuleHitsSameValue() {
+        String xml = """
+                <project>
+                  <properties>
+                    <hudson.model.ParametersDefinitionProperty>
+                      <parameterDefinitions>
+                        <hudson.model.StringParameterDefinition>
+                          <name>DEPLOY_PRIVATE_KEY</name>
+                          <defaultValue>-----BEGIN RSA PRIVATE KEY-----
+                bW9ja1JzYVByaXZhdGVLZXlEYXRhMDEyMzQ1Njc4OQ==
+                -----END RSA PRIVATE KEY-----</defaultValue>
+                        </hudson.model.StringParameterDefinition>
+                      </parameterDefinitions>
+                    </hudson.model.ParametersDefinitionProperty>
+                  </properties>
+                </project>
+                """;
+        SecretScanService service = new SecretScanService(new AllowListService(), new ExemptionService());
+        SecretScanResult result = service.scan(new ConfigXmlScanner(), context(EnforcementMode.BLOCK), xml);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("rsa-private-key")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("pem-private-key")));
+        assertTrue(result.getFindings().stream()
+                .filter(finding -> finding.getRuleId().equals("rsa-private-key"))
+                .map(SecretFinding::getAnalysisNote)
+                .anyMatch(note ->
+                        note.contains("Suppressed lower-priority finding(s) for the same value: pem-private-key.")));
     }
 
     private SecretScanner scannerWith(SecretFinding finding) {
