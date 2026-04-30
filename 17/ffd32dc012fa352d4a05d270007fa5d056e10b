@@ -1,0 +1,23 @@
+docs/assets/secret-guard-cover-jenkins-shield.svg
+  22bfa77bc465f59b 1,6,30,34-35,98-99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "17ffd32dc012fa352d4a05d270007fa5d056e10b",
+  "prompts": {
+    "22bfa77bc465f59b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ddc66-2818-7283-8c42-86ae305f0e50",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui",
+      "messages": [],
+      "total_additions": 7,
+      "total_deletions": 7,
+      "accepted_lines": 7,
+      "overriden_lines": 0
+    }
+  }
+}
