@@ -19,6 +19,7 @@ public class PipelineScriptScanner implements SecretScanner {
     private static final Pattern COMMAND_STEP = Pattern.compile("\\b(sh|bat|powershell)\\s*[('\"]");
     private static final Pattern HTTP_REQUEST = Pattern.compile("\\bhttpRequest\\b");
     private static final Pattern CUSTOM_HEADERS = Pattern.compile("\\bcustomHeaders\\s*:");
+    private static final int HTTP_REQUEST_SCAN_WINDOW_LINES = 64;
 
     private final BuiltInSecretRuleSet ruleSet;
 
@@ -155,7 +156,7 @@ public class PipelineScriptScanner implements SecretScanner {
         for (int index = 0; index < lines.length; index++) {
             String trimmed = lines[index].trim();
             if (HTTP_REQUEST.matcher(trimmed).find()) {
-                httpRequestWindow = 16;
+                httpRequestWindow = HTTP_REQUEST_SCAN_WINDOW_LINES;
             } else if (httpRequestWindow > 0) {
                 httpRequestWindow--;
             }
