@@ -91,6 +91,30 @@ public class BuiltInSecretRuleSet {
         builtIns.add(new PyPiPasswordContextRule());
         builtIns.add(new KubernetesSecretLiteralContextRule());
         builtIns.add(new PatternSecretRule(
+                "openssh-private-key",
+                "OpenSSH private key is hardcoded",
+                Severity.HIGH,
+                Pattern.compile("-----BEGIN OPENSSH PRIVATE KEY-----[\\s\\S]*?-----END OPENSSH PRIVATE KEY-----"),
+                Recommendations.CREDENTIALS));
+        builtIns.add(new PatternSecretRule(
+                "rsa-private-key",
+                "RSA private key is hardcoded",
+                Severity.HIGH,
+                Pattern.compile("-----BEGIN RSA PRIVATE KEY-----[\\s\\S]*?-----END RSA PRIVATE KEY-----"),
+                Recommendations.CREDENTIALS));
+        builtIns.add(new PatternSecretRule(
+                "ec-private-key",
+                "EC private key is hardcoded",
+                Severity.HIGH,
+                Pattern.compile("-----BEGIN EC PRIVATE KEY-----[\\s\\S]*?-----END EC PRIVATE KEY-----"),
+                Recommendations.CREDENTIALS));
+        builtIns.add(new PatternSecretRule(
+                "pgp-private-key",
+                "PGP private key is hardcoded",
+                Severity.HIGH,
+                Pattern.compile("-----BEGIN PGP PRIVATE KEY BLOCK-----[\\s\\S]*?-----END PGP PRIVATE KEY BLOCK-----"),
+                Recommendations.CREDENTIALS));
+        builtIns.add(new PatternSecretRule(
                 "pem-private-key",
                 "PEM private key is hardcoded",
                 Severity.HIGH,

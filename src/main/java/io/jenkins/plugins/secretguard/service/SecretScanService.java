@@ -15,6 +15,7 @@ public class SecretScanService {
     private static final String HIGH_ENTROPY_RULE = "high-entropy-string";
     private static final String SENSITIVE_FIELD_RULE = "sensitive-field-name";
     private static final String BEARER_TOKEN_RULE = "bearer-token";
+    private static final String PEM_PRIVATE_KEY_RULE = "pem-private-key";
     private static final Set<String> GENERIC_RULES = Set.of(HIGH_ENTROPY_RULE, SENSITIVE_FIELD_RULE);
     private static final Set<String> GENERIC_SUPPRESSOR_RULES = Set.of(
             "jwt-token",
@@ -25,8 +26,12 @@ public class SecretScanService {
             "slack-bot-token",
             "pypi-api-token",
             "gitlab-token",
+            "openssh-private-key",
+            "rsa-private-key",
+            "ec-private-key",
+            "pgp-private-key",
             "basic-auth-header",
-            "pem-private-key",
+            PEM_PRIVATE_KEY_RULE,
             "url-embedded-secret",
             "mysql-connection-url",
             "postgres-connection-string",
@@ -45,7 +50,9 @@ public class SecretScanService {
             "slack-bot-token",
             "pypi-api-token",
             "gitlab-token",
-            "pem-private-key");
+            PEM_PRIVATE_KEY_RULE);
+    private static final Set<String> PRIVATE_KEY_SPECIFIC_RULES =
+            Set.of("openssh-private-key", "rsa-private-key", "ec-private-key", "pgp-private-key");
 
     private final AllowListService allowListService;
     private final ExemptionService exemptionService;
@@ -157,6 +164,9 @@ public class SecretScanService {
 
     private boolean suppresses(String strongerRuleId, String weakerRuleId) {
         if (GENERIC_SUPPRESSOR_RULES.contains(strongerRuleId) && GENERIC_RULES.contains(weakerRuleId)) {
+            return true;
+        }
+        if (PRIVATE_KEY_SPECIFIC_RULES.contains(strongerRuleId) && PEM_PRIVATE_KEY_RULE.equals(weakerRuleId)) {
             return true;
         }
         return FORMAT_SPECIFIC_RULES.contains(strongerRuleId) && BEARER_TOKEN_RULE.equals(weakerRuleId);
