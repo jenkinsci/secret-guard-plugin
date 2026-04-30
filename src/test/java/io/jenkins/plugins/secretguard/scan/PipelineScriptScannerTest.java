@@ -559,6 +559,55 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void parsesCustomHeadersAfterLongHttpRequestArgumentLists() {
+        String script = """
+                def response = httpRequest(
+                    httpMode: "POST",
+                    validResponseCodes: "100:599",
+                    contentType: "APPLICATION_JSON",
+                    acceptType: "APPLICATION_JSON",
+                    timeout: 60,
+                    consoleLogResponseBody: false,
+                    quiet: true,
+                    wrapAsMultipart: false,
+                    ignoreSslErrors: false,
+                    responseHandle: "STRING",
+                    multipartName: "payload",
+                    outputFile: "build/secret-guard-response.json",
+                    proxyAuthentication: "proxy-readonly",
+                    authentication: "service-http-credential",
+                    requestBody: groovy.json.JsonOutput.toJson([
+                        jobName: env.JOB_NAME,
+                        buildNumber: env.BUILD_NUMBER,
+                        branchName: env.BRANCH_NAME
+                    ]),
+                    customHeaders: [
+                        [
+                            name: "X-Correlation-ID",
+                            value: "QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l",
+                            maskValue: false
+                        ],
+                        [
+                            name: "Authorization",
+                            value: "Bearer hardcodedHeaderValue0123456789ABCDEF",
+                            maskValue: false
+                        ]
+                    ],
+                    url: "https://api.example.invalid/v1/request-check"
+                )
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-unmasked-header-secret")));
+        assertFalse(result.getFindings().stream()
+                .filter(finding -> finding.getRuleId().startsWith("http-request-"))
+                .anyMatch(finding -> finding.getFieldName().equals("X-Correlation-ID")));
+    }
+
+    @Test
     void doesNotFlagHumanReadableGradleTaskNamesAsHighEntropySecrets() {
         String script = """
                 sh './gradlew --info --refresh-dependencies -Prelease -PskipAndroid=true -PskipCodegen=true build publishAllPublicationsToMavenRepository -x test -x check -PmavenUser=$USER -PmavenPassword=$PASSWORD'
@@ -756,6 +805,16 @@ class PipelineScriptScannerTest {
                 .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
         assertFalse(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
+    void doesNotFlagCuratedLongHttpRequestCustomHeadersFixture() {
+        SecretScanResult result = scanner.scan(
+                context(),
+                TestResourceLoader.load(
+                        "/io/jenkins/plugins/secretguard/fixtures/false-positives/common-http-request-long-layout.Jenkinsfile"));
+
+        assertFalse(result.hasFindings());
     }
 
     @Test
