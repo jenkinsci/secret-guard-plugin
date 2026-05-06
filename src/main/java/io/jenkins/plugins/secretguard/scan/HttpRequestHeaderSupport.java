@@ -113,28 +113,8 @@ final class HttpRequestHeaderSupport {
     }
 
     static ExtractedExpression extractBracketedExpression(String[] lines, int startLineIndex, int startColumn) {
-        int lineIndex = startLineIndex;
-        int column = startColumn;
-        while (lineIndex < lines.length) {
-            String line = lines[lineIndex];
-            while (column < line.length() && Character.isWhitespace(line.charAt(column))) {
-                column++;
-            }
-            while (column < line.length() && line.charAt(column) == '(') {
-                column++;
-                while (column < line.length() && Character.isWhitespace(line.charAt(column))) {
-                    column++;
-                }
-            }
-            if (column < line.length()) {
-                break;
-            }
-            lineIndex++;
-            column = 0;
-        }
-        if (lineIndex >= lines.length
-                || column >= lines[lineIndex].length()
-                || lines[lineIndex].charAt(column) != '[') {
+        BracketStart bracketStart = findBracketStart(lines, startLineIndex, startColumn);
+        if (bracketStart == null) {
             return ExtractedExpression.empty(startLineIndex);
         }
         StringBuilder expression = new StringBuilder();
@@ -142,9 +122,9 @@ final class HttpRequestHeaderSupport {
         boolean inDoubleQuote = false;
         boolean escaping = false;
         int bracketDepth = 0;
-        for (int currentLine = lineIndex; currentLine < lines.length; currentLine++) {
+        for (int currentLine = bracketStart.lineIndex(); currentLine < lines.length; currentLine++) {
             String line = lines[currentLine];
-            int start = currentLine == lineIndex ? column : 0;
+            int start = currentLine == bracketStart.lineIndex() ? bracketStart.columnIndex() : 0;
             for (int index = start; index < line.length(); index++) {
                 char c = line.charAt(index);
                 expression.append(c);
@@ -177,7 +157,7 @@ final class HttpRequestHeaderSupport {
                 } else if (c == ']') {
                     bracketDepth--;
                     if (bracketDepth == 0) {
-                        return new ExtractedExpression(expression.toString(), currentLine);
+                        return new ExtractedExpression(expression.toString(), currentLine, index);
                     }
                 }
             }
@@ -186,6 +166,51 @@ final class HttpRequestHeaderSupport {
             }
         }
         return ExtractedExpression.empty(startLineIndex);
+    }
+
+    private static BracketStart findBracketStart(String[] lines, int startLineIndex, int startColumn) {
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+        boolean escaping = false;
+        for (int lineIndex = startLineIndex; lineIndex < lines.length; lineIndex++) {
+            String line = lines[lineIndex];
+            int column = lineIndex == startLineIndex ? startColumn : 0;
+            for (int index = column; index < line.length(); index++) {
+                char c = line.charAt(index);
+                if (escaping) {
+                    escaping = false;
+                    continue;
+                }
+                if ((inSingleQuote || inDoubleQuote) && c == '\\') {
+                    escaping = true;
+                    continue;
+                }
+                if (inSingleQuote) {
+                    if (c == '\'') {
+                        inSingleQuote = false;
+                    }
+                    continue;
+                }
+                if (inDoubleQuote) {
+                    if (c == '"') {
+                        inDoubleQuote = false;
+                    }
+                    continue;
+                }
+                if (c == '\'') {
+                    inSingleQuote = true;
+                    continue;
+                }
+                if (c == '"') {
+                    inDoubleQuote = true;
+                    continue;
+                }
+                if (c == '[') {
+                    return new BracketStart(lineIndex, index);
+                }
+            }
+        }
+        return null;
     }
 
     private static String normalizeHeaderExpression(String expression) {
@@ -427,11 +452,13 @@ final class HttpRequestHeaderSupport {
 
     record ParsedCustomHeader(String name, String valueExpression, boolean maskValueFalse, int lineNumber) {}
 
-    record ExtractedExpression(String value, int endLineIndex) {
+    record ExtractedExpression(String value, int endLineIndex, int endColumnIndex) {
         private static ExtractedExpression empty(int lineIndex) {
-            return new ExtractedExpression("", lineIndex);
+            return new ExtractedExpression("", lineIndex, -1);
         }
     }
+
+    private record BracketStart(int lineIndex, int columnIndex) {}
 
     private record Segment(String text, int startOffset) {}
 }

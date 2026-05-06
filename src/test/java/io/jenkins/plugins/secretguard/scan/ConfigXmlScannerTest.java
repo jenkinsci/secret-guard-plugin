@@ -1095,6 +1095,96 @@ password = ${TWINE_PASSWORD}
     }
 
     @Test
+    void doesNotFlagCuratedHelperWrappedInlinePipelineFixture() {
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(
+                context("WorkflowJob"),
+                inlinePipelineXml(
+                        TestResourceLoader.load(
+                                "/io/jenkins/plugins/secretguard/fixtures/false-positives/common-http-request-helper-layout.Jenkinsfile")));
+
+        assertFalse(result.hasFindings());
+    }
+
+    @Test
+    void doesNotFlagCuratedHelperMetadataWrappedInlinePipelineFixture() {
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(
+                context("WorkflowJob"),
+                inlinePipelineXml(
+                        TestResourceLoader.load(
+                                "/io/jenkins/plugins/secretguard/fixtures/false-positives/common-http-request-helper-metadata-layout.Jenkinsfile")));
+
+        assertFalse(result.hasFindings());
+    }
+
+    @Test
+    void doesNotFlagCuratedSharedLibraryReleaseInlinePipelineFixture() {
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(
+                context("WorkflowJob"),
+                inlinePipelineXml(
+                        TestResourceLoader.load(
+                                "/io/jenkins/plugins/secretguard/fixtures/false-positives/common-shared-library-release.Jenkinsfile")));
+
+        assertFalse(result.hasFindings());
+    }
+
+    @Test
+    void detectsCuratedHelperWrappedInlinePipelineSecretFixture() {
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(
+                context("WorkflowJob"),
+                inlinePipelineXml(
+                        TestResourceLoader.load(
+                                "/io/jenkins/plugins/secretguard/fixtures/true-positives/hardcoded-http-request-helper-layout.Jenkinsfile")));
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-unmasked-header-secret")));
+        assertFalse(result.getFindings().stream()
+                .filter(finding -> finding.getRuleId().startsWith("http-request-"))
+                .anyMatch(finding -> finding.getFieldName().equals("x-safe-token")));
+    }
+
+    @Test
+    void detectsCuratedHelperMetadataWrappedInlinePipelineSecretFixture() {
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(
+                context("WorkflowJob"),
+                inlinePipelineXml(
+                        TestResourceLoader.load(
+                                "/io/jenkins/plugins/secretguard/fixtures/true-positives/hardcoded-http-request-helper-metadata-layout.Jenkinsfile")));
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-unmasked-header-secret")));
+        assertFalse(result.getFindings().stream()
+                .filter(finding -> finding.getRuleId().startsWith("http-request-"))
+                .anyMatch(finding -> finding.getFieldName().equals("x-safe-token")));
+    }
+
+    @Test
+    void detectsCuratedSharedLibraryReleaseInlinePipelineSecretFixture() {
+        ConfigXmlScanner scanner = new ConfigXmlScanner();
+        SecretScanResult result = scanner.scan(
+                context("WorkflowJob"),
+                inlinePipelineXml(
+                        TestResourceLoader.load(
+                                "/io/jenkins/plugins/secretguard/fixtures/true-positives/common-shared-library-release-secret.Jenkinsfile")));
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret")));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("http-request-unmasked-header-secret")));
+        assertFalse(result.getFindings().stream()
+                .filter(finding -> finding.getRuleId().startsWith("http-request-"))
+                .anyMatch(finding -> finding.getFieldName().equals("x-service-basic")));
+    }
+
+    @Test
     void detectsCuratedNotifierSecretFixture() {
         ConfigXmlScanner scanner = new ConfigXmlScanner();
         SecretScanResult result = scanner.scan(
@@ -1139,5 +1229,18 @@ password = ${TWINE_PASSWORD}
                 ScanPhase.SAVE,
                 EnforcementMode.BLOCK,
                 Severity.HIGH);
+    }
+
+    private String inlinePipelineXml(String script) {
+        return """
+                <flow-definition>
+                  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition">
+                    <script><![CDATA[
+                %s
+                    ]]></script>
+                    <sandbox>true</sandbox>
+                  </definition>
+                </flow-definition>
+                """.formatted(script);
     }
 }
