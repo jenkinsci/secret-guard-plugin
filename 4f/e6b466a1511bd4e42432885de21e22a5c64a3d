@@ -1,0 +1,45 @@
+src/test/java/io/jenkins/plugins/secretguard/action/SecretGuardRootActionTest.java
+  s_c31e5192a10e82::t_531697cdddabfd 117-127,523-543,623-639
+  s_c31e5192a10e82::t_91884da1495a49 544-545
+  s_c31e5192a10e82::t_9768eee2b1d807 23,170-174,177-188,191-194,507-509,511-513,515-519,521-522,546-550,585-601,619-622,640-645
+  s_c31e5192a10e82::t_afe34f268accbf 175-176,189-190
+  s_c31e5192a10e82::t_0630bb2f0dfd82 510,514,520,602-618
+src/main/java/io/jenkins/plugins/secretguard/action/SecretGuardRootAction.java
+  s_c31e5192a10e82::t_802ad35e02dc78 15,20,33-35,226-229,269,301-303,325-357,361-364,368-379,563-565,571,573-578,654-679,684-696,699-776,794-893
+  s_c31e5192a10e82::t_88540acf7ce0af 304-324,558,562,566-569,579-582,601-614,618-620,680-683
+  s_c31e5192a10e82::t_afe34f268accbf 217-218,358-360,365-367,697-698
+  s_c31e5192a10e82::t_91884da1495a49 222-223,615-617
+  s_c31e5192a10e82::t_71b6156a15588b 274-276
+src/main/webapp/scripts/secret-guard-root-action.js
+  s_c31e5192a10e82::t_ceb5466f10501d 9,196-209,211-213,232-244
+  s_c31e5192a10e82::t_70629888d1f6ba 8,218
+  s_c31e5192a10e82::t_83866775528b82 11-14,134-136,138-145,150-159,165-168,179-182,185-193
+  s_c31e5192a10e82::t_25e749eda0733f 116-119
+src/main/webapp/styles/secret-guard.css
+  s_c31e5192a10e82::t_e52c5df547f194 198-199,201-202,204-210,212-213
+  s_c31e5192a10e82::t_1063697d0e4690 190-191,193-197,214-219,221-228,234-240,251-252
+  s_c31e5192a10e82::t_8f588efc019b87 232-233
+  s_c31e5192a10e82::t_e33c712c6d892d 192,200,203,211,220,241-250
+  s_c31e5192a10e82::t_3d5730851e919f 229-231
+src/main/resources/io/jenkins/plugins/secretguard/action/SecretGuardRootAction/index.jelly
+  s_c31e5192a10e82::t_b8fc15297544ff 265-266,271,438-439,444
+  s_c31e5192a10e82::t_39a18169420ffa 195,201,203,232-264,268-270,272-300,302-304,306,312,318,328,342,399-437,441-443,445-472,478
+  s_c31e5192a10e82::t_4ae752a6534377 204-231
+  s_c31e5192a10e82::t_6623f716df2b8a 267,440
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.1",
+  "base_commit_sha": "4fe6b466a1511bd4e42432885de21e22a5c64a3d",
+  "prompts": {},
+  "sessions": {
+    "s_c31e5192a10e82": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e015d-c258-7c70-ad3b-c816021d4408",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui <977675308@qq.com>"
+    }
+  }
+}
