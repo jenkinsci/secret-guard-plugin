@@ -178,14 +178,23 @@ public class PipelineScriptScanner implements SecretScanner {
         if (!matcher.find()) {
             return ParsedCustomHeaders.empty(startLineIndex);
         }
-        HttpRequestHeaderSupport.ExtractedExpression expression =
-                HttpRequestHeaderSupport.extractBracketedExpression(lines, startLineIndex, matcher.end());
-        if (expression.value().isBlank()) {
-            return ParsedCustomHeaders.empty(startLineIndex);
+        int searchLineIndex = startLineIndex;
+        int searchColumn = matcher.end();
+        while (searchLineIndex < lines.length) {
+            HttpRequestHeaderSupport.ExtractedExpression expression =
+                    HttpRequestHeaderSupport.extractBracketedExpression(lines, searchLineIndex, searchColumn);
+            if (expression.value().isBlank()) {
+                return ParsedCustomHeaders.empty(startLineIndex);
+            }
+            List<HttpRequestHeaderSupport.ParsedCustomHeader> headers =
+                    HttpRequestHeaderSupport.parseHeaderExpression(expression.value(), startLineIndex + 1);
+            if (!headers.isEmpty()) {
+                return new ParsedCustomHeaders(headers, expression.endLineIndex());
+            }
+            searchLineIndex = expression.endLineIndex();
+            searchColumn = Math.max(0, expression.endColumnIndex() + 1);
         }
-        return new ParsedCustomHeaders(
-                HttpRequestHeaderSupport.parseHeaderExpression(expression.value(), startLineIndex + 1),
-                expression.endLineIndex());
+        return ParsedCustomHeaders.empty(startLineIndex);
     }
 
     private String trimToNull(String value) {
