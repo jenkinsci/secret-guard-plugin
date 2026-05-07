@@ -2,7 +2,9 @@ package io.jenkins.plugins.secretguard.action;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import hudson.model.FreeStyleProject;
@@ -126,6 +128,20 @@ class SecretGuardRootActionTest {
     }
 
     @Test
+    void searchResultsReturnOriginalListForBlankQueryAndIgnoreNullTargets() {
+        SecretScanResult releaseResult =
+                new SecretScanResult("team/release-build", "WorkflowJob", List.of(finding(Severity.LOW)), false);
+        SecretScanResult nullTargetResult =
+                new SecretScanResult(null, "WorkflowJob", List.of(finding(Severity.LOW)), false);
+        List<SecretScanResult> results = List.of(releaseResult, nullTargetResult);
+
+        assertSame(results, SecretGuardRootAction.searchResults(results, "   "));
+        assertEquals(List.of(), SecretGuardRootAction.searchResults(null, "release"));
+        assertEquals(List.of(), SecretGuardRootAction.searchResults(null, "   "));
+        assertEquals(List.of(releaseResult), SecretGuardRootAction.searchResults(results, " release "));
+    }
+
+    @Test
     void sortsResultsByRiskThenFindingCountThenScanTime() {
         SecretScanResult allowedLowResult = new SecretScanResult(
                 "allowed-low-job",
@@ -192,6 +208,96 @@ class SecretGuardRootActionTest {
         assertEquals(100, pagedResults.getPageSize());
         assertEquals(100, pagedResults.getItems().size());
         assertEquals(2, pagedResults.getTotalPages());
+    }
+
+    @Test
+    void paginatesEmptyResultsAndReportsNoPageNavigation() {
+        SecretGuardRootAction.PagedResults pagedResults = SecretGuardRootAction.paginateResults(null, 3, 50);
+
+        assertTrue(pagedResults.getItems().isEmpty());
+        assertEquals(0, pagedResults.getTotalCount());
+        assertEquals(1, pagedResults.getPage());
+        assertEquals(50, pagedResults.getPageSize());
+        assertEquals(0, pagedResults.getStartIndex());
+        assertEquals(0, pagedResults.getEndIndex());
+        assertEquals(0, pagedResults.getTotalPages());
+        assertFalse(pagedResults.hasPreviousPage());
+        assertFalse(pagedResults.hasNextPage());
+    }
+
+    @Test
+    void pagedResultsReportNavigationStateForMiddleAndLastPages() {
+        SecretGuardRootAction.PagedResults middlePage =
+                SecretGuardRootAction.paginateResults(sampleResults(250), 2, 50);
+        SecretGuardRootAction.PagedResults lastPage = SecretGuardRootAction.paginateResults(sampleResults(250), 5, 50);
+
+        assertTrue(middlePage.hasPreviousPage());
+        assertTrue(middlePage.hasNextPage());
+        assertTrue(lastPage.hasPreviousPage());
+        assertFalse(lastPage.hasNextPage());
+    }
+
+    @Test
+    void visiblePageNumbersCollapseForStartMiddleAndEndRanges() throws Exception {
+        assertIterableEquals(List.of(1, 2, 3, 4, 5, 10), buildVisiblePageNumbers(1, 10));
+        assertIterableEquals(List.of(1, 5, 6, 7, 10), buildVisiblePageNumbers(6, 10));
+        assertIterableEquals(List.of(1, 6, 7, 8, 9, 10), buildVisiblePageNumbers(10, 10));
+        assertIterableEquals(List.of(1, 2, 3, 4, 5, 6, 7), buildVisiblePageNumbers(4, 7));
+    }
+
+    @Test
+    void paginationLinksIncludeCurrentPageGapMarkersAndUrls() throws Exception {
+        SecretGuardRootAction action = new SecretGuardRootAction(null);
+        SecretGuardRootAction.PagedResults pagedResults =
+                SecretGuardRootAction.paginateResults(sampleResults(500), 6, 50);
+
+        @SuppressWarnings("unchecked")
+        List<SecretGuardRootAction.PaginationLink> links =
+                (List<SecretGuardRootAction.PaginationLink>) invokePrivateInstanceMethod(
+                        action,
+                        "buildPaginationLinks",
+                        new Class<?>[] {SecretGuardRootAction.PagedResults.class},
+                        pagedResults);
+
+        assertEquals(7, links.size());
+        assertEquals("1", links.get(0).getLabel());
+        assertEquals("/secret-guard?pageSize=50", links.get(0).getUrl());
+        assertTrue(links.get(1).isGap());
+        assertNull(links.get(1).getUrl());
+        assertEquals("6", links.get(3).getLabel());
+        assertTrue(links.get(3).isCurrent());
+        assertEquals("/secret-guard?page=6&pageSize=50", links.get(3).getUrl());
+        assertTrue(links.get(5).isGap());
+        assertEquals("10", links.get(6).getLabel());
+        assertEquals(10, links.get(6).getPageNumber());
+        assertFalse(links.get(6).isCurrent());
+        assertFalse(links.get(6).isGap());
+    }
+
+    @Test
+    void parsingHelpersNormalizeSearchQueryAndPageSize() throws Exception {
+        assertEquals(
+                1, invokePrivateStaticIntMethod("parsePositiveInt", new Class<?>[] {String.class, int.class}, null, 1));
+        assertEquals(
+                1, invokePrivateStaticIntMethod("parsePositiveInt", new Class<?>[] {String.class, int.class}, "", 1));
+        assertEquals(
+                1, invokePrivateStaticIntMethod("parsePositiveInt", new Class<?>[] {String.class, int.class}, "-3", 1));
+        assertEquals(
+                1,
+                invokePrivateStaticIntMethod("parsePositiveInt", new Class<?>[] {String.class, int.class}, "abc", 1));
+        assertEquals(
+                7,
+                invokePrivateStaticIntMethod("parsePositiveInt", new Class<?>[] {String.class, int.class}, " 7 ", 1));
+        assertEquals(100, invokePrivateStaticIntMethod("normalizePageSize", new Class<?>[] {int.class}, 25));
+        assertEquals(200, invokePrivateStaticIntMethod("normalizePageSize", new Class<?>[] {int.class}, 200));
+        assertEquals(
+                "",
+                invokePrivateStaticStringMethod(
+                        "normalizeSearchQuery", new Class<?>[] {String.class}, new Object[] {null}));
+        assertEquals(
+                "release",
+                invokePrivateStaticStringMethod(
+                        "normalizeSearchQuery", new Class<?>[] {String.class}, new Object[] {" release "}));
     }
 
     @Test
@@ -548,6 +654,24 @@ class SecretGuardRootActionTest {
         }
     }
 
+    @Test
+    @WithJenkins
+    void rootPageShowsSearchSpecificEmptyStateAndZeroPagingSummary(JenkinsRule jenkinsRule) throws Exception {
+        List<String> targetIds = populateStoredResultsWithNotes(List.of("team/deploy-build"));
+
+        try {
+            JenkinsRule.WebClient webClient = jenkinsRule.createWebClient();
+            Page page = webClient.goTo("secret-guard?filter=with-notes&q=release");
+            String content = page.getWebResponse().getContentAsString();
+
+            assertTrue(content.contains("No Secret Guard scan results match the selected filter and search."));
+            assertTrue(content.contains("value=\"release\""));
+            assertTrue(content.contains("href=\"/jenkins/secret-guard?filter=with-notes\""));
+        } finally {
+            removeStoredResults(targetIds);
+        }
+    }
+
     private String withRiskyParameter(String xml) {
         String property = """
                 <properties>
@@ -668,6 +792,34 @@ class SecretGuardRootActionTest {
             index += needle.length();
         }
         return count;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Integer> buildVisiblePageNumbers(int currentPage, int totalPages) throws Exception {
+        return (List<Integer>) invokePrivateStaticMethod(
+                "buildVisiblePageNumbers", new Class<?>[] {int.class, int.class}, currentPage, totalPages);
+    }
+
+    private static Object invokePrivateInstanceMethod(
+            Object target, String methodName, Class<?>[] parameterTypes, Object... args) throws Exception {
+        var method = SecretGuardRootAction.class.getDeclaredMethod(methodName, parameterTypes);
+        method.setAccessible(true);
+        return method.invoke(target, args);
+    }
+
+    private static Object invokePrivateStaticMethod(String methodName, Class<?>[] parameterTypes, Object... args)
+            throws Exception {
+        return invokePrivateInstanceMethod(null, methodName, parameterTypes, args);
+    }
+
+    private static int invokePrivateStaticIntMethod(String methodName, Class<?>[] parameterTypes, Object... args)
+            throws Exception {
+        return (Integer) invokePrivateStaticMethod(methodName, parameterTypes, args);
+    }
+
+    private static String invokePrivateStaticStringMethod(String methodName, Class<?>[] parameterTypes, Object[] args)
+            throws Exception {
+        return (String) invokePrivateStaticMethod(methodName, parameterTypes, args);
     }
 
     private static final class RenderRaceGlobalJobScanService extends GlobalJobScanService {
