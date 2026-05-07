@@ -1,0 +1,21 @@
+src/test/java/io/jenkins/plugins/secretguard/action/SecretGuardRootActionTest.java
+  s_c31e5192a10e82::t_b5abefc573304c 5,7,130-143,213-229,232-242,244-261,263-266,275-278,291-292,657-674,797-822
+  s_c31e5192a10e82::t_9502bef0d3cf5f 243,262,267-274
+  s_c31e5192a10e82::t_677811082ece4d 230-231,279-290,293-300
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.1",
+  "base_commit_sha": "45fa816c0c4a29956f09016957cabd39dfc32035",
+  "prompts": {},
+  "sessions": {
+    "s_c31e5192a10e82": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e015d-c258-7c70-ad3b-c816021d4408",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui <977675308@qq.com>"
+    }
+  }
+}
