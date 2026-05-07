@@ -192,43 +192,140 @@
                 </div>
             </div>
             <div id="secret-guard-results-section">
+                <j:set var="pagedResults" value="${it.pagedResults}" />
                 <j:choose>
                     <j:when test="${it.hasResults()}">
                         <div class="secret-guard-results-header">
                             <div class="secret-guard-results-summary">
                                 <strong>Results</strong>
-                                <span>Showing ${it.filteredResultCount} of ${it.scannedJobCount}</span>
+                                <span>${it.resultWindowSummary}</span>
                             </div>
-                            <div class="secret-guard-layout-inline-end">
+                            <div class="secret-guard-results-controls">
+                                <form
+                                    method="get"
+                                    action="${it.searchFormAction}"
+                                    class="secret-guard-form-inline secret-guard-results-search"
+                                >
+                                    <j:if test="${it.activeFilterParameterValue != 'all'}">
+                                        <input type="hidden" name="filter" value="${it.activeFilterParameterValue}" />
+                                    </j:if>
+                                    <j:if test="${pagedResults.pageSize != 100}">
+                                        <input type="hidden" name="pageSize" value="${pagedResults.pageSize}" />
+                                    </j:if>
+                                    <label class="secret-guard-results-search-field">
+                                        <span class="jenkins-visually-hidden">Search by job full name</span>
+                                        <input
+                                            class="jenkins-input secret-guard-results-search-input"
+                                            type="search"
+                                            name="q"
+                                            value="${it.searchQuery}"
+                                            placeholder="Search job full name"
+                                        />
+                                    </label>
+                                    <button class="jenkins-button jenkins-button--secondary" type="submit">Search</button>
+                                    <j:if test="${it.hasActiveSearchQuery()}">
+                                        <a class="jenkins-button jenkins-button--secondary secret-guard-results-link" href="${it.clearSearchUrl}">
+                                            Clear
+                                        </a>
+                                    </j:if>
+                                </form>
+                                <div class="secret-guard-layout-inline-end secret-guard-results-page-size">
+                                    <span>Page size:</span>
+                                    <j:forEach var="pageSizeOption" items="${it.availablePageSizes}">
+                                        <a
+                                            class="${it.getPageSizeButtonClass(pageSizeOption)} secret-guard-results-link"
+                                            href="${it.getPageSizeUrl(pageSizeOption)}"
+                                        >
+                                            ${pageSizeOption}
+                                        </a>
+                                    </j:forEach>
+                                </div>
+                                <j:if test="${it.hasMultipleResultPages()}">
+                                    <div class="secret-guard-layout-inline-end secret-guard-results-pagination">
+                                        <span>${it.paginationSummaryText}</span>
+                                        <j:choose>
+                                            <j:when test="${it.previousPageUrl != null}">
+                                                <a
+                                                    class="jenkins-button jenkins-button--secondary secret-guard-results-link"
+                                                    href="${it.previousPageUrl}"
+                                                >
+                                                    Previous
+                                                </a>
+                                            </j:when>
+                                            <j:otherwise>
+                                                <span class="jenkins-button jenkins-button--secondary">Previous</span>
+                                            </j:otherwise>
+                                        </j:choose>
+                                        <j:forEach var="pageLink" items="${it.paginationLinks}">
+                                            <j:choose>
+                                                <j:when test="${pageLink.gap}">
+                                                    <span class="secret-guard-pagination-gap">${pageLink.label}</span>
+                                                </j:when>
+                                                <j:when test="${pageLink.current}">
+                                                    <a
+                                                        class="jenkins-button jenkins-submit-button jenkins-button--primary secret-guard-pagination-current"
+                                                        href="${pageLink.url}"
+                                                        aria-current="page"
+                                                    >
+                                                        ${pageLink.label}
+                                                    </a>
+                                                </j:when>
+                                                <j:otherwise>
+                                                    <a
+                                                        class="jenkins-button jenkins-button--secondary secret-guard-results-link"
+                                                        href="${pageLink.url}"
+                                                    >
+                                                        ${pageLink.label}
+                                                    </a>
+                                                </j:otherwise>
+                                            </j:choose>
+                                        </j:forEach>
+                                        <j:choose>
+                                            <j:when test="${it.nextPageUrl != null}">
+                                                <a
+                                                    class="jenkins-button jenkins-button--secondary secret-guard-results-link"
+                                                    href="${it.nextPageUrl}"
+                                                >
+                                                    Next
+                                                </a>
+                                            </j:when>
+                                            <j:otherwise>
+                                                <span class="jenkins-button jenkins-button--secondary">Next</span>
+                                            </j:otherwise>
+                                        </j:choose>
+                                    </div>
+                                </j:if>
+                            </div>
+                        </div>
+                        <div class="secret-guard-layout-inline-end secret-guard-results-filters">
                                 <span>Filters:</span>
-                                <a class="${it.getFilterButtonClass('all')} secret-guard-filter-link" href="${it.getFilterUrl('all')}">${it.getFilterButtonLabel('all')}</a>
-                                <a class="${it.getFilterButtonClass('high')} secret-guard-filter-link" href="${it.getFilterUrl('high')}">${it.getFilterButtonLabel('high')}</a>
-                                <a class="${it.getFilterButtonClass('blocked')} secret-guard-filter-link" href="${it.getFilterUrl('blocked')}">${it.getFilterButtonLabel('blocked')}</a>
+                                <a class="${it.getFilterButtonClass('all')} secret-guard-filter-link secret-guard-results-link" href="${it.getFilterUrl('all')}">${it.getFilterButtonLabel('all')}</a>
+                                <a class="${it.getFilterButtonClass('high')} secret-guard-filter-link secret-guard-results-link" href="${it.getFilterUrl('high')}">${it.getFilterButtonLabel('high')}</a>
+                                <a class="${it.getFilterButtonClass('blocked')} secret-guard-filter-link secret-guard-results-link" href="${it.getFilterUrl('blocked')}">${it.getFilterButtonLabel('blocked')}</a>
                                 <a
-                                    class="${it.getFilterButtonClass('with-findings')} secret-guard-filter-link"
+                                    class="${it.getFilterButtonClass('with-findings')} secret-guard-filter-link secret-guard-results-link"
                                     href="${it.getFilterUrl('with-findings')}"
                                 >
                                     ${it.getFilterButtonLabel('with-findings')}
                                 </a>
                                 <a
-                                    class="${it.getFilterButtonClass('with-exemptions')} secret-guard-filter-link"
+                                    class="${it.getFilterButtonClass('with-exemptions')} secret-guard-filter-link secret-guard-results-link"
                                     href="${it.getFilterUrl('with-exemptions')}"
                                 >
                                     ${it.getFilterButtonLabel('with-exemptions')}
                                 </a>
                                 <a
-                                    class="${it.getFilterButtonClass('with-notes')} secret-guard-filter-link"
+                                    class="${it.getFilterButtonClass('with-notes')} secret-guard-filter-link secret-guard-results-link"
                                     href="${it.getFilterUrl('with-notes')}"
                                 >
                                     ${it.getFilterButtonLabel('with-notes')}
                                 </a>
-                            </div>
                         </div>
                     </j:when>
                 </j:choose>
                 <j:choose>
                     <j:when test="${it.hasFilteredResults()}">
-                        <table class="jenkins-table sortable">
+                        <table class="jenkins-table">
                             <thead>
                                 <tr>
                                     <th>Job</th>
@@ -242,7 +339,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <j:forEach var="result" items="${it.filteredResults}">
+                                <j:forEach var="result" items="${pagedResults.items}">
                                     <tr class="${it.getResultRowClass(result)}">
                                         <j:set var="jobUrl" value="${it.getJobSecretGuardUrl(result)}" />
                                         <td class="secret-guard-cell-wrap-sm">
@@ -299,12 +396,86 @@
                                 </j:forEach>
                             </tbody>
                         </table>
+                        <j:if test="${it.hasMultipleResultPages()}">
+                            <div class="secret-guard-results-footer">
+                                <div class="secret-guard-results-summary">
+                                    <strong>Results</strong>
+                                    <span>${it.resultWindowSummary}</span>
+                                </div>
+                                <div class="secret-guard-results-controls">
+                                    <div class="secret-guard-layout-inline-end secret-guard-results-page-size">
+                                        <span>Page size:</span>
+                                        <j:forEach var="pageSizeOption" items="${it.availablePageSizes}">
+                                            <a
+                                                class="${it.getPageSizeButtonClass(pageSizeOption)} secret-guard-results-link"
+                                                href="${it.getPageSizeUrl(pageSizeOption)}"
+                                            >
+                                                ${pageSizeOption}
+                                            </a>
+                                        </j:forEach>
+                                    </div>
+                                    <div class="secret-guard-layout-inline-end secret-guard-results-pagination">
+                                        <span>${it.paginationSummaryText}</span>
+                                        <j:choose>
+                                            <j:when test="${it.previousPageUrl != null}">
+                                                <a
+                                                    class="jenkins-button jenkins-button--secondary secret-guard-results-link"
+                                                    href="${it.previousPageUrl}"
+                                                >
+                                                    Previous
+                                                </a>
+                                            </j:when>
+                                            <j:otherwise>
+                                                <span class="jenkins-button jenkins-button--secondary">Previous</span>
+                                            </j:otherwise>
+                                        </j:choose>
+                                        <j:forEach var="pageLink" items="${it.paginationLinks}">
+                                            <j:choose>
+                                                <j:when test="${pageLink.gap}">
+                                                    <span class="secret-guard-pagination-gap">${pageLink.label}</span>
+                                                </j:when>
+                                                <j:when test="${pageLink.current}">
+                                                    <a
+                                                        class="jenkins-button jenkins-submit-button jenkins-button--primary secret-guard-pagination-current"
+                                                        href="${pageLink.url}"
+                                                        aria-current="page"
+                                                    >
+                                                        ${pageLink.label}
+                                                    </a>
+                                                </j:when>
+                                                <j:otherwise>
+                                                    <a
+                                                        class="jenkins-button jenkins-button--secondary secret-guard-results-link"
+                                                        href="${pageLink.url}"
+                                                    >
+                                                        ${pageLink.label}
+                                                    </a>
+                                                </j:otherwise>
+                                            </j:choose>
+                                        </j:forEach>
+                                        <j:choose>
+                                            <j:when test="${it.nextPageUrl != null}">
+                                                <a
+                                                    class="jenkins-button jenkins-button--secondary secret-guard-results-link"
+                                                    href="${it.nextPageUrl}"
+                                                >
+                                                    Next
+                                                </a>
+                                            </j:when>
+                                            <j:otherwise>
+                                                <span class="jenkins-button jenkins-button--secondary">Next</span>
+                                            </j:otherwise>
+                                        </j:choose>
+                                    </div>
+                                </div>
+                            </div>
+                        </j:if>
                     </j:when>
                     <j:otherwise>
                         <p>
                             ${it.emptyResultsMessage}
                             <j:if test="${it.hasResults()}">
-                                <a class="secret-guard-filter-link" href="${it.getFilterUrl('all')}">Show all</a>
+                                <a class="secret-guard-filter-link secret-guard-results-link" href="${it.getFilterUrl('all')}">Show all</a>
                             </j:if>
                         </p>
                     </j:otherwise>

@@ -12,10 +12,12 @@ import io.jenkins.plugins.secretguard.service.GlobalJobScanStatus;
 import io.jenkins.plugins.secretguard.service.ScanResultStore;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import jenkins.model.Jenkins;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
@@ -28,6 +30,9 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, ScanTimeDisplaySupport, StaplerProxy {
     private static final int MAX_DISPLAY_TARGET_LENGTH = 72;
     private static final int DISPLAY_TARGET_TAIL_SEGMENTS = 3;
+    private static final int DEFAULT_PAGE_SIZE = 100;
+    private static final List<Integer> PAGE_SIZE_OPTIONS = List.of(50, 100, 200);
+    private static final String REQUEST_CACHE_KEY_PREFIX = SecretGuardRootAction.class.getName() + ".";
     private static final String ELLIPSIS = "\u2026";
 
     private final GlobalJobScanService globalJobScanService;
@@ -209,11 +214,19 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
     }
 
     public List<SecretScanResult> getResults() {
-        return sortResults(ScanResultStore.get().getAll());
+        return getRequestCachedValue(
+                "results", () -> sortResults(ScanResultStore.get().getAll()));
     }
 
     public List<SecretScanResult> getFilteredResults() {
-        return filterResults(getResults(), getActiveResultFilter());
+        return getRequestCachedValue(
+                "filteredResults", () -> filterResults(getSearchedResults(), getActiveResultFilter()));
+    }
+
+    public PagedResults getPagedResults() {
+        return getRequestCachedValue(
+                "pagedResults",
+                () -> paginateResults(getFilteredResults(), getRequestedPage(), getRequestedPageSize()));
     }
 
     public int getScannedJobCount() {
@@ -253,12 +266,14 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
     }
 
     public boolean hasFilteredResults() {
-        return !getFilteredResults().isEmpty();
+        return !getPagedResults().getItems().isEmpty();
     }
 
     public String getEmptyResultsMessage() {
         return hasResults()
-                ? "No Secret Guard scan results match the selected filter."
+                ? (hasActiveSearchQuery()
+                        ? "No Secret Guard scan results match the selected filter and search."
+                        : "No Secret Guard scan results match the selected filter.")
                 : "No Secret Guard scan results have been recorded yet.";
     }
 
@@ -283,7 +298,85 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
     }
 
     public int getFilteredResultCount() {
-        return getFilteredResults().size();
+        return getPagedResults().getTotalCount();
+    }
+
+    public String getSearchQuery() {
+        StaplerRequest2 currentRequest = Stapler.getCurrentRequest2();
+        return currentRequest == null ? "" : normalizeSearchQuery(currentRequest.getParameter("q"));
+    }
+
+    public boolean hasActiveSearchQuery() {
+        return !getSearchQuery().isBlank();
+    }
+
+    public String getClearSearchUrl() {
+        return buildResultsUrl(getActiveResultFilter(), 1, getRequestedPageSize(), "");
+    }
+
+    public String getSearchFormAction() {
+        return getRootActionUrl();
+    }
+
+    public String getActiveFilterParameterValue() {
+        return getActiveResultFilter().getParameterValue();
+    }
+
+    public String getResultWindowSummary() {
+        PagedResults pagedResults = getPagedResults();
+        if (pagedResults.getTotalCount() == 0) {
+            return "Showing 0 of 0";
+        }
+        return "Showing " + pagedResults.getStartIndex() + "-" + pagedResults.getEndIndex() + " of "
+                + pagedResults.getTotalCount();
+    }
+
+    public boolean hasMultipleResultPages() {
+        return getPagedResults().getTotalPages() > 1;
+    }
+
+    public List<Integer> getAvailablePageSizes() {
+        return PAGE_SIZE_OPTIONS;
+    }
+
+    public boolean isActivePageSize(int pageSize) {
+        return getPagedResults().getPageSize() == pageSize;
+    }
+
+    public String getPageSizeButtonClass(int pageSize) {
+        return isActivePageSize(pageSize)
+                ? "jenkins-button jenkins-submit-button jenkins-button--primary"
+                : "jenkins-button jenkins-button--secondary";
+    }
+
+    public List<PaginationLink> getPaginationLinks() {
+        return getRequestCachedValue("paginationLinks", () -> buildPaginationLinks(getPagedResults()));
+    }
+
+    public String getPreviousPageUrl() {
+        PagedResults pagedResults = getPagedResults();
+        return pagedResults.hasPreviousPage()
+                ? buildResultsUrl(getActiveResultFilter(), pagedResults.getPage() - 1, pagedResults.getPageSize())
+                : null;
+    }
+
+    public String getNextPageUrl() {
+        PagedResults pagedResults = getPagedResults();
+        return pagedResults.hasNextPage()
+                ? buildResultsUrl(getActiveResultFilter(), pagedResults.getPage() + 1, pagedResults.getPageSize())
+                : null;
+    }
+
+    public String getPageSizeUrl(int pageSize) {
+        return buildResultsUrl(getActiveResultFilter(), 1, normalizePageSize(pageSize));
+    }
+
+    public String getPaginationSummaryText() {
+        PagedResults pagedResults = getPagedResults();
+        if (pagedResults.getTotalCount() == 0) {
+            return "Page 0 of 0";
+        }
+        return "Page " + pagedResults.getPage() + " of " + pagedResults.getTotalPages();
     }
 
     public String getHighFindingsCardClass() {
@@ -462,13 +555,31 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
     }
 
     private long getFilterCount(ResultFilter filter) {
-        return filterResults(getResults(), filter).size();
+        return filterResults(getSearchedResults(), filter).size();
     }
 
     private String buildResultsUrl(ResultFilter filter) {
+        return buildResultsUrl(filter, 1, getRequestedPageSize(), getSearchQuery());
+    }
+
+    private String buildResultsUrl(ResultFilter filter, int page, int pageSize) {
+        return buildResultsUrl(filter, page, pageSize, getSearchQuery());
+    }
+
+    private String buildResultsUrl(ResultFilter filter, int page, int pageSize, String searchQuery) {
         StringBuilder url = new StringBuilder(getRootActionUrl());
+        boolean hasQuery = false;
         if (filter != ResultFilter.ALL) {
-            url.append("?filter=").append(Util.rawEncode(filter.getParameterValue()));
+            hasQuery = appendQueryParameter(url, hasQuery, "filter", filter.getParameterValue());
+        }
+        if (page > 1) {
+            hasQuery = appendQueryParameter(url, hasQuery, "page", Integer.toString(page));
+        }
+        if (pageSize != DEFAULT_PAGE_SIZE) {
+            hasQuery = appendQueryParameter(url, hasQuery, "pageSize", Integer.toString(pageSize));
+        }
+        if (searchQuery != null && !searchQuery.isBlank()) {
+            appendQueryParameter(url, hasQuery, "q", searchQuery);
         }
         return url.toString();
     }
@@ -485,6 +596,26 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
             case WITH_EXEMPTIONS -> result.hasExemptedFindings();
             case WITH_NOTES -> result.hasNotes();
         };
+    }
+
+    private List<SecretScanResult> getSearchedResults() {
+        return getRequestCachedValue("searchedResults", () -> searchResults(getResults(), getSearchQuery()));
+    }
+
+    static List<SecretScanResult> searchResults(List<SecretScanResult> results, String query) {
+        String normalizedQuery = normalizeSearchQuery(query);
+        if (normalizedQuery.isBlank()) {
+            return results == null ? List.of() : results;
+        }
+        String normalizedNeedle = normalizedQuery.toLowerCase(java.util.Locale.ROOT);
+        List<SecretScanResult> safeResults = results == null ? List.of() : results;
+        return safeResults.stream()
+                .filter(result -> result != null
+                        && result.getTargetId() != null
+                        && result.getTargetId()
+                                .toLowerCase(java.util.Locale.ROOT)
+                                .contains(normalizedNeedle))
+                .toList();
     }
 
     private String resolveJobTypeFilterLabel(String jobTypeFilter) {
@@ -520,6 +651,129 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
         return separator >= 0 ? className.substring(separator + 1) : className;
     }
 
+    private int getRequestedPage() {
+        StaplerRequest2 currentRequest = Stapler.getCurrentRequest2();
+        return currentRequest == null ? 1 : parsePositiveInt(currentRequest.getParameter("page"), 1);
+    }
+
+    private int getRequestedPageSize() {
+        StaplerRequest2 currentRequest = Stapler.getCurrentRequest2();
+        return currentRequest == null
+                ? DEFAULT_PAGE_SIZE
+                : normalizePageSize(parsePositiveInt(currentRequest.getParameter("pageSize"), DEFAULT_PAGE_SIZE));
+    }
+
+    private static int parsePositiveInt(String value, int defaultValue) {
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        try {
+            int parsed = Integer.parseInt(value.trim());
+            return parsed > 0 ? parsed : defaultValue;
+        } catch (NumberFormatException ignored) {
+            return defaultValue;
+        }
+    }
+
+    private static int normalizePageSize(int pageSize) {
+        return PAGE_SIZE_OPTIONS.contains(pageSize) ? pageSize : DEFAULT_PAGE_SIZE;
+    }
+
+    private static String normalizeSearchQuery(String query) {
+        return query == null ? "" : query.trim();
+    }
+
+    static PagedResults paginateResults(List<SecretScanResult> results, int page, int pageSize) {
+        int safePageSize = normalizePageSize(pageSize);
+        List<SecretScanResult> safeResults = results == null ? List.of() : results;
+        int totalCount = safeResults.size();
+        if (totalCount == 0) {
+            return new PagedResults(List.of(), 0, 1, safePageSize, 0, 0);
+        }
+        int totalPages = (int) Math.ceil((double) totalCount / safePageSize);
+        int safePage = Math.min(Math.max(1, page), totalPages);
+        int fromIndex = (safePage - 1) * safePageSize;
+        int toIndex = Math.min(totalCount, fromIndex + safePageSize);
+        return new PagedResults(
+                safeResults.subList(fromIndex, toIndex), totalCount, safePage, safePageSize, fromIndex + 1, toIndex);
+    }
+
+    private List<PaginationLink> buildPaginationLinks(PagedResults pagedResults) {
+        if (pagedResults.getTotalPages() <= 1) {
+            return List.of();
+        }
+        List<PaginationLink> links = new ArrayList<>();
+        List<Integer> pageNumbers = buildVisiblePageNumbers(pagedResults.getPage(), pagedResults.getTotalPages());
+        int previousPageNumber = -1;
+        for (int pageNumber : pageNumbers) {
+            if (previousPageNumber > 0 && pageNumber - previousPageNumber > 1) {
+                links.add(PaginationLink.gap());
+            }
+            links.add(PaginationLink.page(
+                    Integer.toString(pageNumber),
+                    pageNumber,
+                    pageNumber == pagedResults.getPage(),
+                    buildResultsUrl(getActiveResultFilter(), pageNumber, pagedResults.getPageSize())));
+            previousPageNumber = pageNumber;
+        }
+        return links;
+    }
+
+    private static List<Integer> buildVisiblePageNumbers(int currentPage, int totalPages) {
+        if (totalPages <= 7) {
+            List<Integer> pages = new ArrayList<>();
+            for (int pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
+                pages.add(pageNumber);
+            }
+            return pages;
+        }
+
+        List<Integer> pages = new ArrayList<>();
+        pages.add(1);
+
+        int start = Math.max(2, currentPage - 1);
+        int end = Math.min(totalPages - 1, currentPage + 1);
+
+        if (currentPage <= 4) {
+            start = 2;
+            end = 5;
+        } else if (currentPage >= totalPages - 3) {
+            start = totalPages - 4;
+            end = totalPages - 1;
+        }
+
+        for (int pageNumber = start; pageNumber <= end; pageNumber++) {
+            pages.add(pageNumber);
+        }
+
+        pages.add(totalPages);
+        return pages;
+    }
+
+    private static boolean appendQueryParameter(StringBuilder url, boolean hasQuery, String name, String value) {
+        url.append(hasQuery ? '&' : '?')
+                .append(Util.rawEncode(name))
+                .append('=')
+                .append(Util.rawEncode(value));
+        return true;
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> T getRequestCachedValue(String keySuffix, Supplier<T> loader) {
+        StaplerRequest2 currentRequest = Stapler.getCurrentRequest2();
+        if (currentRequest == null) {
+            return loader.get();
+        }
+        String cacheKey = REQUEST_CACHE_KEY_PREFIX + keySuffix;
+        Object cached = currentRequest.getAttribute(cacheKey);
+        if (cached != null) {
+            return (T) cached;
+        }
+        T loaded = loader.get();
+        currentRequest.setAttribute(cacheKey, loaded);
+        return loaded;
+    }
+
     public static final class JobTypeOption {
         private final String value;
         private final String label;
@@ -535,6 +789,108 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
 
         public String getLabel() {
             return label;
+        }
+    }
+
+    public static final class PagedResults {
+        private final List<SecretScanResult> items;
+        private final int totalCount;
+        private final int page;
+        private final int pageSize;
+        private final int startIndex;
+        private final int endIndex;
+
+        private PagedResults(
+                List<SecretScanResult> items, int totalCount, int page, int pageSize, int startIndex, int endIndex) {
+            this.items = List.copyOf(items);
+            this.totalCount = totalCount;
+            this.page = page;
+            this.pageSize = pageSize;
+            this.startIndex = startIndex;
+            this.endIndex = endIndex;
+        }
+
+        public List<SecretScanResult> getItems() {
+            return items;
+        }
+
+        public int getTotalCount() {
+            return totalCount;
+        }
+
+        public int getPage() {
+            return page;
+        }
+
+        public int getPageSize() {
+            return pageSize;
+        }
+
+        public int getStartIndex() {
+            return startIndex;
+        }
+
+        public int getEndIndex() {
+            return endIndex;
+        }
+
+        public int getTotalPages() {
+            if (totalCount == 0) {
+                return 0;
+            }
+            return (int) Math.ceil((double) totalCount / pageSize);
+        }
+
+        public boolean hasPreviousPage() {
+            return page > 1;
+        }
+
+        public boolean hasNextPage() {
+            return page < getTotalPages();
+        }
+    }
+
+    public static final class PaginationLink {
+        private final String label;
+        private final int pageNumber;
+        private final boolean current;
+        private final boolean gap;
+        private final String url;
+
+        private PaginationLink(String label, int pageNumber, boolean current, boolean gap, String url) {
+            this.label = label;
+            this.pageNumber = pageNumber;
+            this.current = current;
+            this.gap = gap;
+            this.url = url;
+        }
+
+        private static PaginationLink gap() {
+            return new PaginationLink(ELLIPSIS, -1, false, true, null);
+        }
+
+        private static PaginationLink page(String label, int pageNumber, boolean current, String url) {
+            return new PaginationLink(label, pageNumber, current, false, url);
+        }
+
+        public String getLabel() {
+            return label;
+        }
+
+        public int getPageNumber() {
+            return pageNumber;
+        }
+
+        public boolean isCurrent() {
+            return current;
+        }
+
+        public boolean isGap() {
+            return gap;
+        }
+
+        public String getUrl() {
+            return url;
         }
     }
 }
