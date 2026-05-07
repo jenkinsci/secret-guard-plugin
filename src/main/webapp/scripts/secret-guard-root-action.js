@@ -5,8 +5,13 @@
     var OPEN_SCAN_DIALOG_BUTTON_ID = "secret-guard-open-scan-all-dialog";
     var CLOSE_SCAN_DIALOG_BUTTON_ID = "secret-guard-close-scan-all-dialog";
     var RESULTS_SECTION_ID = "secret-guard-results-section";
-    var FILTER_LINK_CLASS = "secret-guard-filter-link";
+    var RESULTS_LINK_CLASS = "secret-guard-results-link";
+    var RESULTS_SEARCH_FORM_CLASS = "secret-guard-results-search";
     var STORAGE_KEY_SUFFIX = ":scan-all-details-open";
+    var activeResultsRequest = null;
+    var activeResultsRequestUrl = null;
+    var activeResultsAbortController = null;
+    var resultsRequestSequence = 0;
 
     function getSessionStorage() {
         try {
@@ -108,6 +113,10 @@
             resultsSection.removeAttribute("aria-busy");
             resultsSection.classList.remove("secret-guard-results-section--loading");
         }
+
+        resultsSection.querySelectorAll("." + RESULTS_SEARCH_FORM_CLASS + ' button[type="submit"]').forEach(function (button) {
+            button.disabled = loading;
+        });
     }
 
     function replaceResultsSection(nextDocument) {
@@ -122,19 +131,41 @@
     }
 
     function fetchAndReplaceResults(url, pushHistory) {
-        setResultsLoading(true);
+        if (activeResultsRequest && activeResultsRequestUrl === url) {
+            return activeResultsRequest;
+        }
 
-        return window.fetch(url, {
+        if (activeResultsAbortController) {
+            activeResultsAbortController.abort();
+            activeResultsAbortController = null;
+        }
+
+        resultsRequestSequence += 1;
+        var requestSequence = resultsRequestSequence;
+        var requestOptions = {
             headers: {
                 "X-Requested-With": "XMLHttpRequest"
             },
             credentials: "same-origin"
-        }).then(function (response) {
+        };
+        if (typeof window.AbortController === "function") {
+            activeResultsAbortController = new window.AbortController();
+            requestOptions.signal = activeResultsAbortController.signal;
+        }
+
+        activeResultsRequestUrl = url;
+        setResultsLoading(true);
+
+        activeResultsRequest = window.fetch(url, requestOptions).then(function (response) {
             if (!response.ok) {
                 throw new Error("Failed to load filtered results.");
             }
             return response.text();
         }).then(function (html) {
+            if (requestSequence !== resultsRequestSequence) {
+                return;
+            }
+
             var parser = new DOMParser();
             var nextDocument = parser.parseFromString(html, "text/html");
             if (!replaceResultsSection(nextDocument)) {
@@ -145,16 +176,46 @@
             if (pushHistory) {
                 window.history.pushState({resultsUrl: url}, "", url);
             }
-        }).catch(function () {
+        }).catch(function (error) {
+            if (error && error.name === "AbortError") {
+                return;
+            }
             window.location.assign(url);
         }).finally(function () {
-            setResultsLoading(false);
+            if (requestSequence === resultsRequestSequence) {
+                activeResultsRequest = null;
+                activeResultsRequestUrl = null;
+                activeResultsAbortController = null;
+                setResultsLoading(false);
+            }
         });
+
+        return activeResultsRequest;
+    }
+
+    function buildResultsFormUrl(form) {
+        var action = form.getAttribute("action") || window.location.pathname;
+        var formData = new window.FormData(form);
+        var params = new window.URLSearchParams();
+
+        formData.forEach(function (value, key) {
+            if (typeof value !== "string") {
+                return;
+            }
+            var normalizedValue = value.trim();
+            if (normalizedValue === "") {
+                return;
+            }
+            params.append(key, normalizedValue);
+        });
+
+        var query = params.toString();
+        return query ? action + "?" + query : action;
     }
 
     function initializeFilterRefresh() {
         document.addEventListener("click", function (event) {
-            var link = event.target.closest("." + FILTER_LINK_CLASS);
+            var link = event.target.closest("." + RESULTS_LINK_CLASS);
             if (!shouldHandleFilterClick(event, link)) {
                 return;
             }
@@ -166,6 +227,21 @@
 
             event.preventDefault();
             fetchAndReplaceResults(link.href, true);
+        });
+
+        document.addEventListener("submit", function (event) {
+            var form = event.target.closest("." + RESULTS_SEARCH_FORM_CLASS);
+            if (!form) {
+                return;
+            }
+
+            var resultsSection = document.getElementById(RESULTS_SECTION_ID);
+            if (!resultsSection || !resultsSection.contains(form)) {
+                return;
+            }
+
+            event.preventDefault();
+            fetchAndReplaceResults(buildResultsFormUrl(form), true);
         });
 
         window.addEventListener("popstate", function () {

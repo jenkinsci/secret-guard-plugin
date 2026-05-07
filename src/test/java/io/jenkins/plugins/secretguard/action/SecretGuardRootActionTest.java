@@ -2,7 +2,9 @@ package io.jenkins.plugins.secretguard.action;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import hudson.model.FreeStyleProject;
@@ -20,6 +22,7 @@ import java.io.StringReader;
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.xml.transform.stream.StreamSource;
@@ -113,6 +116,32 @@ class SecretGuardRootActionTest {
     }
 
     @Test
+    void searchesResultsByJobFullNameCaseInsensitively() {
+        SecretScanResult releaseResult =
+                new SecretScanResult("team/release-build", "WorkflowJob", List.of(finding(Severity.LOW)), false);
+        SecretScanResult deployResult =
+                new SecretScanResult("team/deploy-build", "WorkflowJob", List.of(finding(Severity.LOW)), false);
+
+        assertEquals(
+                List.of(releaseResult),
+                SecretGuardRootAction.searchResults(List.of(releaseResult, deployResult), "RELEASE"));
+    }
+
+    @Test
+    void searchResultsReturnOriginalListForBlankQueryAndIgnoreNullTargets() {
+        SecretScanResult releaseResult =
+                new SecretScanResult("team/release-build", "WorkflowJob", List.of(finding(Severity.LOW)), false);
+        SecretScanResult nullTargetResult =
+                new SecretScanResult(null, "WorkflowJob", List.of(finding(Severity.LOW)), false);
+        List<SecretScanResult> results = List.of(releaseResult, nullTargetResult);
+
+        assertSame(results, SecretGuardRootAction.searchResults(results, "   "));
+        assertEquals(List.of(), SecretGuardRootAction.searchResults(null, "release"));
+        assertEquals(List.of(), SecretGuardRootAction.searchResults(null, "   "));
+        assertEquals(List.of(releaseResult), SecretGuardRootAction.searchResults(results, " release "));
+    }
+
+    @Test
     void sortsResultsByRiskThenFindingCountThenScanTime() {
         SecretScanResult allowedLowResult = new SecretScanResult(
                 "allowed-low-job",
@@ -154,6 +183,121 @@ class SecretGuardRootActionTest {
         assertEquals("/secret-guard?filter=high", action.getFilterUrl("high"));
         assertEquals("/secret-guard?filter=with-exemptions", action.getFilterUrl("with-exemptions"));
         assertEquals("/secret-guard?filter=with-notes", action.getFilterUrl("with-notes"));
+        assertEquals("/secret-guard?pageSize=200", action.getPageSizeUrl(200));
+    }
+
+    @Test
+    void paginatesResultsAndClampsOutOfRangePageNumbers() {
+        SecretGuardRootAction.PagedResults pagedResults =
+                SecretGuardRootAction.paginateResults(sampleResults(120), 9, 50);
+
+        assertEquals(120, pagedResults.getTotalCount());
+        assertEquals(3, pagedResults.getPage());
+        assertEquals(50, pagedResults.getPageSize());
+        assertEquals(101, pagedResults.getStartIndex());
+        assertEquals(120, pagedResults.getEndIndex());
+        assertEquals(20, pagedResults.getItems().size());
+        assertEquals(3, pagedResults.getTotalPages());
+    }
+
+    @Test
+    void fallsBackToDefaultPageSizeWhenRequestUsesUnsupportedValue() {
+        SecretGuardRootAction.PagedResults pagedResults =
+                SecretGuardRootAction.paginateResults(sampleResults(120), 1, 25);
+
+        assertEquals(100, pagedResults.getPageSize());
+        assertEquals(100, pagedResults.getItems().size());
+        assertEquals(2, pagedResults.getTotalPages());
+    }
+
+    @Test
+    void paginatesEmptyResultsAndReportsNoPageNavigation() {
+        SecretGuardRootAction.PagedResults pagedResults = SecretGuardRootAction.paginateResults(null, 3, 50);
+
+        assertTrue(pagedResults.getItems().isEmpty());
+        assertEquals(0, pagedResults.getTotalCount());
+        assertEquals(1, pagedResults.getPage());
+        assertEquals(50, pagedResults.getPageSize());
+        assertEquals(0, pagedResults.getStartIndex());
+        assertEquals(0, pagedResults.getEndIndex());
+        assertEquals(0, pagedResults.getTotalPages());
+        assertFalse(pagedResults.hasPreviousPage());
+        assertFalse(pagedResults.hasNextPage());
+    }
+
+    @Test
+    void pagedResultsReportNavigationStateForMiddleAndLastPages() {
+        SecretGuardRootAction.PagedResults middlePage =
+                SecretGuardRootAction.paginateResults(sampleResults(250), 2, 50);
+        SecretGuardRootAction.PagedResults lastPage = SecretGuardRootAction.paginateResults(sampleResults(250), 5, 50);
+
+        assertTrue(middlePage.hasPreviousPage());
+        assertTrue(middlePage.hasNextPage());
+        assertTrue(lastPage.hasPreviousPage());
+        assertFalse(lastPage.hasNextPage());
+    }
+
+    @Test
+    void visiblePageNumbersCollapseForStartMiddleAndEndRanges() throws Exception {
+        assertIterableEquals(List.of(1, 2, 3, 4, 5, 10), buildVisiblePageNumbers(1, 10));
+        assertIterableEquals(List.of(1, 5, 6, 7, 10), buildVisiblePageNumbers(6, 10));
+        assertIterableEquals(List.of(1, 6, 7, 8, 9, 10), buildVisiblePageNumbers(10, 10));
+        assertIterableEquals(List.of(1, 2, 3, 4, 5, 6, 7), buildVisiblePageNumbers(4, 7));
+    }
+
+    @Test
+    void paginationLinksIncludeCurrentPageGapMarkersAndUrls() throws Exception {
+        SecretGuardRootAction action = new SecretGuardRootAction(null);
+        SecretGuardRootAction.PagedResults pagedResults =
+                SecretGuardRootAction.paginateResults(sampleResults(500), 6, 50);
+
+        @SuppressWarnings("unchecked")
+        List<SecretGuardRootAction.PaginationLink> links =
+                (List<SecretGuardRootAction.PaginationLink>) invokePrivateInstanceMethod(
+                        action,
+                        "buildPaginationLinks",
+                        new Class<?>[] {SecretGuardRootAction.PagedResults.class},
+                        pagedResults);
+
+        assertEquals(7, links.size());
+        assertEquals("1", links.get(0).getLabel());
+        assertEquals("/secret-guard?pageSize=50", links.get(0).getUrl());
+        assertTrue(links.get(1).isGap());
+        assertNull(links.get(1).getUrl());
+        assertEquals("6", links.get(3).getLabel());
+        assertTrue(links.get(3).isCurrent());
+        assertEquals("/secret-guard?page=6&pageSize=50", links.get(3).getUrl());
+        assertTrue(links.get(5).isGap());
+        assertEquals("10", links.get(6).getLabel());
+        assertEquals(10, links.get(6).getPageNumber());
+        assertFalse(links.get(6).isCurrent());
+        assertFalse(links.get(6).isGap());
+    }
+
+    @Test
+    void parsingHelpersNormalizeSearchQueryAndPageSize() throws Exception {
+        assertEquals(
+                1, invokePrivateStaticIntMethod("parsePositiveInt", new Class<?>[] {String.class, int.class}, null, 1));
+        assertEquals(
+                1, invokePrivateStaticIntMethod("parsePositiveInt", new Class<?>[] {String.class, int.class}, "", 1));
+        assertEquals(
+                1, invokePrivateStaticIntMethod("parsePositiveInt", new Class<?>[] {String.class, int.class}, "-3", 1));
+        assertEquals(
+                1,
+                invokePrivateStaticIntMethod("parsePositiveInt", new Class<?>[] {String.class, int.class}, "abc", 1));
+        assertEquals(
+                7,
+                invokePrivateStaticIntMethod("parsePositiveInt", new Class<?>[] {String.class, int.class}, " 7 ", 1));
+        assertEquals(100, invokePrivateStaticIntMethod("normalizePageSize", new Class<?>[] {int.class}, 25));
+        assertEquals(200, invokePrivateStaticIntMethod("normalizePageSize", new Class<?>[] {int.class}, 200));
+        assertEquals(
+                "",
+                invokePrivateStaticStringMethod(
+                        "normalizeSearchQuery", new Class<?>[] {String.class}, new Object[] {null}));
+        assertEquals(
+                "release",
+                invokePrivateStaticStringMethod(
+                        "normalizeSearchQuery", new Class<?>[] {String.class}, new Object[] {" release "}));
     }
 
     @Test
@@ -466,6 +610,68 @@ class SecretGuardRootActionTest {
         ScanResultStore.get().remove(targetId);
     }
 
+    @Test
+    @WithJenkins
+    void rootPageRendersServerSidePaginationControlsAndCurrentPageOnly(JenkinsRule jenkinsRule) throws Exception {
+        List<String> targetIds = populateStoredResultsWithNotes(120);
+
+        try {
+            JenkinsRule.WebClient webClient = jenkinsRule.createWebClient();
+            Page page = webClient.goTo("secret-guard?filter=with-notes&page=2&pageSize=50");
+            String content = page.getWebResponse().getContentAsString();
+
+            assertTrue(content.contains("Showing 51-100 of 120"));
+            assertEquals(2, countOccurrences(content, "Page 2 of 3"));
+            assertEquals(50, countOccurrences(content, ">View report<"));
+            assertTrue(content.contains("href=\"/jenkins/secret-guard?filter=with-notes&amp;page=3&amp;pageSize=50\""));
+            assertTrue(content.contains("href=\"/jenkins/secret-guard?pageSize=50\""));
+            assertFalse(content.contains("jenkins-table sortable"));
+        } finally {
+            removeStoredResults(targetIds);
+        }
+    }
+
+    @Test
+    @WithJenkins
+    void rootPageSearchesByJobFullNameAndPreservesSearchInResultLinks(JenkinsRule jenkinsRule) throws Exception {
+        List<String> targetIds = populateStoredResultsWithNotes(
+                List.of("team/release-build", "team/release-candidate", "team/deploy-build"));
+
+        try {
+            JenkinsRule.WebClient webClient = jenkinsRule.createWebClient();
+            Page page = webClient.goTo("secret-guard?filter=with-notes&q=release&pageSize=50");
+            String content = page.getWebResponse().getContentAsString();
+
+            assertTrue(content.contains("Showing 1-2 of 2"));
+            assertTrue(content.contains("value=\"release\""));
+            assertTrue(content.contains("team/release-build"));
+            assertTrue(content.contains("team/release-candidate"));
+            assertFalse(content.contains("team/deploy-build"));
+            assertTrue(
+                    content.contains("href=\"/jenkins/secret-guard?filter=with-notes&amp;pageSize=50&amp;q=release\""));
+        } finally {
+            removeStoredResults(targetIds);
+        }
+    }
+
+    @Test
+    @WithJenkins
+    void rootPageShowsSearchSpecificEmptyStateAndZeroPagingSummary(JenkinsRule jenkinsRule) throws Exception {
+        List<String> targetIds = populateStoredResultsWithNotes(List.of("team/deploy-build"));
+
+        try {
+            JenkinsRule.WebClient webClient = jenkinsRule.createWebClient();
+            Page page = webClient.goTo("secret-guard?filter=with-notes&q=release");
+            String content = page.getWebResponse().getContentAsString();
+
+            assertTrue(content.contains("No Secret Guard scan results match the selected filter and search."));
+            assertTrue(content.contains("value=\"release\""));
+            assertTrue(content.contains("href=\"/jenkins/secret-guard?filter=with-notes\""));
+        } finally {
+            removeStoredResults(targetIds);
+        }
+    }
+
     private String withRiskyParameter(String xml) {
         String property = """
                 <properties>
@@ -500,6 +706,69 @@ class SecretGuardRootActionTest {
                 "Review the value.");
     }
 
+    private static List<SecretScanResult> sampleResults(int count) {
+        List<SecretScanResult> results = new ArrayList<>();
+        Instant baseTime = Instant.parse("2026-01-01T00:00:00Z");
+        for (int index = 1; index <= count; index++) {
+            results.add(new SecretScanResult(
+                    String.format("job-%03d", index),
+                    "WorkflowJob",
+                    List.of(finding(Severity.LOW)),
+                    false,
+                    baseTime.plusSeconds(index)));
+        }
+        return results;
+    }
+
+    private static List<String> populateStoredResults(int count) {
+        List<String> targetIds = new ArrayList<>();
+        for (SecretScanResult result : sampleResults(count)) {
+            ScanResultStore.get().put(result);
+            targetIds.add(result.getTargetId());
+        }
+        return targetIds;
+    }
+
+    private static List<String> populateStoredResultsWithNotes(int count) {
+        List<String> targetIds = new ArrayList<>();
+        Instant baseTime = Instant.parse("2026-01-01T00:00:00Z");
+        for (int index = 1; index <= count; index++) {
+            SecretScanResult result = new SecretScanResult(
+                    String.format("notes-job-%03d", index),
+                    "WorkflowJob",
+                    List.of(finding(Severity.LOW)),
+                    false,
+                    List.of("sanitized follow-up note"),
+                    baseTime.plusSeconds(index));
+            ScanResultStore.get().put(result);
+            targetIds.add(result.getTargetId());
+        }
+        return targetIds;
+    }
+
+    private static List<String> populateStoredResultsWithNotes(List<String> targetIds) {
+        List<String> storedTargetIds = new ArrayList<>();
+        Instant baseTime = Instant.parse("2026-01-01T00:00:00Z");
+        for (int index = 0; index < targetIds.size(); index++) {
+            SecretScanResult result = new SecretScanResult(
+                    targetIds.get(index),
+                    "WorkflowJob",
+                    List.of(finding(Severity.LOW)),
+                    false,
+                    List.of("sanitized follow-up note"),
+                    baseTime.plusSeconds(index + 1L));
+            ScanResultStore.get().put(result);
+            storedTargetIds.add(result.getTargetId());
+        }
+        return storedTargetIds;
+    }
+
+    private static void removeStoredResults(List<String> targetIds) {
+        for (String targetId : targetIds) {
+            ScanResultStore.get().remove(targetId);
+        }
+    }
+
     private void waitForGlobalScanToFinish(SecretGuardRootAction rootAction) throws InterruptedException {
         long deadline = System.currentTimeMillis() + 10000;
         while (rootAction.getScanAllStatus().isRunning() && System.currentTimeMillis() < deadline) {
@@ -523,6 +792,34 @@ class SecretGuardRootActionTest {
             index += needle.length();
         }
         return count;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Integer> buildVisiblePageNumbers(int currentPage, int totalPages) throws Exception {
+        return (List<Integer>) invokePrivateStaticMethod(
+                "buildVisiblePageNumbers", new Class<?>[] {int.class, int.class}, currentPage, totalPages);
+    }
+
+    private static Object invokePrivateInstanceMethod(
+            Object target, String methodName, Class<?>[] parameterTypes, Object... args) throws Exception {
+        var method = SecretGuardRootAction.class.getDeclaredMethod(methodName, parameterTypes);
+        method.setAccessible(true);
+        return method.invoke(target, args);
+    }
+
+    private static Object invokePrivateStaticMethod(String methodName, Class<?>[] parameterTypes, Object... args)
+            throws Exception {
+        return invokePrivateInstanceMethod(null, methodName, parameterTypes, args);
+    }
+
+    private static int invokePrivateStaticIntMethod(String methodName, Class<?>[] parameterTypes, Object... args)
+            throws Exception {
+        return (Integer) invokePrivateStaticMethod(methodName, parameterTypes, args);
+    }
+
+    private static String invokePrivateStaticStringMethod(String methodName, Class<?>[] parameterTypes, Object[] args)
+            throws Exception {
+        return (String) invokePrivateStaticMethod(methodName, parameterTypes, args);
     }
 
     private static final class RenderRaceGlobalJobScanService extends GlobalJobScanService {
