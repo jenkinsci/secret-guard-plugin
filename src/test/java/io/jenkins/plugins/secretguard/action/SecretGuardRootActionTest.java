@@ -621,8 +621,8 @@ class SecretGuardRootActionTest {
             String content = page.getWebResponse().getContentAsString();
 
             assertTrue(content.contains("Showing 51-100 of 120"));
-            assertEquals(2, countOccurrences(content, "Page 2 of 3"));
             assertEquals(50, countOccurrences(content, ">View report<"));
+            assertFalse(content.contains("Page size:"));
             assertTrue(content.contains("href=\"/jenkins/secret-guard?filter=with-notes&amp;page=3&amp;pageSize=50\""));
             assertTrue(content.contains("href=\"/jenkins/secret-guard?pageSize=50\""));
             assertFalse(content.contains("jenkins-table sortable"));
@@ -647,6 +647,7 @@ class SecretGuardRootActionTest {
             assertTrue(content.contains("team/release-build"));
             assertTrue(content.contains("team/release-candidate"));
             assertFalse(content.contains("team/deploy-build"));
+            assertFalse(content.contains("Page size:"));
             assertTrue(
                     content.contains("href=\"/jenkins/secret-guard?filter=with-notes&amp;pageSize=50&amp;q=release\""));
         } finally {

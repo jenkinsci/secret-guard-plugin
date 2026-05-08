@@ -209,9 +209,6 @@
                                     <j:if test="${it.activeFilterParameterValue != 'all'}">
                                         <input type="hidden" name="filter" value="${it.activeFilterParameterValue}" />
                                     </j:if>
-                                    <j:if test="${pagedResults.pageSize != 100}">
-                                        <input type="hidden" name="pageSize" value="${pagedResults.pageSize}" />
-                                    </j:if>
                                     <label class="secret-guard-results-search-field">
                                         <span class="jenkins-visually-hidden">Search by job full name</span>
                                         <input
@@ -229,20 +226,8 @@
                                         </a>
                                     </j:if>
                                 </form>
-                                <div class="secret-guard-layout-inline-end secret-guard-results-page-size">
-                                    <span>Page size:</span>
-                                    <j:forEach var="pageSizeOption" items="${it.availablePageSizes}">
-                                        <a
-                                            class="${it.getPageSizeButtonClass(pageSizeOption)} secret-guard-results-link"
-                                            href="${it.getPageSizeUrl(pageSizeOption)}"
-                                        >
-                                            ${pageSizeOption}
-                                        </a>
-                                    </j:forEach>
-                                </div>
                                 <j:if test="${it.hasMultipleResultPages()}">
                                     <div class="secret-guard-layout-inline-end secret-guard-results-pagination">
-                                        <span>${it.paginationSummaryText}</span>
                                         <j:choose>
                                             <j:when test="${it.previousPageUrl != null}">
                                                 <a
@@ -403,19 +388,7 @@
                                     <span>${it.resultWindowSummary}</span>
                                 </div>
                                 <div class="secret-guard-results-controls">
-                                    <div class="secret-guard-layout-inline-end secret-guard-results-page-size">
-                                        <span>Page size:</span>
-                                        <j:forEach var="pageSizeOption" items="${it.availablePageSizes}">
-                                            <a
-                                                class="${it.getPageSizeButtonClass(pageSizeOption)} secret-guard-results-link"
-                                                href="${it.getPageSizeUrl(pageSizeOption)}"
-                                            >
-                                                ${pageSizeOption}
-                                            </a>
-                                        </j:forEach>
-                                    </div>
                                     <div class="secret-guard-layout-inline-end secret-guard-results-pagination">
-                                        <span>${it.paginationSummaryText}</span>
                                         <j:choose>
                                             <j:when test="${it.previousPageUrl != null}">
                                                 <a

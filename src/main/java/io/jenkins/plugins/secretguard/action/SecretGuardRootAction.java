@@ -371,14 +371,6 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
         return buildResultsUrl(getActiveResultFilter(), 1, normalizePageSize(pageSize));
     }
 
-    public String getPaginationSummaryText() {
-        PagedResults pagedResults = getPagedResults();
-        if (pagedResults.getTotalCount() == 0) {
-            return "Page 0 of 0";
-        }
-        return "Page " + pagedResults.getPage() + " of " + pagedResults.getTotalPages();
-    }
-
     public String getHighFindingsCardClass() {
         return getUnexemptedHighCount() > 0
                 ? "jenkins-alert jenkins-alert-warning"
