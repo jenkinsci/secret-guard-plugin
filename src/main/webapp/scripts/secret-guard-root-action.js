@@ -7,6 +7,8 @@
     var RESULTS_SECTION_ID = "secret-guard-results-section";
     var RESULTS_LINK_CLASS = "secret-guard-results-link";
     var RESULTS_SEARCH_FORM_CLASS = "secret-guard-results-search";
+    var RESULTS_FILTER_PARAM = "filter";
+    var RESULTS_QUERY_PARAM = "q";
     var STORAGE_KEY_SUFFIX = ":scan-all-details-open";
     var activeResultsRequest = null;
     var activeResultsRequestUrl = null;
@@ -195,22 +197,28 @@
 
     function buildResultsFormUrl(form) {
         var action = form.getAttribute("action") || window.location.pathname;
-        var formData = new window.FormData(form);
         var params = new window.URLSearchParams();
 
-        formData.forEach(function (value, key) {
-            if (typeof value !== "string") {
-                return;
-            }
-            var normalizedValue = value.trim();
-            if (normalizedValue === "") {
-                return;
-            }
-            params.append(key, normalizedValue);
-        });
+        // Avoid serializing Jenkins-injected hidden fields such as crumbs into the GET URL.
+        appendResultsFormField(form, params, RESULTS_FILTER_PARAM);
+        appendResultsFormField(form, params, RESULTS_QUERY_PARAM);
 
         var query = params.toString();
         return query ? action + "?" + query : action;
+    }
+
+    function appendResultsFormField(form, params, fieldName) {
+        var field = form.elements.namedItem(fieldName);
+        if (!field || typeof field.value !== "string") {
+            return;
+        }
+
+        var normalizedValue = field.value.trim();
+        if (normalizedValue === "") {
+            return;
+        }
+
+        params.append(fieldName, normalizedValue);
     }
 
     function initializeFilterRefresh() {
