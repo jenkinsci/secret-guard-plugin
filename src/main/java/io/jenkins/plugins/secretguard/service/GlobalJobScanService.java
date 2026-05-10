@@ -8,7 +8,9 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
@@ -125,8 +127,14 @@ public class GlobalJobScanService {
 
     private void runScan(ScanExecution execution) {
         try (ACLContext ignored = ACL.as2(ACL.SYSTEM2)) {
-            List<Job<?, ?>> jobs = new ArrayList<>();
+            List<Job<?, ?>> allJobs = new ArrayList<>();
             for (Job<?, ?> job : jobSupplier.get()) {
+                allJobs.add(job);
+            }
+            pruneDeletedJobResults(allJobs);
+
+            List<Job<?, ?>> jobs = new ArrayList<>();
+            for (Job<?, ?> job : allJobs) {
                 if (execution.matches(job)) {
                     jobs.add(job);
                 }
@@ -167,6 +175,19 @@ public class GlobalJobScanService {
             LOGGER.log(Level.WARNING, LOG_PREFIX + "Global job scan failed unexpectedly", e);
         }
         finish(execution);
+    }
+
+    private void pruneDeletedJobResults(List<Job<?, ?>> allJobs) {
+        Set<String> activeJobFullNames = new HashSet<>();
+        for (Job<?, ?> job : allJobs) {
+            if (job != null && job.getFullName() != null && !job.getFullName().isBlank()) {
+                activeJobFullNames.add(job.getFullName());
+            }
+        }
+        int removed = ScanResultStore.get().pruneMissingTargets(activeJobFullNames);
+        if (removed > 0) {
+            LOGGER.log(Level.FINE, LOG_PREFIX + "Pruned {0} stale job scan results before global scan", removed);
+        }
     }
 
     private void publish(ScanExecution execution) {
