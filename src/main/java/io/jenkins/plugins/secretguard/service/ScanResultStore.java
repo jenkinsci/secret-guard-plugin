@@ -14,8 +14,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
@@ -86,6 +88,27 @@ public class ScanResultStore {
         if (file != null && file.isFile() && !file.delete()) {
             LOGGER.log(Level.FINE, LOG_PREFIX + "Failed to delete Secret Guard result file {0}", file);
         }
+    }
+
+    public int pruneMissingTargets(Iterable<String> activeTargetIds) {
+        loadAllFromDisk();
+        Set<String> activeTargets = new HashSet<>();
+        if (activeTargetIds != null) {
+            for (String activeTargetId : activeTargetIds) {
+                if (activeTargetId != null && !activeTargetId.isBlank()) {
+                    activeTargets.add(activeTargetId);
+                }
+            }
+        }
+        int removed = 0;
+        for (String storedTargetId : new ArrayList<>(results.keySet())) {
+            if (activeTargets.contains(storedTargetId)) {
+                continue;
+            }
+            remove(storedTargetId);
+            removed++;
+        }
+        return removed;
     }
 
     private void save(SecretScanResult result) {

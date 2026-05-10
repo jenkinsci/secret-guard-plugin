@@ -111,6 +111,33 @@ class GlobalJobScanServiceTest {
         assertEquals("All jobs", service.getStatus().getScanScopeDescription());
     }
 
+    @Test
+    @WithJenkins
+    void scanAllPrunesStoredResultsForDeletedJobsBeforeScanning(JenkinsRule jenkinsRule) throws Exception {
+        FreeStyleProject existingJob = jenkinsRule.createFreeStyleProject("existing-job");
+        String staleTargetId = "deleted-job";
+        ScanResultStore.get().put(new SecretScanResult(staleTargetId, "FreeStyleProject", List.of(), false));
+        RecordingManualJobScanService manualJobScanService = new RecordingManualJobScanService();
+        List<Job<?, ?>> jobs = List.of(existingJob);
+        GlobalJobScanService service =
+                new GlobalJobScanService(manualJobScanService, Runnable::run, () -> jobs, 25, () -> {});
+
+        try {
+            assertTrue(ScanResultStore.get().get(staleTargetId).isPresent());
+
+            service.startScanAllJobs();
+
+            assertIterableEquals(List.of("existing-job"), manualJobScanService.scannedJobFullNames);
+            assertTrue(ScanResultStore.get().get(staleTargetId).isEmpty());
+            assertEquals(
+                    GlobalJobScanStatus.State.COMPLETED, service.getStatus().getState());
+            assertTrue(ScanResultStore.get().get(existingJob.getFullName()).isPresent());
+        } finally {
+            ScanResultStore.get().remove(staleTargetId);
+            ScanResultStore.get().remove(existingJob.getFullName());
+        }
+    }
+
     private static final class RecordingManualJobScanService extends ManualJobScanService {
         private final List<String> scannedJobFullNames = new ArrayList<>();
 
