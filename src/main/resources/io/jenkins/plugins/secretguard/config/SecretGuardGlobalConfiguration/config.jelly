@@ -20,29 +20,31 @@
                 ${it.name()}
             </f:enum>
         </f:entry>
-        <f:entry
-                title="Rule ID allow list"
-                field="ruleIdAllowList"
-                description="Use newline or comma separated rule IDs.">
-            <f:textarea />
-        </f:entry>
-        <f:entry
-                title="Job allow list"
-                field="jobAllowList"
-                description="Use newline or comma separated full job names.">
-            <f:textarea />
-        </f:entry>
-        <f:entry
-                title="Field name allow list"
-                field="fieldNameAllowList"
-                description="Use newline or comma separated field names.">
-            <f:textarea />
-        </f:entry>
-        <f:entry
-                title="Exemptions"
-                field="exemptions"
-                description="Use one exemption per line: jobFullName|ruleId|reason. Empty reasons are ignored.">
-            <f:textarea />
-        </f:entry>
+        <f:advanced>
+            <f:entry
+                    title="Rule ID allow list"
+                    field="ruleIdAllowList"
+                    description="Use newline or comma separated rule IDs.">
+                <f:textarea />
+            </f:entry>
+            <f:entry
+                    title="Job allow list"
+                    field="jobAllowList"
+                    description="Use newline or comma separated full job names.">
+                <f:textarea />
+            </f:entry>
+            <f:entry
+                    title="Field name allow list"
+                    field="fieldNameAllowList"
+                    description="Use newline or comma separated field names.">
+                <f:textarea />
+            </f:entry>
+            <f:entry
+                    title="Exemptions"
+                    field="exemptions"
+                    description="Use one exemption per line: jobFullName|ruleId|reason. Empty reasons are ignored.">
+                <f:textarea />
+            </f:entry>
+        </f:advanced>
     </f:section>
 </j:jelly>
