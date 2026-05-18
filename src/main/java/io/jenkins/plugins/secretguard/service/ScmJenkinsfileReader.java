@@ -5,24 +5,14 @@ import hudson.scm.SCM;
 import hudson.util.XStream2;
 import io.jenkins.plugins.secretguard.model.FindingLocationType;
 import java.io.IOException;
-import java.io.StringReader;
-import java.io.StringWriter;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
 import jenkins.scm.api.SCMFile;
 import jenkins.scm.api.SCMFileSystem;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
 
 public class ScmJenkinsfileReader {
     private static final Logger LOGGER = Logger.getLogger(ScmJenkinsfileReader.class.getName());
@@ -146,47 +136,44 @@ public class ScmJenkinsfileReader {
 
     private Optional<SCM> rebuildGitScmWithNormalizedBranch(SCM scm, String originalBranch, String normalizedBranch) {
         try {
-            String xml = XSTREAM.toXML(scm);
-            Document document = parseXml(xml);
-            NodeList branchSpecs = document.getElementsByTagName("hudson.plugins.git.BranchSpec");
-            for (int index = 0; index < branchSpecs.getLength(); index++) {
-                if (!(branchSpecs.item(index) instanceof Element branchSpec)) {
-                    continue;
-                }
-                NodeList names = branchSpec.getElementsByTagName("name");
-                if (names.getLength() == 0) {
-                    continue;
-                }
-                String currentName = names.item(0).getTextContent();
-                if (!originalBranch.equals(currentName == null ? "" : currentName.trim())) {
-                    continue;
-                }
-                names.item(0).setTextContent(normalizedBranch);
-                Object rebuilt = XSTREAM.fromXML(writeXml(document));
-                return rebuilt instanceof SCM normalizedScm ? Optional.of(normalizedScm) : Optional.empty();
+            Object rebuilt = XSTREAM.fromXML(XSTREAM.toXML(scm));
+            if (!(rebuilt instanceof SCM normalizedScm)) {
+                return Optional.empty();
             }
-        } catch (Exception e) {
+            List<?> branchSpecs = readBranches(normalizedScm);
+            for (Object branchSpec : branchSpecs) {
+                String currentName = readBranchName(branchSpec).trim();
+                if (!originalBranch.equals(currentName)) {
+                    continue;
+                }
+                updateBranchName(branchSpec, normalizedBranch);
+                return Optional.of(normalizedScm);
+            }
+        } catch (ReflectiveOperationException | RuntimeException e) {
             LOGGER.log(Level.FINE, LOG_PREFIX + "Unable to rebuild Git SCM with normalized branch spec", e);
         }
         return Optional.empty();
     }
 
-    private Document parseXml(String xml) throws Exception {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-        factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-        factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-        factory.setExpandEntityReferences(false);
-        return factory.newDocumentBuilder().parse(new InputSource(new StringReader(xml)));
+    private void updateBranchName(Object branchSpec, String normalizedBranch) throws ReflectiveOperationException {
+        Field nameField = findField(branchSpec.getClass(), "name");
+        if (nameField == null) {
+            throw new NoSuchFieldException("name");
+        }
+        nameField.setAccessible(true);
+        nameField.set(branchSpec, normalizedBranch);
     }
 
-    private String writeXml(Document document) throws Exception {
-        TransformerFactory factory = TransformerFactory.newInstance();
-        factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-        StringWriter writer = new StringWriter();
-        factory.newTransformer().transform(new DOMSource(document), new StreamResult(writer));
-        return writer.toString();
+    private Field findField(Class<?> type, String name) {
+        Class<?> current = type;
+        while (current != null) {
+            try {
+                return current.getDeclaredField(name);
+            } catch (NoSuchFieldException ignored) {
+                current = current.getSuperclass();
+            }
+        }
+        return null;
     }
 
     private String normalizeScriptPath(String scriptPath) {
