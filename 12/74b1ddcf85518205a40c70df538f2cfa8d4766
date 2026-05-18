@@ -1,0 +1,21 @@
+src/main/resources/io/jenkins/plugins/secretguard/config/SecretGuardGlobalConfiguration/config.jelly
+  s_f6bb5365c62e1b::t_2c89e184167adb 23-48
+src/test/java/io/jenkins/plugins/secretguard/config/SecretGuardGlobalConfigurationTest.java
+  s_f6bb5365c62e1b::t_b0d71fee4829b1 8,10-11,59-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "1274b1ddcf85518205a40c70df538f2cfa8d4766",
+  "prompts": {},
+  "sessions": {
+    "s_f6bb5365c62e1b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3a2a-3214-7063-8834-e8e0fcb3b4af",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui <977675308@qq.com>"
+    }
+  }
+}
