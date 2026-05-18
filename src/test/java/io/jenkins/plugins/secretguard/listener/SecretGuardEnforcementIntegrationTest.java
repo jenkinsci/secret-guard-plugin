@@ -15,6 +15,8 @@ import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.plugins.git.BranchSpec;
+import hudson.plugins.git.GitSCM;
 import hudson.scm.NullSCM;
 import hudson.scm.SCM;
 import hudson.scm.SCMDescriptor;
@@ -35,6 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import javax.xml.transform.stream.StreamSource;
 import jenkins.branch.BranchSource;
@@ -360,6 +363,40 @@ class SecretGuardEnforcementIntegrationTest {
 
     @Test
     @WithJenkins
+    void manualScanEndpointNormalizesLiteralGitBranchSpecForScmJenkinsfileRead(JenkinsRule jenkinsRule)
+            throws Exception {
+        configure(EnforcementMode.AUDIT);
+        WorkflowJob job = jenkinsRule.createProject(WorkflowJob.class, "manual-git-branch-fallback");
+        job.setDefinition(new CpsScmFlowDefinition(
+                new GitSCM(
+                        List.of(new BranchSpec("release/1.1")),
+                        Map.of(
+                                "refs/heads/release/1.1",
+                                Map.of(
+                                        "package/test/online/BuildTestPackages",
+                                        "def webhookUrl = 'https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999'"))),
+                "package/test/online/BuildTestPackages"));
+
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient().withThrowExceptionOnFailingStatusCode(false);
+        WebRequest request =
+                new WebRequest(webClient.createCrumbedUrl(job.getUrl() + "secret-guard/scanNow"), HttpMethod.POST);
+
+        Page page = webClient.getPage(request);
+
+        assertEquals(200, page.getWebResponse().getStatusCode());
+        assertTrue(page.getWebResponse().getContentAsString().contains("Manual scan completed."));
+        SecretScanResult storedResult =
+                ScanResultStore.get().get(job.getFullName()).orElseThrow();
+        assertTrue(storedResult.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")
+                        && finding.getLocationType() == FindingLocationType.JENKINSFILE
+                        && finding.getSourceName()
+                                .equals("Jenkinsfile from SCM: package/test/online/BuildTestPackages")));
+        assertFalse(storedResult.hasNotes());
+    }
+
+    @Test
+    @WithJenkins
     void manualScanReportsUnavailableScmJenkinsfileOnJobAndRootPages(JenkinsRule jenkinsRule) throws Exception {
         configure(EnforcementMode.AUDIT);
         WorkflowJob job = jenkinsRule.createProject(WorkflowJob.class, "manual-scm-unavailable");
@@ -409,6 +446,33 @@ class SecretGuardEnforcementIntegrationTest {
                 .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")
                         && finding.getLocationType() == FindingLocationType.JENKINSFILE
                         && finding.getSourceName().equals("Jenkinsfile from SCM: Jenkinsfile")));
+    }
+
+    @Test
+    @WithJenkins
+    void warnModeScansPipelineFromLiteralGitBranchSpecAtBuildStart(JenkinsRule jenkinsRule) throws Exception {
+        configure(EnforcementMode.WARN);
+        WorkflowJob job = jenkinsRule.createProject(WorkflowJob.class, "build-git-branch-fallback");
+        job.setDefinition(new CpsScmFlowDefinition(
+                new GitSCM(
+                        List.of(new BranchSpec("release/1.1")),
+                        Map.of(
+                                "refs/heads/release/1.1",
+                                Map.of(
+                                        "package/test/online/BuildTestPackages",
+                                        "def webhookUrl = 'https://chat.example.invalid/cgi-bin/webhook/send?key=123e4567-e89b-12d3-a456-426614174999'"))),
+                "package/test/online/BuildTestPackages"));
+
+        WorkflowRun run = jenkinsRule.buildAndAssertStatus(Result.UNSTABLE, job);
+
+        SecretGuardRunAction action = run.getAction(SecretGuardRunAction.class);
+        assertNotNull(action);
+        assertTrue(action.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("url-query-secret")
+                        && finding.getLocationType() == FindingLocationType.JENKINSFILE
+                        && finding.getSourceName()
+                                .equals("Jenkinsfile from SCM: package/test/online/BuildTestPackages")));
+        assertTrue(action.getNotes().isEmpty());
     }
 
     @Test
@@ -804,6 +868,54 @@ class SecretGuardEnforcementIntegrationTest {
         @Override
         public SCMFileSystem build(SCMSource source, SCMHead head, SCMRevision rev) {
             return new MemoryScmFileSystem(((MemoryScmSource) source).filesFor(head));
+        }
+    }
+
+    @TestExtension
+    public static class GitScmFileSystemBuilder extends SCMFileSystem.Builder {
+        @Override
+        public boolean supports(SCM scm) {
+            if (!(scm instanceof GitSCM gitScm)) {
+                return false;
+            }
+            List<BranchSpec> branches = gitScm.getBranches();
+            if (branches.size() != 1) {
+                return false;
+            }
+            String branchName = branches.get(0).getName();
+            return branchName != null
+                    && !branchName.contains("$")
+                    && (branchName.startsWith("refs/heads/")
+                            || branchName.startsWith("refs/tags/")
+                            || branchName.startsWith("*/")
+                            || !branchName.contains("/"));
+        }
+
+        @Override
+        public boolean supports(SCMSource source) {
+            return false;
+        }
+
+        @Override
+        protected boolean supportsDescriptor(SCMDescriptor descriptor) {
+            return false;
+        }
+
+        @Override
+        protected boolean supportsDescriptor(SCMSourceDescriptor descriptor) {
+            return false;
+        }
+
+        @Override
+        public SCMFileSystem build(Item owner, SCM scm, SCMRevision rev) {
+            GitSCM gitScm = (GitSCM) scm;
+            return new MemoryScmFileSystem(
+                    gitScm.filesForBranch(gitScm.getBranches().get(0).getName()));
+        }
+
+        @Override
+        public SCMFileSystem build(Item owner, SCM scm, SCMRevision rev, Run<?, ?> run) {
+            return build(owner, scm, rev);
         }
     }
 
