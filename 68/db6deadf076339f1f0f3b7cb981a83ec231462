@@ -1,0 +1,29 @@
+src/test/java/hudson/plugins/git/GitSCM.java
+  s_e18a49defe40c2::t_498e3f843e373f 3-6,8-10,37-52
+  s_e18a49defe40c2::t_652ad63eff697a 11
+  s_e18a49defe40c2::t_d6e8256560d3c3 1-2,7,12-36,53-54
+src/test/java/hudson/plugins/git/BranchSpec.java
+  s_e18a49defe40c2::t_d6e8256560d3c3 1-15
+src/main/java/io/jenkins/plugins/secretguard/service/ScmJenkinsfileReader.java
+  s_e18a49defe40c2::t_0d3cdf5466381e 5,8-12,15-19,22-25,31-32,39,77-191,207-208
+src/test/java/io/jenkins/plugins/secretguard/listener/SecretGuardEnforcementIntegrationTest.java
+  s_e18a49defe40c2::t_ec036927a8d659 40,892-896
+  s_e18a49defe40c2::t_d9634b5af5c432 18-19,366-387,390-392,395-397,451-477,874-891,897-911,914-918
+  s_e18a49defe40c2::t_652ad63eff697a 388-389,393-394,912-913
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "68db6deadf076339f1f0f3b7cb981a83ec231462",
+  "prompts": {},
+  "sessions": {
+    "s_e18a49defe40c2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e2b64-4ff3-7f32-b6c2-bd32af0ce557",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui <977675308@qq.com>"
+    }
+  }
+}
