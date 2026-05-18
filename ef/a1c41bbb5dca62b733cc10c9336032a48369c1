@@ -1,0 +1,19 @@
+src/main/java/io/jenkins/plugins/secretguard/service/ScmJenkinsfileReader.java
+  s_e18a49defe40c2::t_8831000b1eacd7 8,139-146,149-150,152,158-164,167-176
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "efa1c41bbb5dca62b733cc10c9336032a48369c1",
+  "prompts": {},
+  "sessions": {
+    "s_e18a49defe40c2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e2b64-4ff3-7f32-b6c2-bd32af0ce557",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui <977675308@qq.com>"
+    }
+  }
+}
