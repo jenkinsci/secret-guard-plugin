@@ -201,88 +201,100 @@
                                 <span>${it.resultWindowSummary}</span>
                             </div>
                             <div class="secret-guard-results-controls">
-                                <form
-                                    method="get"
-                                    action="${it.searchFormAction}"
-                                    class="secret-guard-form-inline secret-guard-results-search"
-                                >
-                                    <j:if test="${it.activeFilterParameterValue != 'all'}">
-                                        <input type="hidden" name="filter" value="${it.activeFilterParameterValue}" />
-                                    </j:if>
-                                    <label class="secret-guard-results-search-field">
-                                        <span class="jenkins-visually-hidden">Search by job full name</span>
-                                        <input
-                                            class="jenkins-input secret-guard-results-search-input"
-                                            type="search"
-                                            name="q"
-                                            value="${it.searchQuery}"
-                                            placeholder="Search job full name"
-                                        />
-                                    </label>
-                                    <button class="jenkins-button jenkins-button--secondary" type="submit">Search</button>
-                                    <j:if test="${it.hasActiveSearchQuery()}">
-                                        <a class="jenkins-button jenkins-button--secondary secret-guard-results-link" href="${it.clearSearchUrl}">
-                                            Clear
-                                        </a>
-                                    </j:if>
-                                </form>
-                                <j:if test="${it.hasMultipleResultPages()}">
-                                    <div class="secret-guard-layout-inline-end secret-guard-results-pagination">
+                                <div class="secret-guard-layout-inline-end secret-guard-results-pagination">
+                                    <j:choose>
+                                        <j:when test="${it.previousPageUrl != null}">
+                                            <a
+                                                class="jenkins-button jenkins-button--secondary secret-guard-results-link"
+                                                href="${it.previousPageUrl}"
+                                            >
+                                                Previous
+                                            </a>
+                                        </j:when>
+                                        <j:otherwise>
+                                            <span class="jenkins-button jenkins-button--secondary">Previous</span>
+                                        </j:otherwise>
+                                    </j:choose>
+                                    <j:forEach var="pageLink" items="${it.paginationLinks}">
                                         <j:choose>
-                                            <j:when test="${it.previousPageUrl != null}">
+                                            <j:when test="${pageLink.gap}">
+                                                <span class="secret-guard-pagination-gap">${pageLink.label}</span>
+                                            </j:when>
+                                            <j:when test="${pageLink.current}">
                                                 <a
-                                                    class="jenkins-button jenkins-button--secondary secret-guard-results-link"
-                                                    href="${it.previousPageUrl}"
+                                                    class="jenkins-button jenkins-submit-button jenkins-button--primary secret-guard-pagination-current"
+                                                    href="${pageLink.url}"
+                                                    aria-current="page"
                                                 >
-                                                    Previous
+                                                    ${pageLink.label}
                                                 </a>
                                             </j:when>
                                             <j:otherwise>
-                                                <span class="jenkins-button jenkins-button--secondary">Previous</span>
-                                            </j:otherwise>
-                                        </j:choose>
-                                        <j:forEach var="pageLink" items="${it.paginationLinks}">
-                                            <j:choose>
-                                                <j:when test="${pageLink.gap}">
-                                                    <span class="secret-guard-pagination-gap">${pageLink.label}</span>
-                                                </j:when>
-                                                <j:when test="${pageLink.current}">
-                                                    <a
-                                                        class="jenkins-button jenkins-submit-button jenkins-button--primary secret-guard-pagination-current"
-                                                        href="${pageLink.url}"
-                                                        aria-current="page"
-                                                    >
-                                                        ${pageLink.label}
-                                                    </a>
-                                                </j:when>
-                                                <j:otherwise>
-                                                    <a
-                                                        class="jenkins-button jenkins-button--secondary secret-guard-results-link"
-                                                        href="${pageLink.url}"
-                                                    >
-                                                        ${pageLink.label}
-                                                    </a>
-                                                </j:otherwise>
-                                            </j:choose>
-                                        </j:forEach>
-                                        <j:choose>
-                                            <j:when test="${it.nextPageUrl != null}">
                                                 <a
                                                     class="jenkins-button jenkins-button--secondary secret-guard-results-link"
-                                                    href="${it.nextPageUrl}"
+                                                    href="${pageLink.url}"
                                                 >
-                                                    Next
+                                                    ${pageLink.label}
                                                 </a>
-                                            </j:when>
-                                            <j:otherwise>
-                                                <span class="jenkins-button jenkins-button--secondary">Next</span>
                                             </j:otherwise>
                                         </j:choose>
-                                    </div>
-                                </j:if>
+                                    </j:forEach>
+                                    <j:choose>
+                                        <j:when test="${it.nextPageUrl != null}">
+                                            <a
+                                                class="jenkins-button jenkins-button--secondary secret-guard-results-link"
+                                                href="${it.nextPageUrl}"
+                                            >
+                                                Next
+                                            </a>
+                                        </j:when>
+                                        <j:otherwise>
+                                            <span class="jenkins-button jenkins-button--secondary">Next</span>
+                                        </j:otherwise>
+                                    </j:choose>
+                                </div>
                             </div>
                         </div>
-                        <div class="secret-guard-layout-inline-end secret-guard-results-filters">
+                        <div class="secret-guard-results-toolbar">
+                            <form
+                                method="get"
+                                action="${it.searchFormAction}"
+                                class="secret-guard-form-inline secret-guard-results-search"
+                            >
+                                <j:if test="${it.activeFilterParameterValue != 'all'}">
+                                    <input type="hidden" name="filter" value="${it.activeFilterParameterValue}" />
+                                </j:if>
+                                <label class="secret-guard-results-search-field">
+                                    <span class="jenkins-visually-hidden">Search by job full name</span>
+                                    <input
+                                        class="jenkins-input secret-guard-results-search-input"
+                                        type="search"
+                                        name="q"
+                                        value="${it.searchQuery}"
+                                        placeholder="Search job full name"
+                                    />
+                                </label>
+                                <button class="jenkins-button jenkins-button--secondary" type="submit">Search</button>
+                                <j:choose>
+                                    <j:when test="${it.hasActiveSearchQuery()}">
+                                        <a
+                                            class="jenkins-button jenkins-button--secondary secret-guard-results-link"
+                                            href="${it.clearSearchUrl}"
+                                        >
+                                            Clear
+                                        </a>
+                                    </j:when>
+                                    <j:otherwise>
+                                        <span
+                                            class="jenkins-button jenkins-button--secondary secret-guard-button-disabled"
+                                            aria-disabled="true"
+                                        >
+                                            Clear
+                                        </span>
+                                    </j:otherwise>
+                                </j:choose>
+                            </form>
+                            <div class="secret-guard-layout-inline-end secret-guard-results-filters">
                                 <span>Filters:</span>
                                 <a class="${it.getFilterButtonClass('all')} secret-guard-filter-link secret-guard-results-link" href="${it.getFilterUrl('all')}">${it.getFilterButtonLabel('all')}</a>
                                 <a class="${it.getFilterButtonClass('high')} secret-guard-filter-link secret-guard-results-link" href="${it.getFilterUrl('high')}">${it.getFilterButtonLabel('high')}</a>
@@ -305,6 +317,7 @@
                                 >
                                     ${it.getFilterButtonLabel('with-notes')}
                                 </a>
+                            </div>
                         </div>
                     </j:when>
                 </j:choose>
@@ -381,68 +394,66 @@
                                 </j:forEach>
                             </tbody>
                         </table>
-                        <j:if test="${it.hasMultipleResultPages()}">
-                            <div class="secret-guard-results-footer">
-                                <div class="secret-guard-results-summary">
-                                    <strong>Results</strong>
-                                    <span>${it.resultWindowSummary}</span>
-                                </div>
-                                <div class="secret-guard-results-controls">
-                                    <div class="secret-guard-layout-inline-end secret-guard-results-pagination">
+                        <div class="secret-guard-results-footer">
+                            <div class="secret-guard-results-summary">
+                                <strong>Results</strong>
+                                <span>${it.resultWindowSummary}</span>
+                            </div>
+                            <div class="secret-guard-results-controls">
+                                <div class="secret-guard-layout-inline-end secret-guard-results-pagination">
+                                    <j:choose>
+                                        <j:when test="${it.previousPageUrl != null}">
+                                            <a
+                                                class="jenkins-button jenkins-button--secondary secret-guard-results-link"
+                                                href="${it.previousPageUrl}"
+                                            >
+                                                Previous
+                                            </a>
+                                        </j:when>
+                                        <j:otherwise>
+                                            <span class="jenkins-button jenkins-button--secondary">Previous</span>
+                                        </j:otherwise>
+                                    </j:choose>
+                                    <j:forEach var="pageLink" items="${it.paginationLinks}">
                                         <j:choose>
-                                            <j:when test="${it.previousPageUrl != null}">
+                                            <j:when test="${pageLink.gap}">
+                                                <span class="secret-guard-pagination-gap">${pageLink.label}</span>
+                                            </j:when>
+                                            <j:when test="${pageLink.current}">
                                                 <a
-                                                    class="jenkins-button jenkins-button--secondary secret-guard-results-link"
-                                                    href="${it.previousPageUrl}"
+                                                    class="jenkins-button jenkins-submit-button jenkins-button--primary secret-guard-pagination-current"
+                                                    href="${pageLink.url}"
+                                                    aria-current="page"
                                                 >
-                                                    Previous
+                                                    ${pageLink.label}
                                                 </a>
                                             </j:when>
                                             <j:otherwise>
-                                                <span class="jenkins-button jenkins-button--secondary">Previous</span>
-                                            </j:otherwise>
-                                        </j:choose>
-                                        <j:forEach var="pageLink" items="${it.paginationLinks}">
-                                            <j:choose>
-                                                <j:when test="${pageLink.gap}">
-                                                    <span class="secret-guard-pagination-gap">${pageLink.label}</span>
-                                                </j:when>
-                                                <j:when test="${pageLink.current}">
-                                                    <a
-                                                        class="jenkins-button jenkins-submit-button jenkins-button--primary secret-guard-pagination-current"
-                                                        href="${pageLink.url}"
-                                                        aria-current="page"
-                                                    >
-                                                        ${pageLink.label}
-                                                    </a>
-                                                </j:when>
-                                                <j:otherwise>
-                                                    <a
-                                                        class="jenkins-button jenkins-button--secondary secret-guard-results-link"
-                                                        href="${pageLink.url}"
-                                                    >
-                                                        ${pageLink.label}
-                                                    </a>
-                                                </j:otherwise>
-                                            </j:choose>
-                                        </j:forEach>
-                                        <j:choose>
-                                            <j:when test="${it.nextPageUrl != null}">
                                                 <a
                                                     class="jenkins-button jenkins-button--secondary secret-guard-results-link"
-                                                    href="${it.nextPageUrl}"
+                                                    href="${pageLink.url}"
                                                 >
-                                                    Next
+                                                    ${pageLink.label}
                                                 </a>
-                                            </j:when>
-                                            <j:otherwise>
-                                                <span class="jenkins-button jenkins-button--secondary">Next</span>
                                             </j:otherwise>
                                         </j:choose>
-                                    </div>
+                                    </j:forEach>
+                                    <j:choose>
+                                        <j:when test="${it.nextPageUrl != null}">
+                                            <a
+                                                class="jenkins-button jenkins-button--secondary secret-guard-results-link"
+                                                href="${it.nextPageUrl}"
+                                            >
+                                                Next
+                                            </a>
+                                        </j:when>
+                                        <j:otherwise>
+                                            <span class="jenkins-button jenkins-button--secondary">Next</span>
+                                        </j:otherwise>
+                                    </j:choose>
                                 </div>
                             </div>
-                        </j:if>
+                        </div>
                     </j:when>
                     <j:otherwise>
                         <p>

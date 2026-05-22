@@ -275,6 +275,27 @@ class SecretGuardRootActionTest {
     }
 
     @Test
+    void paginationLinksIncludeCurrentPageForSinglePageResults() throws Exception {
+        SecretGuardRootAction action = new SecretGuardRootAction(null);
+        SecretGuardRootAction.PagedResults pagedResults =
+                SecretGuardRootAction.paginateResults(sampleResults(3), 1, 50);
+
+        @SuppressWarnings("unchecked")
+        List<SecretGuardRootAction.PaginationLink> links =
+                (List<SecretGuardRootAction.PaginationLink>) invokePrivateInstanceMethod(
+                        action,
+                        "buildPaginationLinks",
+                        new Class<?>[] {SecretGuardRootAction.PagedResults.class},
+                        pagedResults);
+
+        assertEquals(1, links.size());
+        assertEquals("1", links.get(0).getLabel());
+        assertEquals("/secret-guard?pageSize=50", links.get(0).getUrl());
+        assertTrue(links.get(0).isCurrent());
+        assertFalse(links.get(0).isGap());
+    }
+
+    @Test
     void parsingHelpersNormalizeSearchQueryAndPageSize() throws Exception {
         assertEquals(
                 1, invokePrivateStaticIntMethod("parsePositiveInt", new Class<?>[] {String.class, int.class}, null, 1));
@@ -626,6 +647,14 @@ class SecretGuardRootActionTest {
             assertTrue(content.contains("href=\"/jenkins/secret-guard?filter=with-notes&amp;page=3&amp;pageSize=50\""));
             assertTrue(content.contains("href=\"/jenkins/secret-guard?pageSize=50\""));
             assertFalse(content.contains("jenkins-table sortable"));
+            assertTrue(content.contains("class=\"secret-guard-results-toolbar\""));
+            assertTrue(content.contains("aria-disabled=\"true\""));
+            assertTrue(content.contains("secret-guard-button-disabled"));
+            assertTrue(content.contains("Clear"));
+            assertTrue(content.indexOf("class=\"secret-guard-results-header\"")
+                    < content.indexOf("class=\"secret-guard-results-toolbar\""));
+            assertTrue(content.indexOf("class=\"secret-guard-results-toolbar\"")
+                    < content.indexOf("<table class=\"jenkins-table\">"));
         } finally {
             removeStoredResults(targetIds);
         }
@@ -648,8 +677,29 @@ class SecretGuardRootActionTest {
             assertTrue(content.contains("team/release-candidate"));
             assertFalse(content.contains("team/deploy-build"));
             assertFalse(content.contains("Page size:"));
+            assertTrue(content.contains("Clear"));
             assertTrue(
                     content.contains("href=\"/jenkins/secret-guard?filter=with-notes&amp;pageSize=50&amp;q=release\""));
+        } finally {
+            removeStoredResults(targetIds);
+        }
+    }
+
+    @Test
+    @WithJenkins
+    void rootPageShowsCompactPaginationControlsForSinglePageResults(JenkinsRule jenkinsRule) throws Exception {
+        List<String> targetIds = populateStoredResultsWithNotes(3);
+
+        try {
+            JenkinsRule.WebClient webClient = jenkinsRule.createWebClient();
+            Page page = webClient.goTo("secret-guard?filter=with-notes&pageSize=50");
+            String content = page.getWebResponse().getContentAsString();
+
+            assertTrue(content.contains("Showing 1-3 of 3"));
+            assertEquals(2, countOccurrences(content, "secret-guard-pagination-current"));
+            assertTrue(content.contains(">Previous</span>"));
+            assertTrue(content.contains(">Next</span>"));
+            assertTrue(content.contains("href=\"/jenkins/secret-guard?filter=with-notes&amp;pageSize=50\""));
         } finally {
             removeStoredResults(targetIds);
         }
