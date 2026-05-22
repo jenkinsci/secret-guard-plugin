@@ -692,7 +692,8 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
 
     private List<PaginationLink> buildPaginationLinks(PagedResults pagedResults) {
         if (pagedResults.getTotalPages() <= 1) {
-            return List.of();
+            return List.of(PaginationLink.page(
+                    "1", 1, true, buildResultsUrl(getActiveResultFilter(), 1, pagedResults.getPageSize())));
         }
         List<PaginationLink> links = new ArrayList<>();
         List<Integer> pageNumbers = buildVisiblePageNumbers(pagedResults.getPage(), pagedResults.getTotalPages());
