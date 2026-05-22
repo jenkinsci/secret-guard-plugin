@@ -1,0 +1,33 @@
+src/main/webapp/styles/secret-guard.css
+  s_c7ff8e8f743a87::t_69e76914fce450 198-206,221,226,228-233,266
+  s_c7ff8e8f743a87::t_25ff8405dbed9f 227
+src/test/java/io/jenkins/plugins/secretguard/action/SecretGuardRootActionTest.java
+  s_c7ff8e8f743a87::t_433bf542f24d18 650-651,654-657
+  s_c7ff8e8f743a87::t_dde8b2eeb58e44 652
+  s_c7ff8e8f743a87::t_b390d23966d2a8 653,680
+  s_c7ff8e8f743a87::t_1b1f9baf874ba6 278-297,685-698,700-702
+  s_c7ff8e8f743a87::t_90254113bdfcba 699
+src/main/resources/io/jenkins/plugins/secretguard/action/SecretGuardRootAction/index.jelly
+  s_c7ff8e8f743a87::t_75550ca252eeac 258-283,285-291,293-297,320
+  s_c7ff8e8f743a87::t_bc1f353001d725 204-218,220-223,225-227,229,235,237,241-255,397-417,419-422,424-426,428,434,436,440-453,456
+  s_c7ff8e8f743a87::t_a6b2acb61e2f39 284,292
+src/main/java/io/jenkins/plugins/secretguard/action/SecretGuardRootAction.java
+  s_c7ff8e8f743a87::t_1821fcd6977995 695
+  s_c7ff8e8f743a87::t_78767f2cfaf351 696
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.0",
+  "base_commit_sha": "0df26ce97f6b9e821d1642f1291a6bcc21602335",
+  "prompts": {},
+  "sessions": {
+    "s_c7ff8e8f743a87": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e4ed9-d2ed-7fb2-91e7-ead5b3a8c633",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui <977675308@qq.com>"
+    }
+  }
+}
