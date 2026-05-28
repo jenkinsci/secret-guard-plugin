@@ -220,6 +220,48 @@ class NonSecretHeuristicsTest {
                         "sharedLibraryFacade.loadreadabledeploymentconfiguration()",
                         "",
                         "loadreadabledeploymentconfiguration"));
+        assertEquals(
+                "Skipped high-entropy candidate because it looks like a readable Pipeline argument reference.",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "Pipeline script",
+                        "sharedLibraryFacade.runhelper(loadreadabledeploymentconfiguration)",
+                        "",
+                        "loadreadabledeploymentconfiguration"));
+        assertEquals(
+                "Skipped high-entropy candidate because it looks like a readable Pipeline argument reference.",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "Pipeline script",
+                        "sharedLibraryFacade.runhelper(otherHelper.loadreadabledeploymentconfiguration)",
+                        "",
+                        "loadreadabledeploymentconfiguration"));
+        assertEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "Pipeline script",
+                        "sharedLibraryFacade.runhelper(\"loadreadabledeploymentconfiguration\")",
+                        "",
+                        "loadreadabledeploymentconfiguration"));
+        assertEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "Pipeline script",
+                        "sharedLibraryFacade.runhelper(loadreadablesecrettokenconfiguration)",
+                        "",
+                        "loadreadablesecrettokenconfiguration"));
+        assertEquals(
+                "Skipped high-entropy candidate because it looks like a readable Pipeline command string.",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "Pipeline script",
+                        "\"git releasepipelinebuilddeploytestingallservices\"",
+                        "",
+                        "releasepipelinebuilddeploytestingallservices"));
+        assertEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "Pipeline script",
+                        "\"run helper with ghp_012345678901234567890123456789012345\"",
+                        "",
+                        "ghp_012345678901234567890123456789012345"));
         for (String value : List.of(
                 "s3://example-bucket/runtime/sample_dataset/record_01",
                 "s3a://example-bucket/runtime/sample_dataset/record_01",

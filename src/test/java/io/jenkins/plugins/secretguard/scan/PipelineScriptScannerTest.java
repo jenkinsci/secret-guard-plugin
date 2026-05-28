@@ -722,6 +722,53 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void doesNotFlagReadableSharedLibraryArgumentReferencesAsHighEntropySecrets() {
+        String script = """
+                @Library('build-tools@stable') _
+
+                pipeline {
+                  agent any
+                  stages {
+                    stage('sync') {
+                      steps {
+                        script {
+                          sharedLibraryFacade.runhelper(loadreadabledeploymentconfiguration)
+                          sharedLibraryFacade.runhelper(otherHelper.loadreadabledeploymentconfiguration)
+                        }
+                      }
+                    }
+                  }
+                }
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
+    void doesNotFlagReadablePipelineCommandStringsAsHighEntropySecrets() {
+        String script = """
+                pipeline {
+                  agent any
+                  stages {
+                    stage('sync') {
+                      steps {
+                        script {
+                          sharedLibraryFacade.runhelper("git commit releasepipelinebuilddeploytestingallservices")
+                        }
+                      }
+                    }
+                  }
+                }
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
     void doesNotFlagStorageUriPathsAsHighEntropySecrets() {
         String script = """
                 properties([
