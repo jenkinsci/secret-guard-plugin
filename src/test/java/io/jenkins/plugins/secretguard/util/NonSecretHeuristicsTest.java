@@ -147,12 +147,47 @@ class NonSecretHeuristicsTest {
                         "description",
                         "svcOnlineRestoreSvcFromReplicaDataBackup"));
         assertEquals(
+                "Skipped high-entropy candidate because it looks like a readable Pipeline method name.",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "Pipeline script",
+                        "sharedLibraryFacade.loadreadabledeploymentconfiguration()",
+                        "",
+                        "loadreadabledeploymentconfiguration"));
+        assertEquals(
+                "Skipped high-entropy candidate because it looks like a readable Pipeline method name.",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "JENKINSFILE",
+                        "loadreadabledeploymentconfiguration()",
+                        "",
+                        "loadreadabledeploymentconfiguration"));
+        assertEquals(
                 "",
                 NonSecretHeuristics.nonSecretHighEntropyReason(
                         "/project/properties/hudson.model.ParametersDefinitionProperty/parameterDefinitions/hudson.model.StringParameterDefinition/description",
                         "Example token: QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l",
                         "description",
                         "QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l"));
+        assertEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "Pipeline script",
+                        "loadreadabledeploymentconfiguration",
+                        "",
+                        "loadreadabledeploymentconfiguration"));
+        assertEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "Pipeline script",
+                        "sharedLibraryFacade.loadreadablesecrettokenconfiguration()",
+                        "",
+                        "loadreadablesecrettokenconfiguration"));
+        assertEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "config.xml",
+                        "sharedLibraryFacade.loadreadabledeploymentconfiguration()",
+                        "",
+                        "loadreadabledeploymentconfiguration"));
         for (String value : List.of(
                 "s3://example-bucket/runtime/sample_dataset/record_01",
                 "s3a://example-bucket/runtime/sample_dataset/record_01",
