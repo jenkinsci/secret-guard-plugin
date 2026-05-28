@@ -105,7 +105,7 @@ class SecretGuardRootActionTest {
                 List.of(blockedResult),
                 SecretGuardRootAction.filterResults(results, SecretGuardRootAction.ResultFilter.BLOCKED));
         assertEquals(
-                List.of(blockedResult, highResult, lowResult, exemptedResult),
+                List.of(blockedResult, highResult, lowResult),
                 SecretGuardRootAction.filterResults(results, SecretGuardRootAction.ResultFilter.WITH_FINDINGS));
         assertEquals(
                 List.of(exemptedResult),
@@ -113,6 +113,26 @@ class SecretGuardRootActionTest {
         assertEquals(
                 List.of(notesResult),
                 SecretGuardRootAction.filterResults(results, SecretGuardRootAction.ResultFilter.WITH_NOTES));
+    }
+
+    @Test
+    void countsOnlyActionableJobsInWithFindingsSummary() {
+        SecretGuardRootAction action = new SecretGuardRootAction(null);
+        List<String> targetIds = List.of("actionable-job", "exempted-job");
+        ScanResultStore.get()
+                .put(new SecretScanResult("actionable-job", "WorkflowJob", List.of(finding(Severity.MEDIUM)), false));
+        ScanResultStore.get()
+                .put(new SecretScanResult(
+                        "exempted-job",
+                        "WorkflowJob",
+                        List.of(finding(Severity.HIGH).withExemption("approved test exemption")),
+                        false));
+
+        try {
+            assertEquals(1, action.getJobsWithFindingsCount());
+        } finally {
+            removeStoredResults(targetIds);
+        }
     }
 
     @Test

@@ -698,6 +698,30 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void doesNotFlagReadableSharedLibraryMethodNamesAsHighEntropySecrets() {
+        String script = """
+                @Library('build-tools@stable') _
+
+                pipeline {
+                  agent any
+                  stages {
+                    stage('sync') {
+                      steps {
+                        script {
+                          sharedLibraryFacade.loadreadabledeploymentconfiguration()
+                        }
+                      }
+                    }
+                  }
+                }
+                """;
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
     void doesNotFlagStorageUriPathsAsHighEntropySecrets() {
         String script = """
                 properties([
