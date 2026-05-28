@@ -1,0 +1,20 @@
+src/test/java/io/jenkins/plugins/secretguard/util/NonSecretHeuristicsTest.java
+  s_b4e429ba377089::t_7e1e931348a65c 164-176,184-186,188-194,202-208
+  s_b4e429ba377089::t_7d11f8300d124a 187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b9526b7837d1ace7b1333b07f6f2f928b8765546",
+  "prompts": {},
+  "sessions": {
+    "s_b4e429ba377089": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e6c58-d087-7d73-b6b7-b6b63480dc27",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui <977675308@qq.com>"
+    }
+  }
+}
