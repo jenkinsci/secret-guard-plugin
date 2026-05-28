@@ -161,6 +161,20 @@ class NonSecretHeuristicsTest {
                         "",
                         "loadreadabledeploymentconfiguration"));
         assertEquals(
+                "Skipped high-entropy candidate because it looks like a readable Pipeline method name.",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "PIPELINE_SCRIPT",
+                        "loadreadabledeploymentconfiguration()",
+                        "",
+                        "loadreadabledeploymentconfiguration"));
+        assertEquals(
+                "Skipped high-entropy candidate because it looks like a readable Pipeline method name.",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "scm-backed jenkinsfile",
+                        "sharedLibraryFacade.loadreadabledeploymentconfiguration()",
+                        "",
+                        "loadreadabledeploymentconfiguration"));
+        assertEquals(
                 "",
                 NonSecretHeuristics.nonSecretHighEntropyReason(
                         "/project/properties/hudson.model.ParametersDefinitionProperty/parameterDefinitions/hudson.model.StringParameterDefinition/description",
@@ -170,10 +184,28 @@ class NonSecretHeuristicsTest {
         assertEquals(
                 "",
                 NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "Pipeline script", "", "", "loadreadabledeploymentconfiguration"));
+        assertEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "",
+                        "sharedLibraryFacade.loadreadabledeploymentconfiguration()",
+                        "",
+                        "loadreadabledeploymentconfiguration"));
+        assertEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
                         "Pipeline script",
                         "loadreadabledeploymentconfiguration",
                         "",
                         "loadreadabledeploymentconfiguration"));
+        assertEquals(
+                "",
+                NonSecretHeuristics.nonSecretHighEntropyReason(
+                        "Pipeline script",
+                        "sharedLibraryFacade.loadreadabledeploymentconfiguration123()",
+                        "",
+                        "loadreadabledeploymentconfiguration123"));
         assertEquals(
                 "",
                 NonSecretHeuristics.nonSecretHighEntropyReason(
