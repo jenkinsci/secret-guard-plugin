@@ -35,6 +35,8 @@ public final class NonSecretHeuristics {
     private static final Pattern SENSITIVE_URL_NAME = Pattern.compile(
             "(?i).*(password|passwd|pwd|token|secret|api[_-]?key|apikey|access[_-]?key|accesskey|client[_-]?secret|credential|auth|webhook|signature|sig).*");
     private static final Pattern UPPER_SNAKE_IDENTIFIER = Pattern.compile("[A-Z][A-Z0-9_]{2,}");
+    private static final Pattern COMMAND_WORD = Pattern.compile(
+            "(?i).*(?:\\bgit\\b|\\bcurl\\b|\\bmvn\\b|\\bdocker\\b|\\bkubectl\\b|\\bsh\\b|\\bbash\\b|\\bcommit\\b|\\bbuild\\b|\\bdeploy\\b|\\brelease\\b|\\btest\\b).*");
 
     private NonSecretHeuristics() {}
 
@@ -264,6 +266,12 @@ public final class NonSecretHeuristics {
         if (looksLikeReadablePipelineMethodName(sourceName, originalValue, candidate)) {
             return "Skipped high-entropy candidate because it looks like a readable Pipeline method name.";
         }
+        if (looksLikeReadablePipelineArgumentReference(sourceName, originalValue, candidate)) {
+            return "Skipped high-entropy candidate because it looks like a readable Pipeline argument reference.";
+        }
+        if (looksLikeReadablePipelineCommandString(sourceName, originalValue, candidate)) {
+            return "Skipped high-entropy candidate because it looks like a readable Pipeline command string.";
+        }
         if (looksLikeIdentifier(candidate)) {
             return "Skipped high-entropy candidate because it looks like a readable identifier.";
         }
@@ -380,6 +388,37 @@ public final class NonSecretHeuristics {
             return false;
         }
         return appearsAsMethodCall(originalValue, normalizedCandidate);
+    }
+
+    private static boolean looksLikeReadablePipelineArgumentReference(
+            String sourceName, String originalValue, String candidate) {
+        String normalizedCandidate = nullToEmpty(candidate).trim();
+        if (normalizedCandidate.length() < 32
+                || !normalizedCandidate.matches("[A-Za-z]{32,}")
+                || SENSITIVE_PARAMETER_NAME.matcher(normalizedCandidate).matches()) {
+            return false;
+        }
+        if (!isPipelineSource(sourceName) || !looksLikeHumanReadableWords(normalizedCandidate)) {
+            return false;
+        }
+        return appearsAsMethodArgumentReference(originalValue, normalizedCandidate);
+    }
+
+    private static boolean looksLikeReadablePipelineCommandString(
+            String sourceName, String originalValue, String candidate) {
+        String normalizedCandidate = nullToEmpty(candidate).trim();
+        if (normalizedCandidate.length() < 32
+                || !normalizedCandidate.matches("[A-Za-z]{32,}")
+                || SENSITIVE_PARAMETER_NAME.matcher(normalizedCandidate).matches()) {
+            return false;
+        }
+        if (!isPipelineSource(sourceName)
+                || !isQuotedString(nullToEmpty(originalValue).trim())
+                || !looksLikeHumanReadableWords(normalizedCandidate)) {
+            return false;
+        }
+        String literal = extractLikelyLiteralValue(originalValue);
+        return COMMAND_WORD.matcher(literal).matches() && !looksLikeSafeReference(literal);
     }
 
     private static double uppercaseRatio(String value) {
@@ -1342,6 +1381,22 @@ public final class NonSecretHeuristics {
                 || Pattern.compile("\\.[ \\t]*" + quotedCandidate + "\\s*\\(")
                         .matcher(line)
                         .find();
+    }
+
+    private static boolean appearsAsMethodArgumentReference(String originalValue, String candidate) {
+        String line = nullToEmpty(originalValue);
+        if (line.isBlank()) {
+            return false;
+        }
+        String quotedCandidate = Pattern.quote(candidate);
+        if (Pattern.compile("['\"][^'\"]*" + quotedCandidate + "[^'\"]*['\"]")
+                .matcher(line)
+                .find()) {
+            return false;
+        }
+        return Pattern.compile("\\([^\\r\\n]*\\b(?:[A-Za-z_][A-Za-z0-9_]*\\.)*" + quotedCandidate + "\\b\\s*(?:,|\\))")
+                .matcher(line)
+                .find();
     }
 
     private static String normalize(String value) {
