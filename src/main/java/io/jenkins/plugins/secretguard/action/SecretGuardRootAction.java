@@ -234,7 +234,9 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
     }
 
     public long getJobsWithFindingsCount() {
-        return getResults().stream().filter(SecretScanResult::hasFindings).count();
+        return getResults().stream()
+                .filter(SecretScanResult::hasActionableFindings)
+                .count();
     }
 
     public long getBlockedJobCount() {
@@ -584,7 +586,7 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
             case ALL -> true;
             case HIGH -> result.getHighestSeverity().isAtLeast(Severity.HIGH);
             case BLOCKED -> result.isBlocked();
-            case WITH_FINDINGS -> result.hasFindings();
+            case WITH_FINDINGS -> result.hasActionableFindings();
             case WITH_EXEMPTIONS -> result.hasExemptedFindings();
             case WITH_NOTES -> result.hasNotes();
         };

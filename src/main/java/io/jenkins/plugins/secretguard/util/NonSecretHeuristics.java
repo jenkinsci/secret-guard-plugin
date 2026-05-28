@@ -1,5 +1,6 @@
 package io.jenkins.plugins.secretguard.util;
 
+import io.jenkins.plugins.secretguard.model.FindingLocationType;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -260,6 +261,9 @@ public final class NonSecretHeuristics {
         if (looksLikeFreeTextReadableIdentifier(sourceName, fieldName, candidate)) {
             return "Skipped high-entropy candidate because the free-text value looks like a readable identifier.";
         }
+        if (looksLikeReadablePipelineMethodName(sourceName, originalValue, candidate)) {
+            return "Skipped high-entropy candidate because it looks like a readable Pipeline method name.";
+        }
         if (looksLikeIdentifier(candidate)) {
             return "Skipped high-entropy candidate because it looks like a readable identifier.";
         }
@@ -362,6 +366,20 @@ public final class NonSecretHeuristics {
             }
         }
         return readableParts >= 3;
+    }
+
+    private static boolean looksLikeReadablePipelineMethodName(
+            String sourceName, String originalValue, String candidate) {
+        String normalizedCandidate = nullToEmpty(candidate).trim();
+        if (normalizedCandidate.length() < 32
+                || !normalizedCandidate.matches("[A-Za-z]{32,}")
+                || SENSITIVE_PARAMETER_NAME.matcher(normalizedCandidate).matches()) {
+            return false;
+        }
+        if (!isPipelineSource(sourceName) || !looksLikeHumanReadableWords(normalizedCandidate)) {
+            return false;
+        }
+        return appearsAsMethodCall(originalValue, normalizedCandidate);
     }
 
     private static double uppercaseRatio(String value) {
@@ -1277,6 +1295,53 @@ public final class NonSecretHeuristics {
             }
         }
         return true;
+    }
+
+    private static boolean isPipelineSource(String sourceName) {
+        String normalized = nullToEmpty(sourceName).trim();
+        if (normalized.isEmpty()) {
+            return false;
+        }
+        return normalized.equalsIgnoreCase("Pipeline script")
+                || normalized.equals(FindingLocationType.PIPELINE_SCRIPT.name())
+                || normalized.equals(FindingLocationType.JENKINSFILE.name())
+                || normalized.toLowerCase(Locale.ENGLISH).contains("jenkinsfile");
+    }
+
+    private static boolean looksLikeHumanReadableWords(String value) {
+        String normalized = nullToEmpty(value).trim();
+        if (normalized.isEmpty() || !normalized.matches("[A-Za-z]{32,}")) {
+            return false;
+        }
+        for (int index = 3; index <= normalized.length() - 4; index++) {
+            String prefix = normalized.substring(0, index);
+            String suffix = normalized.substring(index);
+            if (prefix.matches("[A-Za-z]{3,}")
+                    && suffix.matches("[A-Za-z]{4,}")
+                    && containsVowel(prefix)
+                    && containsVowel(suffix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsVowel(String value) {
+        return value.toLowerCase(Locale.ENGLISH).matches(".*[aeiouy].*");
+    }
+
+    private static boolean appearsAsMethodCall(String originalValue, String candidate) {
+        String line = nullToEmpty(originalValue);
+        if (line.isBlank()) {
+            return false;
+        }
+        String quotedCandidate = Pattern.quote(candidate);
+        return Pattern.compile("\\b" + quotedCandidate + "\\s*\\(")
+                        .matcher(line)
+                        .find()
+                || Pattern.compile("\\.[ \\t]*" + quotedCandidate + "\\s*\\(")
+                        .matcher(line)
+                        .find();
     }
 
     private static String normalize(String value) {

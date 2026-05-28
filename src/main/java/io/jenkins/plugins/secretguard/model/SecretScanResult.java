@@ -86,6 +86,10 @@ public class SecretScanResult {
         return !findings.isEmpty();
     }
 
+    public boolean hasActionableFindings() {
+        return findings.stream().anyMatch(SecretFinding::isActionable);
+    }
+
     public boolean hasNotes() {
         return !notes.isEmpty();
     }
@@ -104,6 +108,10 @@ public class SecretScanResult {
 
     public long getExemptedFindingsCount() {
         return findings.stream().filter(SecretFinding::isExempted).count();
+    }
+
+    public long getActionableFindingsCount() {
+        return findings.stream().filter(SecretFinding::isActionable).count();
     }
 
     public boolean hasExemptedFindings() {

@@ -24,7 +24,7 @@
             <f:entry
                     title="Rule ID allow list"
                     field="ruleIdAllowList"
-                    description="Use newline or comma separated rule IDs.">
+                    description="Use newline or comma separated rule IDs. Matching findings are marked exempted globally and remain visible in exemption views and details.">
                 <f:textarea />
             </f:entry>
             <f:entry
