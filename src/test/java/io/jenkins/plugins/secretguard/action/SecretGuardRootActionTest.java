@@ -670,6 +670,12 @@ class SecretGuardRootActionTest {
             assertTrue(content.contains("class=\"secret-guard-results-toolbar\""));
             assertTrue(content.contains("aria-disabled=\"true\""));
             assertTrue(content.contains("secret-guard-button-disabled"));
+            assertTrue(
+                    content.contains(
+                            "class=\"jenkins-button jenkins-submit-button jenkins-button--primary secret-guard-pagination-current\""));
+            assertFalse(
+                    content.contains(
+                            "href=\"/jenkins/secret-guard?filter=with-notes&amp;page=2&amp;pageSize=50\" aria-current=\"page\""));
             assertTrue(content.contains("Clear"));
             assertTrue(content.indexOf("class=\"secret-guard-results-header\"")
                     < content.indexOf("class=\"secret-guard-results-toolbar\""));
@@ -717,8 +723,9 @@ class SecretGuardRootActionTest {
 
             assertTrue(content.contains("Showing 1-3 of 3"));
             assertEquals(2, countOccurrences(content, "secret-guard-pagination-current"));
-            assertTrue(content.contains(">Previous</span>"));
-            assertTrue(content.contains(">Next</span>"));
+            assertEquals(5, countOccurrences(content, "secret-guard-button-disabled"));
+            assertTrue(content.contains("aria-disabled=\"true\""));
+            assertTrue(content.contains("secret-guard-button-disabled"));
             assertTrue(content.contains("href=\"/jenkins/secret-guard?filter=with-notes&amp;pageSize=50\""));
         } finally {
             removeStoredResults(targetIds);
