@@ -212,7 +212,12 @@
                                             </a>
                                         </j:when>
                                         <j:otherwise>
-                                            <span class="jenkins-button jenkins-button--secondary">Previous</span>
+                                            <span
+                                                class="jenkins-button jenkins-button--secondary secret-guard-button-disabled"
+                                                aria-disabled="true"
+                                            >
+                                                Previous
+                                            </span>
                                         </j:otherwise>
                                     </j:choose>
                                     <j:forEach var="pageLink" items="${it.paginationLinks}">
@@ -221,13 +226,12 @@
                                                 <span class="secret-guard-pagination-gap">${pageLink.label}</span>
                                             </j:when>
                                             <j:when test="${pageLink.current}">
-                                                <a
+                                                <span
                                                     class="jenkins-button jenkins-submit-button jenkins-button--primary secret-guard-pagination-current"
-                                                    href="${pageLink.url}"
                                                     aria-current="page"
                                                 >
                                                     ${pageLink.label}
-                                                </a>
+                                                </span>
                                             </j:when>
                                             <j:otherwise>
                                                 <a
@@ -249,7 +253,12 @@
                                             </a>
                                         </j:when>
                                         <j:otherwise>
-                                            <span class="jenkins-button jenkins-button--secondary">Next</span>
+                                            <span
+                                                class="jenkins-button jenkins-button--secondary secret-guard-button-disabled"
+                                                aria-disabled="true"
+                                            >
+                                                Next
+                                            </span>
                                         </j:otherwise>
                                     </j:choose>
                                 </div>
@@ -411,7 +420,12 @@
                                             </a>
                                         </j:when>
                                         <j:otherwise>
-                                            <span class="jenkins-button jenkins-button--secondary">Previous</span>
+                                            <span
+                                                class="jenkins-button jenkins-button--secondary secret-guard-button-disabled"
+                                                aria-disabled="true"
+                                            >
+                                                Previous
+                                            </span>
                                         </j:otherwise>
                                     </j:choose>
                                     <j:forEach var="pageLink" items="${it.paginationLinks}">
@@ -420,13 +434,12 @@
                                                 <span class="secret-guard-pagination-gap">${pageLink.label}</span>
                                             </j:when>
                                             <j:when test="${pageLink.current}">
-                                                <a
+                                                <span
                                                     class="jenkins-button jenkins-submit-button jenkins-button--primary secret-guard-pagination-current"
-                                                    href="${pageLink.url}"
                                                     aria-current="page"
                                                 >
                                                     ${pageLink.label}
-                                                </a>
+                                                </span>
                                             </j:when>
                                             <j:otherwise>
                                                 <a
@@ -448,7 +461,12 @@
                                             </a>
                                         </j:when>
                                         <j:otherwise>
-                                            <span class="jenkins-button jenkins-button--secondary">Next</span>
+                                            <span
+                                                class="jenkins-button jenkins-button--secondary secret-guard-button-disabled"
+                                                aria-disabled="true"
+                                            >
+                                                Next
+                                            </span>
                                         </j:otherwise>
                                     </j:choose>
                                 </div>
