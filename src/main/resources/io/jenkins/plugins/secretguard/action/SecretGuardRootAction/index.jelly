@@ -261,6 +261,21 @@
                                             </span>
                                         </j:otherwise>
                                     </j:choose>
+                                    <label class="secret-guard-page-size-label">
+                                        <span class="secret-guard-page-size-text">Per page</span>
+                                        <select class="jenkins-input secret-guard-field-control secret-guard-page-size-select">
+                                            <j:forEach var="sizeOption" items="${it.availablePageSizes}">
+                                                <j:choose>
+                                                    <j:when test="${it.isActivePageSize(sizeOption)}">
+                                                        <option value="${sizeOption}" selected="selected">${sizeOption}</option>
+                                                    </j:when>
+                                                    <j:otherwise>
+                                                        <option value="${sizeOption}">${sizeOption}</option>
+                                                    </j:otherwise>
+                                                </j:choose>
+                                            </j:forEach>
+                                        </select>
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -469,6 +484,21 @@
                                             </span>
                                         </j:otherwise>
                                     </j:choose>
+                                    <label class="secret-guard-page-size-label">
+                                        <span class="secret-guard-page-size-text">Per page</span>
+                                        <select class="jenkins-input secret-guard-field-control secret-guard-page-size-select">
+                                            <j:forEach var="sizeOption" items="${it.availablePageSizes}">
+                                                <j:choose>
+                                                    <j:when test="${it.isActivePageSize(sizeOption)}">
+                                                        <option value="${sizeOption}" selected="selected">${sizeOption}</option>
+                                                    </j:when>
+                                                    <j:otherwise>
+                                                        <option value="${sizeOption}">${sizeOption}</option>
+                                                    </j:otherwise>
+                                                </j:choose>
+                                            </j:forEach>
+                                        </select>
+                                    </label>
                                 </div>
                             </div>
                         </div>
