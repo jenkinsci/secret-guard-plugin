@@ -9,6 +9,7 @@
     var RESULTS_SEARCH_FORM_CLASS = "secret-guard-results-search";
     var RESULTS_FILTER_PARAM = "filter";
     var RESULTS_QUERY_PARAM = "q";
+    var PAGE_SIZE_SELECT_CLASS = "secret-guard-page-size-select";
     var STORAGE_KEY_SUFFIX = ":scan-all-details-open";
     var activeResultsRequest = null;
     var activeResultsRequestUrl = null;
@@ -301,10 +302,41 @@
         });
     }
 
+    function buildPageSizeUrl(newPageSize) {
+        var url = new URL(window.location.href);
+        var params = url.searchParams;
+        params.set("page", "1");
+        var defaultSize = "100";
+        if (newPageSize === defaultSize) {
+            params.delete("pageSize");
+        } else {
+            params.set("pageSize", newPageSize);
+        }
+        return url.pathname + (params.toString() ? "?" + params.toString() : "");
+    }
+
+    function initializePageSizeSelector() {
+        document.addEventListener("change", function (event) {
+            var select = event.target.closest("." + PAGE_SIZE_SELECT_CLASS);
+            if (!select) {
+                return;
+            }
+
+            var resultsSection = document.getElementById(RESULTS_SECTION_ID);
+            if (!resultsSection || !resultsSection.contains(select)) {
+                return;
+            }
+
+            var url = buildPageSizeUrl(select.value);
+            fetchAndReplaceResults(url, true);
+        });
+    }
+
     function initialize() {
         initializeDetailsState();
         initializeScanDialog();
         initializeFilterRefresh();
+        initializePageSizeSelector();
         scheduleRefresh();
     }
 

@@ -31,7 +31,7 @@ public class SecretGuardRootAction implements RootAction, SeverityBadgeSupport, 
     private static final int MAX_DISPLAY_TARGET_LENGTH = 72;
     private static final int DISPLAY_TARGET_TAIL_SEGMENTS = 3;
     private static final int DEFAULT_PAGE_SIZE = 100;
-    private static final List<Integer> PAGE_SIZE_OPTIONS = List.of(50, 100, 200);
+    private static final List<Integer> PAGE_SIZE_OPTIONS = List.of(20, 50, 100, 200, 500);
     private static final String REQUEST_CACHE_KEY_PREFIX = SecretGuardRootAction.class.getName() + ".";
     private static final String ELLIPSIS = "\u2026";
 
