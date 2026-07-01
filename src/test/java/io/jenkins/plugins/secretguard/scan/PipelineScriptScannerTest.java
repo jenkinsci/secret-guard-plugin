@@ -929,6 +929,51 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void doesNotFlagCuratedHttpRequestIntermediateHeaderVariableFixture() {
+        SecretScanResult result = scanner.scan(
+                context(),
+                TestResourceLoader.load(
+                        "/io/jenkins/plugins/secretguard/fixtures/false-positives/common-intermediate-header-variable.Jenkinsfile"));
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().startsWith("http-request-")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
+    void doesNotFlagCuratedNestedScriptWithCredentialsRuntimeHeaderFixture() {
+        SecretScanResult result = scanner.scan(
+                context(),
+                TestResourceLoader.load(
+                        "/io/jenkins/plugins/secretguard/fixtures/false-positives/common-nested-script-withcredentials-runtime-header.Jenkinsfile"));
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().startsWith("http-request-")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
+    void doesNotFlagCuratedNestedScriptWithEnvRuntimeHeaderFixture() {
+        SecretScanResult result = scanner.scan(
+                context(),
+                TestResourceLoader.load(
+                        "/io/jenkins/plugins/secretguard/fixtures/false-positives/common-nested-script-withenv-runtime-header.Jenkinsfile"));
+
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().startsWith("http-request-")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("sensitive-field-name")));
+    }
+
+    @Test
     void detectsCuratedHardcodedHttpRequestCustomHeadersFixture() {
         SecretScanResult result = scanner.scan(
                 context(),
