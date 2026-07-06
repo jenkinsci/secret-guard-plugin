@@ -1002,6 +1002,8 @@ public class BuiltInSecretRuleSet {
 
     private static final class HighEntropyRule implements SecretRule {
         private static final Pattern CANDIDATE = Pattern.compile("\\b[A-Za-z0-9+/=_-]{32,}\\b");
+        private static final Pattern PRIVATE_KEY_BLOCK =
+                Pattern.compile("-----BEGIN [A-Z ]*PRIVATE KEY-----[\\s\\S]*?-----END [A-Z ]*PRIVATE KEY-----");
 
         @Override
         public String getId() {
@@ -1018,6 +1020,9 @@ public class BuiltInSecretRuleSet {
             List<SecretFinding> findings = new ArrayList<>();
             while (matcher.find()) {
                 String candidate = matcher.group();
+                if (isPrivateKeyPayloadFragment(value, candidate)) {
+                    continue;
+                }
                 String suppressionReason =
                         NonSecretHeuristics.nonSecretHighEntropyReason(sourceName, value, fieldName, candidate);
                 if (!suppressionReason.isEmpty() || NonSecretHeuristics.entropy(candidate) < 4.0) {
@@ -1039,6 +1044,19 @@ public class BuiltInSecretRuleSet {
                         Recommendations.CREDENTIALS));
             }
             return findings;
+        }
+
+        private boolean isPrivateKeyPayloadFragment(String value, String candidate) {
+            if (candidate == null || candidate.isBlank()) {
+                return false;
+            }
+            Matcher privateKeyMatcher = PRIVATE_KEY_BLOCK.matcher(value);
+            while (privateKeyMatcher.find()) {
+                if (privateKeyMatcher.group().contains(candidate)) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 
