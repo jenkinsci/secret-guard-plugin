@@ -7,6 +7,9 @@ import io.jenkins.plugins.secretguard.model.Severity;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import jenkins.model.GlobalConfiguration;
 import jenkins.model.Jenkins;
@@ -16,6 +19,8 @@ import org.kohsuke.stapler.verb.POST;
 
 @Extension
 public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
+    private static final Logger LOGGER = Logger.getLogger(SecretGuardGlobalConfiguration.class.getName());
+
     private boolean enabled = true;
     private EnforcementMode enforcementMode = EnforcementMode.AUDIT;
     private Severity blockThreshold = Severity.HIGH;
@@ -23,6 +28,7 @@ public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
     private String jobAllowList = "";
     private String fieldNameAllowList = "";
     private String exemptions = "";
+    private String customPatternRules = "";
 
     public SecretGuardGlobalConfiguration() {
         load();
@@ -111,6 +117,16 @@ public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
         save();
     }
 
+    public String getCustomPatternRules() {
+        return customPatternRules == null ? "" : customPatternRules;
+    }
+
+    @DataBoundSetter
+    public void setCustomPatternRules(String customPatternRules) {
+        this.customPatternRules = normalizeText(customPatternRules);
+        save();
+    }
+
     public List<String> getRuleIdAllowListEntries() {
         return splitAllowListEntries(getRuleIdAllowList());
     }
@@ -127,10 +143,31 @@ public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
         return splitExemptionEntries(getExemptions());
     }
 
+    public List<CustomPatternRuleEntry> getCustomPatternRuleEntries() {
+        try {
+            return CustomPatternRuleEntry.parseLenient(getCustomPatternRules());
+        } catch (IllegalArgumentException exception) {
+            LOGGER.log(Level.WARNING, "Skipping invalid custom Secret Guard pattern rules", exception);
+            return Collections.emptyList();
+        }
+    }
+
+    public Set<String> getCustomPatternRuleIds() {
+        return getCustomPatternRuleEntries().stream()
+                .map(CustomPatternRuleEntry::getRuleId)
+                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+    }
+
     @POST
     public FormValidation doCheckExemptions(@QueryParameter String value) {
         Jenkins.get().checkPermission(Jenkins.MANAGE);
         return validateExemptions(value);
+    }
+
+    @POST
+    public FormValidation doCheckCustomPatternRules(@QueryParameter String value) {
+        Jenkins.get().checkPermission(Jenkins.MANAGE);
+        return validateCustomPatternRules(value);
     }
 
     private static String normalizeText(String value) {
@@ -181,5 +218,14 @@ public class SecretGuardGlobalConfiguration extends GlobalConfiguration {
             return FormValidation.warning("Entries with an empty reason are ignored until a reason is provided.");
         }
         return FormValidation.ok();
+    }
+
+    static FormValidation validateCustomPatternRules(String value) {
+        try {
+            CustomPatternRuleEntry.parseStrict(value);
+            return FormValidation.ok();
+        } catch (IllegalArgumentException exception) {
+            return FormValidation.error(exception.getMessage());
+        }
     }
 }

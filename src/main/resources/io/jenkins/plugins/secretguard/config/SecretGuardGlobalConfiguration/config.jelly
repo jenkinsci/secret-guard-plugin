@@ -45,6 +45,12 @@
                     description="Use one exemption per line: jobFullName|ruleId|reason. Empty reasons are ignored.">
                 <f:textarea />
             </f:entry>
+            <f:entry
+                    title="Custom pattern rules"
+                    field="customPatternRules"
+                    description="Use one rule per line: ruleId|title|severity|pattern|matchingGroup(optional). Escape literal pipes as \|.">
+                <f:textarea />
+            </f:entry>
         </f:advanced>
     </f:section>
 </j:jelly>
