@@ -1,0 +1,11 @@
+<div>
+    Define one custom pattern rule per line using:
+    <code>ruleId|title|severity|pattern|matchingGroup(optional)</code>.
+</div>
+<div>
+    Example:
+    <code>oracle-connection-url|Oracle connection string contains a hardcoded password|HIGH|(?i)\b(?:jdbc:)?oracle:[^\s'"&lt;&gt;]+password=([^;&amp;\s'"&lt;&gt;]+)|1</code>
+</div>
+<div>
+    Use <code>\|</code> for a literal pipe inside the title or pattern. Custom pattern rules use the standard credentials recommendation and are applied to both job configuration and inline Pipeline scans.
+</div>

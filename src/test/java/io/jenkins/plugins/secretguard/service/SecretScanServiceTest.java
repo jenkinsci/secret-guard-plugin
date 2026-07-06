@@ -16,6 +16,7 @@ import io.jenkins.plugins.secretguard.scan.PipelineScriptScanner;
 import io.jenkins.plugins.secretguard.scan.SecretScanner;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class SecretScanServiceTest {
@@ -115,6 +116,26 @@ class SecretScanServiceTest {
                 .filter(finding -> finding.getRuleId().equals("http-request-hardcoded-header-secret"))
                 .map(SecretFinding::getAnalysisNote)
                 .anyMatch(note -> note.contains("Suppressed generic finding(s)")));
+    }
+
+    @Test
+    void suppressesGenericFindingWhenConfiguredCustomRuleHitsSameValue() {
+        SecretScanService service = new SecretScanService(
+                new AllowListService(), new ExemptionService(), () -> Set.of("example-service-token"));
+        List<SecretFinding> findings = new ArrayList<>();
+        findings.add(finding("high-entropy-string", Severity.MEDIUM, "x-example-auth", "Exa…DEF"));
+        findings.add(finding("example-service-token", Severity.HIGH, "x-example-auth", "Exa…DEF"));
+
+        SecretScanResult result = service.scan(
+                (context, content) ->
+                        new SecretScanResult(context.getJobFullName(), context.getTargetType(), findings, false),
+                context(EnforcementMode.BLOCK),
+                "ignored");
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("example-service-token")));
+        assertFalse(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
     }
 
     @Test

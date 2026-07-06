@@ -3,6 +3,7 @@ package io.jenkins.plugins.secretguard.scan;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.jenkins.plugins.secretguard.config.CustomPatternRuleEntry;
 import io.jenkins.plugins.secretguard.model.EnforcementMode;
 import io.jenkins.plugins.secretguard.model.FindingLocationType;
 import io.jenkins.plugins.secretguard.model.ScanContext;
@@ -10,7 +11,9 @@ import io.jenkins.plugins.secretguard.model.ScanPhase;
 import io.jenkins.plugins.secretguard.model.SecretFinding;
 import io.jenkins.plugins.secretguard.model.SecretScanResult;
 import io.jenkins.plugins.secretguard.model.Severity;
+import io.jenkins.plugins.secretguard.rules.BuiltInSecretRuleSet;
 import io.jenkins.plugins.secretguard.testutil.TestResourceLoader;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class PipelineScriptScannerTest {
@@ -61,6 +64,34 @@ class PipelineScriptScannerTest {
                 .anyMatch(finding -> finding.getRuleId().equals("basic-auth-header")));
         assertTrue(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("slack-webhook-url")));
+    }
+
+    @Test
+    void detectsConfiguredCustomPatternRulesInPipelineScript() {
+        String script = """
+                pipeline {
+                  agent any
+                  stages {
+                    stage('Connect') {
+                      steps {
+                        echo 'jdbc:oracle:thin:@repo-host:1521/builddb?user=build_user&password=PlainSecret42'
+                      }
+                    }
+                  }
+                }
+                """;
+        PipelineScriptScanner customScanner =
+                new PipelineScriptScanner(new BuiltInSecretRuleSet(List.of(new CustomPatternRuleEntry(
+                        "oracle-connection-url",
+                        "Oracle connection string contains a hardcoded password",
+                        Severity.HIGH,
+                        "(?i)jdbc:oracle:[^\\s]+password=([^&\\s]+)",
+                        1))));
+
+        SecretScanResult result = customScanner.scan(context(), script);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("oracle-connection-url")));
     }
 
     @Test

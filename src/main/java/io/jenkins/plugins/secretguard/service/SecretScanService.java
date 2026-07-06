@@ -10,6 +10,7 @@ import io.jenkins.plugins.secretguard.scan.SecretScanner;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 
 public class SecretScanService {
     private static final String HIGH_ENTROPY_RULE = "high-entropy-string";
@@ -56,14 +57,23 @@ public class SecretScanService {
 
     private final AllowListService allowListService;
     private final ExemptionService exemptionService;
+    private final Supplier<Set<String>> customPatternRuleIdsSupplier;
 
     public SecretScanService() {
-        this(new AllowListService(), new ExemptionService());
+        this(new AllowListService(), new ExemptionService(), SecretScanService::loadConfiguredCustomRuleIds);
     }
 
     SecretScanService(AllowListService allowListService, ExemptionService exemptionService) {
+        this(allowListService, exemptionService, SecretScanService::loadConfiguredCustomRuleIds);
+    }
+
+    SecretScanService(
+            AllowListService allowListService,
+            ExemptionService exemptionService,
+            Supplier<Set<String>> customPatternRuleIdsSupplier) {
         this.allowListService = allowListService;
         this.exemptionService = exemptionService;
+        this.customPatternRuleIdsSupplier = customPatternRuleIdsSupplier;
     }
 
     public SecretScanResult scan(SecretScanner scanner, ScanContext context, String content) {
@@ -169,7 +179,15 @@ public class SecretScanService {
         if (PRIVATE_KEY_SPECIFIC_RULES.contains(strongerRuleId) && PEM_PRIVATE_KEY_RULE.equals(weakerRuleId)) {
             return true;
         }
-        return FORMAT_SPECIFIC_RULES.contains(strongerRuleId) && BEARER_TOKEN_RULE.equals(weakerRuleId);
+        if (FORMAT_SPECIFIC_RULES.contains(strongerRuleId) && BEARER_TOKEN_RULE.equals(weakerRuleId)) {
+            return true;
+        }
+        return customPatternRuleIdsSupplier.get().contains(strongerRuleId) && GENERIC_RULES.contains(weakerRuleId);
+    }
+
+    private static Set<String> loadConfiguredCustomRuleIds() {
+        SecretGuardGlobalConfiguration configuration = SecretGuardGlobalConfiguration.get();
+        return configuration == null ? Set.of() : configuration.getCustomPatternRuleIds();
     }
 
     private String buildSuppressionNote(List<SecretFinding> suppressedFindings) {

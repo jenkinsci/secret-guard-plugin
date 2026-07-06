@@ -1,5 +1,7 @@
 package io.jenkins.plugins.secretguard.rules;
 
+import io.jenkins.plugins.secretguard.config.CustomPatternRuleEntry;
+import io.jenkins.plugins.secretguard.config.SecretGuardGlobalConfiguration;
 import io.jenkins.plugins.secretguard.model.ScanContext;
 import io.jenkins.plugins.secretguard.model.SecretFinding;
 import io.jenkins.plugins.secretguard.model.Severity;
@@ -25,9 +27,17 @@ public class BuiltInSecretRuleSet {
     private static final Pattern SIMPLE_ASSIGNMENT_LITERAL =
             Pattern.compile("\\b([A-Za-z_]\\w*)\\s*=\\s*(['\"])([^'\"]+)\\2");
 
-    private final List<SecretRule> rules;
+    private final List<SecretRule> builtInRules;
+    private final List<CustomPatternRuleEntry> explicitCustomPatternRules;
 
     public BuiltInSecretRuleSet() {
+        this(null);
+    }
+
+    public BuiltInSecretRuleSet(List<CustomPatternRuleEntry> explicitCustomPatternRules) {
+        this.explicitCustomPatternRules = explicitCustomPatternRules == null
+                ? null
+                : Collections.unmodifiableList(new ArrayList<>(explicitCustomPatternRules));
         List<SecretRule> builtIns = new ArrayList<>();
         builtIns.add(new SensitiveFieldRule());
         builtIns.add(new PatternSecretRule(
@@ -153,11 +163,23 @@ public class BuiltInSecretRuleSet {
         builtIns.add(new UrlQuerySecretRule());
         builtIns.add(new NotifierUrlSecretRule());
         builtIns.add(new HighEntropyRule());
-        this.rules = Collections.unmodifiableList(builtIns);
+        this.builtInRules = Collections.unmodifiableList(builtIns);
     }
 
     public List<SecretRule> getRules() {
-        return rules;
+        List<CustomPatternRuleEntry> customPatternRules = explicitCustomPatternRules;
+        if (customPatternRules == null) {
+            SecretGuardGlobalConfiguration configuration = SecretGuardGlobalConfiguration.get();
+            customPatternRules = configuration == null ? List.of() : configuration.getCustomPatternRuleEntries();
+        }
+        if (customPatternRules.isEmpty()) {
+            return builtInRules;
+        }
+        List<SecretRule> rules = new ArrayList<>(builtInRules);
+        for (CustomPatternRuleEntry customPatternRule : customPatternRules) {
+            rules.add(new CustomPatternSecretRule(customPatternRule));
+        }
+        return Collections.unmodifiableList(rules);
     }
 
     private static boolean isSensitiveField(String fieldName) {
@@ -316,6 +338,48 @@ public class BuiltInSecretRuleSet {
                 String matched = matcher.group(matchingGroup);
                 findings.add(finding(
                         id, title, severity, context, sourceName, lineNumber, fieldName, matched, recommendation));
+            }
+            return findings;
+        }
+    }
+
+    private static final class CustomPatternSecretRule implements SecretRule {
+        private final CustomPatternRuleEntry entry;
+        private final Pattern pattern;
+
+        private CustomPatternSecretRule(CustomPatternRuleEntry entry) {
+            this.entry = entry;
+            this.pattern = entry.compilePattern();
+        }
+
+        @Override
+        public String getId() {
+            return entry.getRuleId();
+        }
+
+        @Override
+        public List<SecretFinding> scan(
+                ScanContext context, String sourceName, int lineNumber, String fieldName, String value) {
+            if (value == null
+                    || value.isBlank()
+                    || NonSecretHeuristics.isCredentialIdField(fieldName)
+                    || looksLikeSafeReference(value)) {
+                return Collections.emptyList();
+            }
+            Matcher matcher = pattern.matcher(value);
+            List<SecretFinding> findings = new ArrayList<>();
+            while (matcher.find()) {
+                String matched = matcher.group(entry.getMatchingGroup());
+                findings.add(finding(
+                        entry.getRuleId(),
+                        entry.getTitle(),
+                        entry.getSeverity(),
+                        context,
+                        sourceName,
+                        lineNumber,
+                        fieldName,
+                        matched,
+                        Recommendations.CREDENTIALS));
             }
             return findings;
         }

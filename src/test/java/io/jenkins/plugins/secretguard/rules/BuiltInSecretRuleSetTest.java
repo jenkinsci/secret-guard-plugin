@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.jenkins.plugins.secretguard.config.CustomPatternRuleEntry;
 import io.jenkins.plugins.secretguard.model.EnforcementMode;
 import io.jenkins.plugins.secretguard.model.FindingLocationType;
 import io.jenkins.plugins.secretguard.model.ScanContext;
@@ -200,6 +201,55 @@ class BuiltInSecretRuleSetTest {
                 scan("databaseUrl", "postgresql://build_user:PlainSecret42@db.example.invalid:5432/example_metadata")
                         .stream()
                         .anyMatch(finding -> finding.getRuleId().equals("postgres-connection-string")));
+    }
+
+    @Test
+    void detectsConfiguredCustomPatternRules() {
+        BuiltInSecretRuleSet customRuleSet = new BuiltInSecretRuleSet(List.of(new CustomPatternRuleEntry(
+                "oracle-connection-url",
+                "Oracle connection string contains a hardcoded password",
+                Severity.HIGH,
+                "(?i)jdbc:oracle:[^\\s]+password=([^;\\s]+)",
+                1)));
+
+        List<SecretFinding> findings = scan(
+                customRuleSet,
+                "databaseUrl",
+                "jdbc:oracle:thin:@repo-host:1521/builddb?user=build_user&password=PlainSecret42");
+
+        assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("oracle-connection-url")));
+        assertTrue(findings.stream().anyMatch(finding -> finding.getSeverity() == Severity.HIGH));
+    }
+
+    @Test
+    void customPatternRulesDoNotReportWhenNothingMatches() {
+        BuiltInSecretRuleSet customRuleSet = new BuiltInSecretRuleSet(List.of(new CustomPatternRuleEntry(
+                "oracle-connection-url",
+                "Oracle connection string contains a hardcoded password",
+                Severity.HIGH,
+                "(?i)jdbc:oracle:[^\\s]+password=([^;\\s]+)",
+                1)));
+
+        List<SecretFinding> findings = scan(customRuleSet, "databaseUrl", "jdbc:mysql://repo-host/example");
+
+        assertFalse(findings.stream().anyMatch(finding -> finding.getRuleId().equals("oracle-connection-url")));
+    }
+
+    @Test
+    void customPatternRulesIgnoreCredentialIdFields() {
+        BuiltInSecretRuleSet customRuleSet = new BuiltInSecretRuleSet(List.of(new CustomPatternRuleEntry(
+                "oracle-connection-url",
+                "Oracle connection string contains a hardcoded password",
+                Severity.HIGH,
+                "(?i)jdbc:oracle:[^\\s]+password=([^;\\s]+)",
+                1)));
+
+        List<SecretFinding> findings = scan(
+                customRuleSet,
+                "databaseCredentialsId",
+                "jdbc:oracle:thin:@repo-host:1521/builddb?user=build_user&password=PlainSecret42");
+
+        assertFalse(findings.stream().anyMatch(finding -> finding.getRuleId().equals("oracle-connection-url")));
     }
 
     @Test
@@ -437,10 +487,19 @@ class BuiltInSecretRuleSetTest {
     }
 
     private List<SecretFinding> scan(String fieldName, String value) {
-        return scan("Pipeline script", fieldName, value);
+        return scan(ruleSet, "Pipeline script", fieldName, value);
     }
 
     private List<SecretFinding> scan(String sourceName, String fieldName, String value) {
+        return scan(ruleSet, sourceName, fieldName, value);
+    }
+
+    private List<SecretFinding> scan(BuiltInSecretRuleSet activeRuleSet, String fieldName, String value) {
+        return scan(activeRuleSet, "Pipeline script", fieldName, value);
+    }
+
+    private List<SecretFinding> scan(
+            BuiltInSecretRuleSet activeRuleSet, String sourceName, String fieldName, String value) {
         ScanContext context = new ScanContext(
                 "folder/job",
                 "Pipeline script",
@@ -450,7 +509,7 @@ class BuiltInSecretRuleSetTest {
                 EnforcementMode.BLOCK,
                 Severity.HIGH);
         List<SecretFinding> findings = new ArrayList<>();
-        for (SecretRule rule : ruleSet.getRules()) {
+        for (SecretRule rule : activeRuleSet.getRules()) {
             findings.addAll(rule.scan(context, sourceName, 1, fieldName, value));
         }
         return findings;
