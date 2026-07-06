@@ -1,0 +1,48 @@
+src/test/java/io/jenkins/plugins/secretguard/rules/BuiltInSecretRuleSetTest.java
+  s_935d9460eacaa1::t_6dd91ed74dd6c5 260-272
+  s_935d9460eacaa1::t_04ed91b733b564 259
+src/main/java/io/jenkins/plugins/secretguard/rules/BuiltInSecretRuleSet.java
+  s_935d9460eacaa1::t_73ac5352ef578b 1005-1006,1023,1048-1060
+  590e38e1dd191244 1024-1025
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f4d0198b419d9216042bfec299d354fd87c0b9be",
+  "prompts": {
+    "590e38e1dd191244": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019dcdc2-9869-7352-8910-b41e9cd083bb",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui <977675308@qq.com>",
+      "total_additions": 686,
+      "total_deletions": 93,
+      "accepted_lines": 589,
+      "overriden_lines": 0
+    },
+    "bdace71ddf6fe1cf": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019dcdf3-239b-7f41-8461-fcff72972317",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui <977675308@qq.com>",
+      "total_additions": 443,
+      "total_deletions": 0,
+      "accepted_lines": 443,
+      "overriden_lines": 0
+    }
+  },
+  "sessions": {
+    "s_935d9460eacaa1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3542-fa97-7392-963e-6ed51d8fbbbe",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui <977675308@qq.com>"
+    }
+  }
+}
