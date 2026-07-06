@@ -1,0 +1,57 @@
+src/main/java/io/jenkins/plugins/secretguard/config/CustomPatternRuleEntry.java
+  s_7c2430c3c187b5::t_fecfa788c448e6 20
+  s_7c2430c3c187b5::t_cada8b88f9bdd2 154
+  s_7c2430c3c187b5::t_d1635332555c03 1-19,21-153,155-182
+src/test/java/io/jenkins/plugins/secretguard/service/SecretScanServiceTest.java
+  s_7c2430c3c187b5::t_3a544ca8151451 121,125-138
+  s_7c2430c3c187b5::t_823216f0058d55 139-140
+  s_7c2430c3c187b5::t_362ae82ee67803 19,122-124
+src/test/java/io/jenkins/plugins/secretguard/config/CustomPatternRuleEntryTest.java
+  s_7c2430c3c187b5::t_e1b2ddb0ef1b81 1-35,38-61,64-162,165-166
+  s_7c2430c3c187b5::t_47ca0c30c87cf5 36-37,62-63,163-164
+src/main/java/io/jenkins/plugins/secretguard/config/SecretGuardGlobalConfiguration.java
+  s_7c2430c3c187b5::t_d1635332555c03 10-12,22-23,31,120-129,146-160,167-172,222-230
+src/test/java/io/jenkins/plugins/secretguard/rules/BuiltInSecretRuleSetTest.java
+  s_7c2430c3c187b5::t_86caefe10b3d34 223
+  s_7c2430c3c187b5::t_c0e442cef19394 7,206-221
+  s_7c2430c3c187b5::t_e1b2ddb0ef1b81 224-254
+  s_7c2430c3c187b5::t_cdbf2c57f9bfdc 222,490,494-502,512
+src/main/resources/io/jenkins/plugins/secretguard/config/SecretGuardGlobalConfiguration/config.jelly
+  s_7c2430c3c187b5::t_62a160bacbcead 48-53
+src/test/java/io/jenkins/plugins/secretguard/scan/PipelineScriptScannerTest.java
+  s_7c2430c3c187b5::t_a2ac634b4b36bc 16
+  s_7c2430c3c187b5::t_3a544ca8151451 6,14,69-94
+  s_7c2430c3c187b5::t_f14368096b1e87 95-96
+src/main/java/io/jenkins/plugins/secretguard/service/SecretScanService.java
+  s_7c2430c3c187b5::t_873f3ecafc0c1e 182-184,189
+  s_7c2430c3c187b5::t_b2de96d5bdf717 13,60,63,67-73,76,185-188,190
+src/main/java/io/jenkins/plugins/secretguard/rules/BuiltInSecretRuleSet.java
+  s_7c2430c3c187b5::t_c91b0e86b4f26f 387
+  s_7c2430c3c187b5::t_ed11838028a5b9 384
+  s_7c2430c3c187b5::t_afdfbc371df399 3-4,30-31,34-40,166,170-182,346-383,385-386
+src/test/java/io/jenkins/plugins/secretguard/config/SecretGuardGlobalConfigurationTest.java
+  s_7c2430c3c187b5::t_e1b2ddb0ef1b81 9,93-121,140-151
+  s_7c2430c3c187b5::t_c0e442cef19394 7,62-92,139
+src/test/java/io/jenkins/plugins/secretguard/scan/ConfigXmlScannerTest.java
+  s_7c2430c3c187b5::t_a2ac634b4b36bc 16
+  s_7c2430c3c187b5::t_3a544ca8151451 7,14,119-138
+  s_7c2430c3c187b5::t_12d042879197fa 139-140
+src/main/resources/io/jenkins/plugins/secretguard/config/SecretGuardGlobalConfiguration/help-customPatternRules.html
+  s_7c2430c3c187b5::t_62a160bacbcead 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0ad7e8f221f3ed058be3dfbeed80f6881916ecb0",
+  "prompts": {},
+  "sessions": {
+    "s_7c2430c3c187b5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3576-7bde-7c82-86c7-8ef783a1d6ea",
+        "model": "gpt-5.4"
+      },
+      "human_author": null
+    }
+  }
+}
