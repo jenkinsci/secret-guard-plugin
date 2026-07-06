@@ -1,0 +1,20 @@
+src/test/java/io/jenkins/plugins/secretguard/rules/BuiltInSecretRuleSetTest.java
+  s_935d9460eacaa1::t_10be9febb8ccae 274-287
+  s_935d9460eacaa1::t_43f1d16336635c 273
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "93511475c9913c305b082a75134d4c43b00cc5c4",
+  "prompts": {},
+  "sessions": {
+    "s_935d9460eacaa1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3542-fa97-7392-963e-6ed51d8fbbbe",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui <977675308@qq.com>"
+    }
+  }
+}
