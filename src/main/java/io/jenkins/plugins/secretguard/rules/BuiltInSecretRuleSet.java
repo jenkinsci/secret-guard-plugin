@@ -1047,9 +1047,6 @@ public class BuiltInSecretRuleSet {
         }
 
         private boolean isPrivateKeyPayloadFragment(String value, String candidate) {
-            if (candidate == null || candidate.isBlank()) {
-                return false;
-            }
             Matcher privateKeyMatcher = PRIVATE_KEY_BLOCK.matcher(value);
             while (privateKeyMatcher.find()) {
                 if (privateKeyMatcher.group().contains(candidate)) {

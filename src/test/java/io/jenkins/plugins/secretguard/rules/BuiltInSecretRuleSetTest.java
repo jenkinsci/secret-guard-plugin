@@ -271,6 +271,21 @@ class BuiltInSecretRuleSetTest {
     }
 
     @Test
+    void stillReportsHighEntropyOutsidePrivateKeyBlock() {
+        String exportedPrivateKey = "export MY_PRIVATE_KEY=\"-----BEGIN RSA PRIVATE KEY-----\\n"
+                + "MIIEowIBAAKCAQEAz7s9T2YhQ4n6L8p1V5x3W0mNc7qR2t8Yu4aPd1kLm9sX6cB2\\n"
+                + "Rk9vQ2p5N3dXa0tMd1pYb2F2b1pud0Z4c2tqV1F5a3B3dE1sV3hOM29QbG9vQ2E=\\n"
+                + "-----END RSA PRIVATE KEY-----\""
+                + " EXTRA_TOKEN=QWxhZGRpbjpPcGVuU2VzYW1lQWxhZGRpbjpPcGVuU2VzYW1l";
+
+        List<SecretFinding> findings = scan("script", exportedPrivateKey);
+
+        assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("rsa-private-key")));
+        assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("pem-private-key")));
+        assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("high-entropy-string")));
+    }
+
+    @Test
     void doesNotTreatCredentialIdsAsSecrets() {
         assertTrue(scan("registryCredentialsId", "jfrog-cred-default").isEmpty());
         assertTrue(scan("tokenCredentialId", "ghp_012345678901234567890123456789012345")
