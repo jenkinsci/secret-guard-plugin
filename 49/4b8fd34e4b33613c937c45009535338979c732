@@ -1,0 +1,25 @@
+src/test/java/io/jenkins/plugins/secretguard/rules/BuiltInSecretRuleSetTest.java
+  s_9af1887307ddda::t_5598494a655e7f 151-152
+  s_9af1887307ddda::t_0ec388b4eb6513 99-106,149-150
+src/main/java/io/jenkins/plugins/secretguard/rules/BuiltInSecretRuleSet.java
+  s_9af1887307ddda::t_d54fecdf19503f 644-645,679,681-682
+  s_9af1887307ddda::t_5598494a655e7f 646-647,680
+src/test/java/io/jenkins/plugins/secretguard/scan/PipelineScriptScannerTest.java
+  s_9af1887307ddda::t_4c18e4467cd793 121-124,173-175
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "494b8fd34e4b33613c937c45009535338979c732",
+  "prompts": {},
+  "sessions": {
+    "s_9af1887307ddda": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3b9f-6333-7621-ba1b-2bf54db31e34",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui <977675308@qq.com>"
+    }
+  }
+}
