@@ -641,6 +641,10 @@ public class BuiltInSecretRuleSet {
                 Pattern.compile("(?i)\\bcurl\\b[^\\r\\n]*?(?:\\s-u|\\s--user)(?:=|\\s+)(['\"]?)([^\\s'\"\\\\]+)\\1");
         private static final Pattern DOCKER_PASSWORD_ARGUMENT = Pattern.compile(
                 "(?i)\\bdocker\\b[^\\r\\n]*?\\blogin\\b[^\\r\\n]*?(?:\\s-p|\\s--password)(?:=|\\s+)(['\"]?)([^\\s'\"\\\\]+)\\1");
+        private static final Pattern MYSQL_PASSWORD_ARGUMENT = Pattern.compile(
+                "(?i)\\b(?:mysql|mysqldump|mysqlimport)\\b[^\\r\\n]*?\\s--password(?:=|\\s+)(['\"]?)([^\\s'\"\\\\]+)\\1");
+        private static final Pattern MYSQL_SHORT_PASSWORD_ARGUMENT =
+                Pattern.compile("(?i)\\b(?:mysql|mysqldump|mysqlimport)\\b[^\\r\\n]*?\\s-p(['\"]?)([^\\s'\"\\\\]+)\\1");
         private static final Pattern SSHPASS_PASSWORD_ARGUMENT =
                 Pattern.compile("(?i)\\bsshpass\\b[^\\r\\n]*?\\s-p(?:\\s+)?(['\"]?)([^\\s'\"\\\\]+)\\1");
         private static final Pattern WGET_PASSWORD_ARGUMENT =
@@ -672,6 +676,10 @@ public class BuiltInSecretRuleSet {
                     context, sourceName, lineNumber, fieldName, value, SSHPASS_PASSWORD_ARGUMENT, findings, "-p");
             collectContextFindings(
                     context, sourceName, lineNumber, fieldName, value, WGET_PASSWORD_ARGUMENT, findings, "--password");
+            collectContextFindings(
+                    context, sourceName, lineNumber, fieldName, value, MYSQL_PASSWORD_ARGUMENT, findings, "--password");
+            collectContextFindings(
+                    context, sourceName, lineNumber, fieldName, value, MYSQL_SHORT_PASSWORD_ARGUMENT, findings, "-p");
             return findings;
         }
 

@@ -96,6 +96,14 @@ class BuiltInSecretRuleSetTest {
                 .anyMatch(finding -> finding.getRuleId().equals("docker-password-stdin-secret")));
         assertTrue(scan("", "sshpass -p PlainSecret42 ssh build-user@example.invalid true").stream()
                 .anyMatch(finding -> finding.getRuleId().equals("command-user-password-argument")));
+        assertTrue(scan("", "mysqldump -uroot -pPlainSecret dbname").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("command-user-password-argument")));
+        assertTrue(scan("", "mysqldump --password=PlainSecret dbname").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("command-user-password-argument")));
+        assertTrue(scan("", "mysql --password=PlainSecret dbname").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("command-user-password-argument")));
+        assertTrue(scan("", "mysqlimport --user=root --password=PlainSecret dbname dump.sql").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("command-user-password-argument")));
         assertTrue(scan("", "kubectl create secret generic example-secret --from-literal=token=PlainSecret42").stream()
                 .anyMatch(finding -> finding.getRuleId().equals("kubernetes-secret-from-literal")));
         assertTrue(scan("", "oc create secret generic example-secret --from-literal password=PlainSecret42").stream()
@@ -137,6 +145,10 @@ class BuiltInSecretRuleSetTest {
                         "echo \"$REGISTRY_PASSWORD\" | docker login --username build-user --password-stdin registry.example.invalid")
                 .isEmpty());
         assertTrue(scan("", "sshpass -p \"$SSH_PASSWORD\" ssh build-user@example.invalid true")
+                .isEmpty());
+        assertTrue(scan("", "mysqldump --password=\"$MYSQL_PASSWORD\" dbname").isEmpty());
+        assertTrue(scan("", "mysql --password=${MYSQL_PASSWORD} dbname").isEmpty());
+        assertTrue(scan("", "mysqlimport --password=\"$MYSQL_PASSWORD\" dbname dump.sql")
                 .isEmpty());
         assertTrue(scan("", "kubectl create secret generic example-secret --from-literal=token=$SERVICE_TOKEN")
                 .isEmpty());

@@ -118,6 +118,10 @@ class PipelineScriptScannerTest {
                         sh 'docker login --username build-user --password PlainSecret42 registry.example.invalid'
                         sh 'echo PlainSecret42 | docker login --username build-user --password-stdin registry.example.invalid'
                         sh 'sshpass -p PlainSecret42 ssh build-user@example.invalid true'
+                        sh 'mysqldump -uroot -pPlainSecret dbname'
+                        sh 'mysqldump --password=PlainSecret dbname'
+                        sh 'mysql --password=PlainSecret dbname'
+                        sh 'mysqlimport --user=root --password=PlainSecret dbname dump.sql'
                         sh 'kubectl create secret generic example-secret --from-literal=token=PlainSecret42'
                       }
                     }
@@ -166,6 +170,9 @@ class PipelineScriptScannerTest {
                         sh 'docker login --username "$REGISTRY_USER" --password "$REGISTRY_PASSWORD" registry.example.invalid'
                         sh 'echo "$REGISTRY_PASSWORD" | docker login --username build-user --password-stdin registry.example.invalid'
                         sh 'sshpass -p "$SSH_PASSWORD" ssh build-user@example.invalid true'
+                        sh 'mysqldump --password="$MYSQL_PASSWORD" dbname'
+                        sh 'mysql --password=${MYSQL_PASSWORD} dbname'
+                        sh 'mysqlimport --password="$MYSQL_PASSWORD" dbname dump.sql'
                         sh 'kubectl create secret generic example-secret --from-literal=token=$SERVICE_TOKEN'
                       }
                     }
