@@ -1,6 +1,7 @@
 package io.jenkins.plugins.secretguard.scan;
 
 import io.jenkins.plugins.secretguard.model.ScanContext;
+import io.jenkins.plugins.secretguard.rules.GitHubTokenPatterns;
 import io.jenkins.plugins.secretguard.util.NonSecretHeuristics;
 import java.util.Locale;
 import java.util.Optional;
@@ -14,8 +15,7 @@ final class CommonPluginReferenceConfigAdapter implements ConfigXmlScanAdapter {
             "Adapter: skipped common plugin external secret or credential reference.";
     private static final Pattern REFERENCE_VALUE = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._/@:-]{0,127}");
     private static final Pattern HIGH_CONFIDENCE_SECRET = Pattern.compile("(?is).*("
-            + "gh[pousr]_[A-Za-z0-9_]{30,255}"
-            + "|github_pat_[A-Za-z0-9_]{60,255}"
+            + GitHubTokenPatterns.HIGH_CONFIDENCE_TOKEN_EXPRESSION
             + "|eyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}"
             + "|(?:AKIA|ASIA)[A-Z0-9]{16}"
             + "|Bearer\\s+[A-Za-z0-9._~+/=-]{12,}"

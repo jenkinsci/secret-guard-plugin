@@ -44,6 +44,23 @@ class PipelineScriptScannerTest {
     }
 
     @Test
+    void detectsStatelessGitHubAppInstallationTokensInPipelineEnvironment() {
+        String script = """
+                pipeline {
+                  agent any
+                  environment {
+                    GITHUB_TOKEN = '%s'
+                  }
+                }
+                """.formatted(githubAppInstallationToken());
+
+        SecretScanResult result = scanner.scan(context(), script);
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(finding -> finding.getRuleId().equals("github-token")));
+    }
+
+    @Test
     void detectsBasicAuthAndProviderWebhookSecretsInPipelineScript() {
         String script = """
                 pipeline {
@@ -1108,6 +1125,11 @@ class PipelineScriptScannerTest {
 
     private String gitlabToken() {
         return "glpat-" + "abcdefghijklmnopqrstuvwxyz012345";
+    }
+
+    private String githubAppInstallationToken() {
+        return "ghs_123456_eyJhbGciOiJIUzI1NiJ9.eyJpbnN0YWxsYXRpb24iOiIxMjM0NTYifQ.signatureValue12345"
+                + "a".repeat(440);
     }
 
     private String npmAuthToken() {

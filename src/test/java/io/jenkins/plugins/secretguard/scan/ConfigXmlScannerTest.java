@@ -805,23 +805,24 @@ password = ${TWINE_PASSWORD}
 
     @Test
     void stillFlagsCommonPublisherHighConfidenceSecretLiterals() {
+        String token = "ghs_123456_eyJhbGciOiJIUzI1NiJ9.eyJpbnN0YWxsYXRpb24iOiIxMjM0NTYifQ.signatureValue12345"
+                + "a".repeat(440);
         String xml = """
                 <project>
                   <publishers>
                     <io.example.SecretAwarePublisher>
-                      <secretName>ghp_012345678901234567890123456789012345</secretName>
+                      <secretName>%s</secretName>
                       <secretKey>token</secretKey>
                     </io.example.SecretAwarePublisher>
                   </publishers>
                 </project>
-                """;
+                """.formatted(token);
         ConfigXmlScanner scanner = new ConfigXmlScanner();
         SecretScanResult result = scanner.scan(context("FreeStyleProject"), xml);
 
         assertTrue(result.getFindings().stream()
                 .anyMatch(finding -> finding.getRuleId().equals("github-token")));
-        assertFalse(
-                result.getNotes().stream().anyMatch(note -> note.contains("ghp_012345678901234567890123456789012345")));
+        assertFalse(result.getNotes().stream().anyMatch(note -> note.contains("ghs_123456_eyJhbGciOiJIUzI1NiJ9")));
     }
 
     @Test
