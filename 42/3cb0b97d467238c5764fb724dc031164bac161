@@ -1,0 +1,44 @@
+src/main/java/io/jenkins/plugins/secretguard/rules/ContextRuleRegistry.java
+  s_47e7687aba66ed::t_b39f4de2515950 1-495
+src/test/java/io/jenkins/plugins/secretguard/rules/BuiltInSecretRuleSetTest.java
+  s_47e7687aba66ed::t_f4fac197a0a48e 16-17,517-526
+  s_47e7687aba66ed::t_70ae13ec667958 527-528
+src/main/java/io/jenkins/plugins/secretguard/rules/GenericSecretRules.java
+  s_47e7687aba66ed::t_b39f4de2515950 1-290
+src/main/java/io/jenkins/plugins/secretguard/rules/SecretRuleSupport.java
+  s_47e7687aba66ed::t_b39f4de2515950 1-122
+src/main/java/io/jenkins/plugins/secretguard/rules/BuiltInSecretRuleSet.java
+  s_47e7687aba66ed::t_06135b2976b09e 21,35,40-48
+src/main/java/io/jenkins/plugins/secretguard/rules/TokenRuleRegistry.java
+  s_47e7687aba66ed::t_b39f4de2515950 1-65
+src/main/java/io/jenkins/plugins/secretguard/rules/BasicAuthHeaderRule.java
+  s_47e7687aba66ed::t_8dcf0a264c0459 24-25
+  s_47e7687aba66ed::t_b39f4de2515950 1-23,26-62
+src/main/java/io/jenkins/plugins/secretguard/rules/SensitiveFieldRule.java
+  s_47e7687aba66ed::t_b39f4de2515950 1-16,19-63
+  s_47e7687aba66ed::t_8dcf0a264c0459 17-18
+src/main/java/io/jenkins/plugins/secretguard/rules/PrivateKeyRuleRegistry.java
+  s_47e7687aba66ed::t_b39f4de2515950 1-42
+src/main/java/io/jenkins/plugins/secretguard/rules/HighEntropyRule.java
+  s_47e7687aba66ed::t_8dcf0a264c0459 27-28,43-44
+  s_47e7687aba66ed::t_b39f4de2515950 1-26,29-42,45-71
+src/main/java/io/jenkins/plugins/secretguard/rules/UrlRuleRegistry.java
+  s_47e7687aba66ed::t_8dcf0a264c0459 222-223,226-228,238-240
+  s_47e7687aba66ed::t_b39f4de2515950 1-221,224-225,229-237,241-243
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "423cb0b97d467238c5764fb724dc031164bac161",
+  "prompts": {},
+  "sessions": {
+    "s_47e7687aba66ed": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f69ec-2504-7ad1-9340-3d2211bf60e1",
+        "model": "gpt-5.4"
+      },
+      "human_author": "donhui <977675308@qq.com>"
+    }
+  }
+}
