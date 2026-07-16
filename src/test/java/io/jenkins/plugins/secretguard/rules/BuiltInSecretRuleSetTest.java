@@ -13,6 +13,8 @@ import io.jenkins.plugins.secretguard.model.SecretFinding;
 import io.jenkins.plugins.secretguard.model.Severity;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 class BuiltInSecretRuleSetTest {
@@ -510,6 +512,18 @@ class BuiltInSecretRuleSetTest {
                 .isEmpty());
         assertTrue(scan("chatWebhookDocs", "https://hooks.slack.com/services/T00000000/B00000000")
                 .isEmpty());
+    }
+
+    @Test
+    void builtInRulesExposeStableUniqueRuleIds() {
+        List<String> ruleIds =
+                ruleSet.getRules().stream().map(SecretRule::getId).collect(Collectors.toList());
+
+        assertTrue(ruleIds.contains("github-token"));
+        assertTrue(ruleIds.contains("npm-auth-token-context"));
+        assertTrue(ruleIds.contains("rsa-private-key"));
+        assertTrue(ruleIds.contains("url-query-secret"));
+        assertEquals(ruleIds.size(), Set.copyOf(ruleIds).size());
     }
 
     private List<SecretFinding> scan(String fieldName, String value) {
