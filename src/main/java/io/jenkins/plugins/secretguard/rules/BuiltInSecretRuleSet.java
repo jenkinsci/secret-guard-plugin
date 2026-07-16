@@ -50,7 +50,7 @@ public class BuiltInSecretRuleSet {
                 "github-token",
                 "GitHub token is hardcoded",
                 Severity.HIGH,
-                Pattern.compile("\\b(?:gh[pousr]_[A-Za-z0-9_]{30,255}|github_pat_[A-Za-z0-9_]{60,255})\\b"),
+                GitHubTokenPatterns.HIGH_CONFIDENCE_TOKEN,
                 Recommendations.CREDENTIALS));
         builtIns.add(new PatternSecretRule(
                 "aws-access-key",

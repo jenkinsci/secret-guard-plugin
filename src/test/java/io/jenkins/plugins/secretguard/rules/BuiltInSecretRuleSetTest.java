@@ -26,6 +26,20 @@ class BuiltInSecretRuleSetTest {
     }
 
     @Test
+    void detectsStatelessGitHubAppInstallationTokens() {
+        List<SecretFinding> findings = scan("token", githubAppInstallationToken());
+
+        assertTrue(findings.stream().anyMatch(finding -> finding.getRuleId().equals("github-token")));
+        assertTrue(findings.stream().anyMatch(finding -> finding.getSeverity() == Severity.HIGH));
+    }
+
+    @Test
+    void doesNotTreatMalformedGitHubAppInstallationTokenReferencesAsGitHubTokens() {
+        assertFalse(scan("token", "ghs_build-tools_reference").stream()
+                .anyMatch(finding -> finding.getRuleId().equals("github-token")));
+    }
+
+    @Test
     void detectsHardcodedBasicAuthHeader() {
         List<SecretFinding> findings = scan("Authorization", "Authorization: Basic QWxhZGRpbjpPcGVuU2VzYW1l");
 
@@ -549,6 +563,11 @@ class BuiltInSecretRuleSetTest {
 
     private String gitlabToken() {
         return "glpat-" + "abcdefghijklmnopqrstuvwxyz012345";
+    }
+
+    private String githubAppInstallationToken() {
+        return "ghs_123456_eyJhbGciOiJIUzI1NiJ9.eyJpbnN0YWxsYXRpb24iOiIxMjM0NTYifQ.signatureValue12345"
+                + "a".repeat(440);
     }
 
     private String npmAuthTokenConfig() {
