@@ -1,0 +1,37 @@
+src/main/java/io/jenkins/plugins/secretguard/rules/BuiltInSecretRuleSet.java
+  s_93a40fc55afeed::t_1590b5517daa5e 53
+src/main/java/io/jenkins/plugins/secretguard/scan/CommonPluginReferenceConfigAdapter.java
+  s_93a40fc55afeed::t_1590b5517daa5e 4,18
+src/test/java/io/jenkins/plugins/secretguard/scan/ConfigXmlScannerTest.java
+  s_93a40fc55afeed::t_49c3f02e0a3ba7 808-809,814,819
+  s_93a40fc55afeed::t_c321fb50f4c52c 825
+src/test/java/io/jenkins/plugins/secretguard/scan/PipelineScriptScannerTest.java
+  s_93a40fc55afeed::t_1590b5517daa5e 47-62,1130,1133
+  s_93a40fc55afeed::t_ab7c27350874ca 1131-1132
+  s_93a40fc55afeed::t_64de3f3d3e1fd9 46
+  s_93a40fc55afeed::t_e25eb516067cee 1134
+docs/detection-coverage.md
+  s_93a40fc55afeed::t_1590b5517daa5e 14
+src/main/java/io/jenkins/plugins/secretguard/rules/GitHubTokenPatterns.java
+  s_93a40fc55afeed::t_1590b5517daa5e 1-14
+src/test/java/io/jenkins/plugins/secretguard/rules/BuiltInSecretRuleSetTest.java
+  s_93a40fc55afeed::t_1590b5517daa5e 28-41,568,571
+  s_93a40fc55afeed::t_ab7c27350874ca 569-570
+  s_93a40fc55afeed::t_350135970c2fd2 572
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "af22eff941331d86ef5ef7bdb552a459ff2552f7",
+  "prompts": {},
+  "sessions": {
+    "s_93a40fc55afeed": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6918-4f1c-73e2-95ac-587923f26daa",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "donhui <977675308@qq.com>"
+    }
+  }
+}
